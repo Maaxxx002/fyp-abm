@@ -1,0 +1,10 @@
+numpy
+scipy
+pandas
+pytest
+
+# mesa is intentionally left out: nothing in experiments/abm.py or CLAUDE.md's
+# repo layout uses Mesa's Agent/Model/scheduler classes — the pilot is a flat,
+# vectorised numpy simulation over a single well-mixed population, no spatial
+# grid. Add it back with `pip install mesa` (then re-freeze) if an arm ends up
+# needing Mesa's scheduler or space classes specifically.
