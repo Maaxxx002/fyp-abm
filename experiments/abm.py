@@ -20,7 +20,10 @@ def run(N, dc, seed, days=600, seeds_infected=None, behaviour=True,
     """dc in per-capita deaths/day. Returns daily series."""
     rng = np.random.default_rng(seed)
     state = np.zeros(N, dtype=np.int8)
-    n0 = seeds_infected if seeds_infected is not None else max(1, int(round(0.01*N)))
+    # D8 (adopt regardless): 1% seeding (30 agents at N=3,000) leaves no exponential
+    # growth phase, dropping control-run shape-metric definability from 40/40 to 12/40.
+    # 10 agents fixes this; not scaled by N since that's what was actually measured.
+    n0 = seeds_infected if seeds_infected is not None else 10
     state[rng.choice(N, n0, replace=False)] = I
 
     # Daily transition prob must be the RATE, not 1-exp(-rate). A geometric

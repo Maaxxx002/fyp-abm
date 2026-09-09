@@ -45,12 +45,18 @@ arm information another lacks breaks the entire comparison.
 | R₀ / latent / infectious | 3.0 / 2 d / 6 d | Weitz Table 1 |
 | f_D | 0.01 flat (aggregate); per-agent from `IFR_10age` | Weitz / Gozzi |
 | T_H | 14 d default | Weitz Fig 6 |
-| Awareness signal | **28-day rolling mean** of reported deaths | register C7 |
+| Awareness signal | **7-day rolling mean** of reported deaths | register A8, settled |
 | Detection rate | 0.7 | Gozzi |
 | Death delay Δ | 14 d | Gozzi |
 | Age structure | New York `pop_data_Nk.csv`, 10 bands | Gozzi repo |
 | Population-weighted IFR | 0.9718% (vs Weitz's 1.000%) | computed |
 | Scenarios | S1 R₀=3/T_H=14 · S2 R₀=2 · S3 T_H=28 | `docs/Scenario_Spec.md` |
+
+⚠️ **Awareness window is not fully closed.** A8 settles it at 7 days, but register C7 measured
+that a 28-day window gives materially better response gradation (e.g. 0.593 vs 0.274 spread at
+N=3,000), and E5 marks this "ANSWERED — yes, reopens the N decision." That reopening has not
+been resolved back into a settled decision — don't silently switch to 28 days, and don't assume
+7 days is final either. Surface this explicitly if it comes up rather than picking one.
 
 ⚠️ **Symbol collision.** Gozzi's `mu` = 1/infectious period, `eps` = 1/latent period. Weitz's
 `μ` = 1/latent, `γ` = 1/infectious. Same letters, opposite meanings. Use explicit names
