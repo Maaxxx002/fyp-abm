@@ -33,9 +33,10 @@ Last updated: after the shape-metric investigation and the N decision.
 | A17 | S1 baseline (R₀=3, T_H=14); S2 milder (R₀=2); S3 delayed (T_H=28) | S2 stresses signal magnitude, S3 stresses timing |
 | A18 | Arm 4 distils on **S1 only**, evaluated on S2/S3 held out | Turns arm 4 from a fit check into a generalisation test |
 | A19 | Shape metric: **Weitz symmetry coefficient computed on incidence** | See D2 |
-| A20 | Integration: **12 sub-steps per day** | Gozzi's scheme; see D1 |
+| A20 | Integration: **48 sub-steps per day** (revised from 12 — see C9) | Gozzi's own default (`daily_steps=12` — verified in their source: `compartment_model_age_deaths.py`, `function_model_age_deaths.py`, `mobility_model_age.py`, all `dt=1/12`) is insufficient for this model's precision; see C9 |
 | A21 | Initial infected: **10 agents** (0.33% at N=3,000) | D8 — a 1% seed removes the exponential growth phase entirely |
 | A22 | Repo `fyp-abm` is the build artefact; `docs/` holds the four specs and is authoritative | Claude Code sessions read `CLAUDE.md` + `docs/` |
+| A23 | "Stay home" is **two-sided**: an agent who stays home neither catches nor spreads that day, so the population multiplier is (1−q)² | Formalises the assumption already baked into `q = 1 − (1+(δ/δ_c)^k)^(−1/2)` (CLAUDE.md Test 2 / Sourcing_Pack_v3.md's "Test 3" open point) — recorded as decided, not just assumed |
 
 ## B. Sources — extraction status
 
@@ -146,6 +147,38 @@ A 28-day window at **N=1,000** (0.447) outperforms a 7-day window at **N=3,000**
 Trade-off: a 28-day window means agents respond to month-old information, adds ~14 days of lag
 comparable to T_H, and departs from Weitz's sourced 7-day smoothing.
 
+**C8 — Test 1 under the 12-substep scheme.** N=100,000, 10/10 seeds, behaviour off, 900 days:
+mean final S = 0.05801 vs ODE target 0.0594 (2.34% relative error); implied R0 = 3.0225
+(per-seed mean 3.0226 ± 0.0124). [Speculation, high confidence] SEM ≈ 0.0124/√10 ≈ 0.0039; the
+0.0226 gap from R0=3.0000 is ~5.8 SEMs, too large to attribute to sampling noise alone. Likely a
+small residual bias from discretisation error compounding across the E→I→H→D chain (three
+sequential sub-stepped transitions), distinct from the single-transition check in D1 that gave
+3.006. Not yet distinguished from an implementation issue — see E15.
+
+**C9 — Substep convergence, resolved.** N=100,000, 30/30 seeds, behaviour off, 900 days
+(ODE reference final S = 0.05952 at R0=3.0000 exactly):
+
+| substeps | mean final S | implied R0 | R0 std | SEM | gap (SEM units) |
+|---|---|---|---|---|---|
+| 12 | 0.05807 | 3.0216 | 0.0150 | 0.0027 | 7.92 |
+| 24 | 0.05858 | 3.0140 | 0.0144 | 0.0026 | 5.30 |
+| 48 | 0.05955 | 2.9997 | 0.0183 | 0.0033 | **-0.08** |
+
+Gap shrinks monotonically (7.92 → 5.30 → -0.08) and is statistically indistinguishable from
+zero at 48 — confirms genuine discretisation bias shrinking as dt→0, rules out an
+implementation bug. In relative-error terms: 12 substeps → 2.44% (fails even the old 2%
+tolerance), 24 → 1.58% (fails 1%), 48 → 0.05% (passes 1% comfortably). **A20 revised: 48
+sub-steps/day, not Gozzi's default of 12.** Gozzi's own model has one fewer sequential
+sub-stepped compartment (no H/death-delay chain), so their published default does not carry
+enough precision for this model's extra compartment. Convergence order not identifiable from
+3 points (bias drops 35% then far more than either O(dt) or O(dt²) predicts — seed noise
+contributes at 48), but not needed for the decision: 48 clears the tolerance with margin.
+
+**C10 — Test 1 closed against `src/model.py`.** Repointed from the `experiments/abm.py` pilot
+(G2 resolved) with the tolerance tightened 2% → 1% (G1 resolved). N=100,000, 30/30 seeds,
+days=900, behaviour off: mean final S = 0.05926 vs ODE target 0.05952 — **0.431% relative
+error**. Pass, with roughly 2.3× margin under the 1% gate.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -190,9 +223,35 @@ that avoid a peak landmark — final susceptible fraction, peak-to-mean ratio, t
 threshold fraction, area concentration — are the direction to search.
 
 **D6 — Oscillation dropped as a scenario target.** Weitz's ODE reproduces waves rising with T_H
-(2, 2, 3, 3 at T_H = 7, 14, 21, 28). The ABM does not, and two reasonable prominence definitions
-disagree on identical runs. Cause not isolated; smoothing and metric artifact both eliminated as
-sole explanations.
+(2, 2, 3, 3 at T_H = 7, 14, 21, 28) *under one specific prominence threshold*. The ABM does not
+reproduce this under any threshold tested. ⚠️ **This claim is now known to be threshold-fragile
+even at the ODE level — see D9.** The integration scheme (D1/E11) has been ruled out as the
+cause (E12, disconfirmed). Root cause remains unknown.
+
+**D9 — The wave-count metric is unsourced and threshold-fragile, even on the ODE.** Unlike
+Weitz's symmetry coefficient (extracted from their Fig 1C), "count peaks with
+`scipy.signal.find_peaks`" is not a method described in either source paper — it was introduced
+in this project as an analytical convenience. [Fact] On the *same deterministic ODE curve*,
+three reasonable, independently-chosen prominence thresholds give three different qualitative
+answers: 5% of the global peak → rising 2,2,3,3 (this register's original citation); 10% of the
+global peak → flat 2,2,2,2; 10% of each local peak's own height → rising 2,3,3,4. Consequence:
+**no sourced, robust, quantitative definition of "number of oscillations" currently exists in
+this project**, at either the ABM or the ODE level. Peak height and final susceptible fraction
+remain the only metrics that have been robust throughout, and they carry no shape information.
+
+**D10 — Test 2's δ(t) specification was wrong; corrected.** Originally specified as "raw death
+count from the running simulation" — a tally of realized D-transitions (tried both lagged,
+δ(t)=deaths(t−1), and same-day via a two-pass split). Measured at ~26% relative error (lagged)
+and ~48% (same-day two-pass — worse, not better) against the ODE at N=100,000, 30 seeds, far
+outside Test 2's 2% tolerance. Confirmed NOT a two-sided/Bernoulli artifact: a deterministic
+`direct-g` version (no `q`, no per-agent draws, transmission multiplied by g(δ) directly, same
+lagged δ) gave essentially the same wrong answer (0.392 vs the q-based 0.388, 5 seeds).
+**Root cause:** Weitz's own model defines δ(t) = γ_H·H(t) — a continuous instantaneous rate from
+the *current* H-compartment stock — not a discrete count of deaths that already happened.
+Recomputing δ this way (from the running H count each sub-step, no lag) drops the deterministic
+`direct-g` version's error to ~1.6% (5 seeds) — confirms the diagnosis. **Not yet closed:** even
+with this fix, the actual two-sided `q` mechanism still shows a residual gap against the ODE —
+see E16. Diagnostic script: `experiments/verify_meanfield_delta_bug.py`.
 
 ## E. Open items
 
@@ -204,8 +263,11 @@ sole explanations.
 | E4 | Re-measure C3 scenario separation with CBF at N=3,000 | scenario spec |
 | E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
 | E11 | `experiments/abm.py` uses a single daily step with raw-rate transitions, contradicting A20 | correctness of the delay kernel |
-| E12 | Whether switching to 12 sub-steps closes D6 (the T_H → oscillation discrepancy) | D6, shape metric |
+| E12 | **DISCONFIRMED** — see D9/G3. Switching to 12 sub-steps did not change the T_H → wave-count direction under either definition | closed as a candidate cause; D6 itself remains open |
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
+| E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
+| E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
+| E16 | Even with D10's δ fix, the two-sided `q` mechanism still shows 4.4–7.1% error against the ODE at small scale (5–10 seeds, not yet the full N=100,000/30-seed run) — finer decision cadence measured closer (4.4% redrawn every sub-step vs 7.1% once/day, the cadence actually specified), echoing the 12→24→48 sub-step story (C9). Ties to E2/Scenario_Spec.md §5's "sweep the re-decision cadence" item — cadence may not be a free choice confined to arm 1; it may also gate whether Test 2 can pass at all | Test 2 closure; E2; arm 1 cadence choice |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) | arm 1 calibration |
@@ -229,23 +291,26 @@ Repo `fyp-abm` (GitHub). Layout: `docs/` · `src/` · `tests/` · `experiments/`
 
 | Item | State |
 |---|---|
-| Verification Test 1 — ODE convergence | ✅ `tests/test_ode_convergence.py`, 2 tests passing. 10/10 seeds, N=100,000, behaviour off, 2% relative tolerance |
-| Verification Test 2 — mean-field recovery | ❌ not implemented. The `q = 1 − (1+(δ/δ_c)^k)^(−1/2)` relation exists inline in `experiments/abm.py` and is hand-checked only |
+| Verification Test 1 — ODE convergence | ✅ **CLOSED.** `tests/test_ode_convergence.py`, repointed to `src/model.py` (G2 resolved), 30/30 seeds, N=100,000, behaviour off, 1% relative tolerance (G1 resolved). Measured: mean final S=0.05926 vs ODE 0.05952, 0.431% relative error. See C10 |
+| Verification Test 2 — mean-field recovery | ❌ **BLOCKED, not passing.** `tests/test_meanfield_recovery.py` exists but fails (~26% error) under the originally-specified δ. Root cause found and a fix identified (D10); not yet re-tested at full N=100,000/30 seeds, and a residual gap remains even with the fix (E16) |
 | Verification Test 3 — renderer totality | ❌ cannot exist — no `Perception` dataclass or renderer yet |
-| `src/` | empty apart from `.gitkeep` |
-| `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps |
+| `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1) and Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23) — not arm 1's CBF, which does not exist yet |
+| `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps. Untouched throughout the `src/model.py` build |
 | `experiments/metrics.py` | shape-metric exploration; computes the symmetry coefficient, which D7/D8 show is unreliable. Do not build on it |
+| `experiments/verify_substep_bias.py`, `verify_substep_scheme.py`, `verify_meanfield_delta_bug.py` | diagnostic scripts kept alongside the pilot, not part of `src/` — back C9, D9/G3, and D10 respectively |
 
-**G1 — Tolerance note.** Test 1 uses 2% relative tolerance against CLAUDE.md's stated "three
-decimals". Loose, but still ~2.4× tighter than needed to catch the D1 R₀ bug. Tighten to 1%
-when the test is repointed at `src/`.
+**G1 — Tolerance note. RESOLVED.** Test 1 used 2% relative tolerance against CLAUDE.md's stated
+"three decimals" while it guarded the pilot. Tightened to 1% when repointed to `src/model.py`
+(C10) — measured at 0.431% relative error, comfortably inside it.
 
-**G2 — Test 1 currently guards a pilot script, not the model.** When `src/` exists the test must
-be repointed, or the suite stays green while validating code that is no longer run.
+**G2 — Test 1 currently guards a pilot script, not the model. RESOLVED.** Repointed to
+`src/model.py` (C10); the suite now validates the code that is actually run.
 
-**G3 — [Speculation, medium confidence] E11 may explain D6.** A single daily step with
-`p = rate` gives the correct *mean* dwell time but a geometric rather than exponential
-*distribution* (variance 30 vs 36 for the infectious period). Oscillation in Weitz's model is
-driven by the delay kernel between infection and death, so a wrong kernel shape could preserve
-final size while distorting oscillation. Confirmed if switching to 12 sub-steps flips the
-T_H → wave-count direction; disconfirmed if it does not.
+**G3 — [DISCONFIRMED, measured].** Switching to 12 sub-steps/day (A20's mandated scheme) did
+not change the T_H → wave-count direction under either counting convention tested (prominence
+relative to the run's global peak, or to each local peak's own height). Wave counts stayed
+flat/noisy (~1.0–2.2) across T_H ∈ {7,14,21,28} under both the old and new integration schemes,
+20/20 seeds, N=3,000. The wrong dwell-time distribution (D1/E11) is ruled out as the explanation
+for D6. A20 still stands on its own merits — it matches Gozzi's published implementation and
+gives the correct dwell-time distribution shape — independent of whether it explains D6. See D9
+for why D6's own ODE reference is now in question too.

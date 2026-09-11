@@ -83,3 +83,93 @@ def run(N, dc, seed, days=600, seeds_infected=None, behaviour=True,
             daily_deaths[t+1:] = 0; prev[t+1:] = 0; inc[t+1:] = 0; Sfrac[t+1:] = Sfrac[t]; break
     return dict(deaths=daily_deaths, prev=prev, inc=inc, S=Sfrac, out=out_frac,
                 total_inf=N-np.count_nonzero(state==S), N=N)
+
+
+def run_substeps(N, dc, seed, n_substeps, days=600, seeds_infected=None, behaviour=True,
+                  signal="instant", window=7, sides=2, T_H=14.0, R0=3.0):
+    """Same model and same per-day behaviour decision as run(), but the disease
+    dwell-time transitions (S->E force of infection, E->I, I->R, H->D) are
+    advanced over n_substeps sub-steps of dt=1/n_substeps per day, each with
+    transition probability 1-exp(-rate*dt) (register A20/D1, Gozzi's scheme).
+    Kept alongside run() (E11/G3) so schemes can be run side by side on
+    identical seeds. register E15: n_substeps is exposed (not hardcoded to 12)
+    to check whether Test 1's residual bias (C8) shrinks as it increases."""
+    dt = 1.0 / n_substeps
+    rng = np.random.default_rng(seed)
+    state = np.zeros(N, dtype=np.int8)
+    n0 = seeds_infected if seeds_infected is not None else 10
+    state[rng.choice(N, n0, replace=False)] = I
+
+    rate_ei, rate_ir, rate_hd = MU, GAMMA, 1.0/T_H
+    p_ei_dt = 1 - np.exp(-rate_ei*dt)
+    p_ir_dt = 1 - np.exp(-rate_ir*dt)
+    p_hd_dt = 1 - np.exp(-rate_hd*dt)
+    beta_s = R0*GAMMA
+    daily_deaths = np.zeros(days); prev = np.zeros(days); Sfrac = np.zeros(days); inc = np.zeros(days)
+    out_frac = np.zeros(days)
+    recent = []
+
+    for t in range(days):
+        # --- perceived death signal (per capita per day) -- identical to run():
+        # a daily quantity, unaffected by how the day's disease dynamics are substepped.
+        if not behaviour:
+            q = 0.0
+        else:
+            if signal == "instant":
+                d = (daily_deaths[t-1]/N) if t > 0 else 0.0
+            elif signal == "cum":
+                d = daily_deaths[:t].sum()/N
+            elif signal == "both":
+                d = None
+                r_s = ((np.mean(recent[-window:])/N)/dc)**K if recent else 0.0
+                r_l = ((daily_deaths[:t].sum()/N)/(dc*100.0))**K
+            else:
+                d = (np.mean(recent[-window:])/N) if recent else 0.0
+            r = (r_s + r_l) if d is None else (d/dc)**K
+            q = 1.0 - (1.0+r)**(-1.0/sides)
+
+        # --- action: decided once per day, held fixed across the day's sub-steps ---
+        out = rng.random(N) > q
+        out_frac[t] = out.mean()
+
+        day_new_e = 0
+        day_new_d = 0
+        for _ in range(n_substeps):
+            inf_mask = (state == I)
+            n_inf_out = np.count_nonzero(inf_mask & out)
+            lam = beta_s * n_inf_out / N
+            p_inf_dt = 1 - np.exp(-lam*dt)
+
+            new_e = (state == S) & out & (rng.random(N) < p_inf_dt)
+            new_i = (state == E) & (rng.random(N) < p_ei_dt)
+            leave_i = inf_mask & (rng.random(N) < p_ir_dt)
+            to_h = leave_i & (rng.random(N) < FD)
+            to_r = leave_i & ~to_h
+            new_d = (state == H) & (rng.random(N) < p_hd_dt)
+
+            state[new_d] = D; state[to_h] = H; state[to_r] = R
+            state[new_i] = I; state[new_e] = E
+
+            day_new_e += np.count_nonzero(new_e)
+            day_new_d += np.count_nonzero(new_d)
+
+        inc[t] = day_new_e
+        daily_deaths[t] = day_new_d; recent.append(day_new_d)
+        prev[t] = np.count_nonzero(state == I)
+        Sfrac[t] = np.count_nonzero(state == S)/N
+        if prev[t] == 0 and np.count_nonzero(state == E) == 0 and np.count_nonzero(state==H)==0:
+            daily_deaths[t+1:] = 0; prev[t+1:] = 0; inc[t+1:] = 0; Sfrac[t+1:] = Sfrac[t]; break
+    return dict(deaths=daily_deaths, prev=prev, inc=inc, S=Sfrac, out=out_frac,
+                total_inf=N-np.count_nonzero(state==S), N=N)
+
+
+def run_gozzi12(*args, **kwargs):
+    return run_substeps(*args, n_substeps=12, **kwargs)
+
+
+def run_gozzi24(*args, **kwargs):
+    return run_substeps(*args, n_substeps=24, **kwargs)
+
+
+def run_gozzi48(*args, **kwargs):
+    return run_substeps(*args, n_substeps=48, **kwargs)

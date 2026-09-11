@@ -41,7 +41,7 @@ arm information another lacks breaks the entire comparison.
 | N | 3,000 | measured floor, register C5/C7 |
 | Run length | 600 days | |
 | Initial infected | 10 agents | register D8 — larger seeds destroy the growth phase |
-| Integration | **12 sub-steps/day**, `1 − exp(−rate·dt)` | Gozzi; register D1 |
+| Integration | **48 sub-steps/day**, `1 − exp(−rate·dt)` | measured convergence, register C9 (Gozzi's own default of 12 is insufficient for this model's extra H-compartment chain) |
 | R₀ / latent / infectious | 3.0 / 2 d / 6 d | Weitz Table 1 |
 | f_D | 0.01 flat (aggregate); per-agent from `IFR_10age` | Weitz / Gozzi |
 | T_H | 14 d default | Weitz Fig 6 |
@@ -85,8 +85,24 @@ not 12 sub-steps. It passes Test 1 because `p = rate` gives the correct mean dwe
 distribution is geometric rather than exponential. Treat it as a pilot, not as the reference for
 the integration scheme. Register E11/G3.
 
+**Update:** switching integration schemes (12, then 24, then 48 sub-steps) did NOT close the
+oscillation discrepancy (D6) — that hypothesis is disconfirmed (register G3). Separately, D9
+shows the wave-count metric itself is unsourced and threshold-fragile even on the ODE. There is
+currently no working shape metric of any kind. Do not attempt to fix D6 by further
+integration-scheme changes; the cause is unknown.
+
+**Resolved:** the substep count is now 48, not Gozzi's default of 12 (register C9). Measured
+convergence: 12 substeps carries a 2.44% relative-error bias at N=100,000 (statistically real,
+7.92 SEM from zero across 30 seeds), 24 gives 1.58%, 48 gives 0.05% — indistinguishable from
+zero. Use 48 sub-steps in `src/`, and Test 1's 1% tolerance (G1) is now honestly achievable.
+
 ## Working conventions
 
+- **If a question is a design or strategic choice (which metric to use, which parameter to
+  change, whether a finding changes the plan) rather than an implementation detail, stop and
+  report it back rather than deciding it inline.** This project is deliberately split: Claude
+  Code implements and measures; the planning chat interprets and decides. Numeric results,
+  test outcomes and code go back to the planning chat before being treated as settled.
 - Label claims **[Fact]** / **[Speculation, confidence]** / **[Suggestion]**. Do not present
   speculation as fact.
 - **Verify empirically before asserting.** Run the code, print the number. An uncalculated
