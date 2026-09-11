@@ -34,9 +34,9 @@ any population quantity that is not published in the model.
 class Perception:
     # ---- dynamic: recomputed each decision ----
     own_health:        Literal["never_ill", "currently_ill", "recovered"]
-    deaths_7day_mean:  float   # reported deaths/day, 7-day rolling mean
+    deaths_28day_mean: float   # reported deaths/day, 28-day rolling mean (register A8)
     deaths_cumulative: int     # reported deaths since day 0
-    deaths_prev_week:  float   # same 7-day mean, lagged 7 days
+    deaths_prev_period:float   # same 28-day mean, lagged 28 days  ⚠️ see note, register E13
     local_deaths_7d:   int     # reported deaths among this agent's contacts, last 7 d
     social_norm:       float   # [0,1] fraction of population currently taking precautions
 
@@ -56,9 +56,14 @@ class Perception:
 | Field | Source | Status |
 |---|---|---|
 | `own_health` | observation model, §2a | **[Unsourced]** — see below |
-| `deaths_7day_mean` | Weitz Methods (7-d rolling avg); Gozzi `D_rep`; Urmi lag-0 | **sourced** |
+
+⚠️ **E13 — open.** With a 28-day window, `deaths_prev_period` lagged by a further 28 days means
+the trend signal reaches back 56 days. That may be too stale to carry useful direction. The
+alternative is a shorter trend horizon than the level horizon, which is defensible but
+asymmetric. Decide explicitly before building the renderer.
+| `deaths_28day_mean` | smoothing sourced (Weitz Methods, Gozzi `D_rep`, Urmi lag-0); **28-day length is a finite-population correction, not sourced** | partly sourced |
 | `deaths_cumulative` | Weitz model C `D_c`; Gozzi EFB long-term term | **sourced** |
-| `deaths_prev_week` | anchoring, §4 | **[Unsourced]** |
+| `deaths_prev_period` | anchoring, §4 | **[Unsourced]** |
 | `local_deaths_7d` | Gozzi CBF *local* mechanism (contact-weighted) | **sourced** |
 | `social_norm` | CBF relaxation term `(S+R)/N` | **sourced** |
 | `age_band` | Gozzi `pop_data_Nk.csv` (New York) | **sourced** |
@@ -170,7 +175,7 @@ each other and with time: cumulative deaths, the 7-day mean and the social norm 
 together. But by how much is an empirical question, and **it is answerable for free before any
 money is spent on arm 2**:
 
-> Run arm 1 at N = 1,000 for the full 600 days across all three scenarios, log the discretised
+> Run arm 1 at N = 3,000 for the full 600 days across all three scenarios, log the discretised
 > perception vector at every decision point, and count distinct states.
 
 That is the measurement that decides whether caching is worth building. Do it before
@@ -180,7 +185,8 @@ committing the arm-2 budget, not after.
 
 ## 6. Population construction
 
-**Draw once, by quota, freeze forever.** [Fact, measured] Multinomial sampling of 1,000 agents
+**Draw once, by quota, freeze forever.** [Fact, measured at N=1,000; the effect shrinks with N
+but does not vanish] Multinomial sampling of 1,000 agents
 from New York's age structure gives a mean IFR of 0.970% with SD 0.057% — a 5.9% relative
 swing, because 60+ agents are 22.7% of the population but produce 88.3% of deaths, and the
 80+ band is only 42 agents. Quota sampling removes this noise entirely at no cost, and a frozen
@@ -188,14 +194,14 @@ population is required anyway so that all four arms face identical agents.
 
 ### Step 1 — age (sourced)
 
-`data/new_york/population-data/pop_data_Nk.csv`, 10 bands. Counts at N = 1,000, by quota:
+`data/new_york/population-data/pop_data_Nk.csv`, 10 bands. Counts at **N = 3,000**, by quota:
 
 | Band | 0–9 | 10–19 | 20–24 | 25–29 | 30–39 | 40–49 | 50–59 | 60–69 | 70–79 | 80+ |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Share | 11.02% | 11.23% | 6.25% | 8.00% | 15.72% | 12.59% | 12.52% | 11.11% | 7.34% | 4.23% |
-| Agents | 110 | 112 | 62 | 80 | 157 | 126 | 125 | 111 | 74 | 43 |
+| Agents | 330 | 337 | 187 | 240 | 472 | 378 | 376 | 333 | 220 | 127 |
 
-(Largest-remainder rounding to exactly 1,000.)
+(Largest-remainder rounding to exactly 3,000. Realised mean IFR **0.9718%**.)
 
 ### Step 2 — vulnerability (derived, zero free parameters)
 

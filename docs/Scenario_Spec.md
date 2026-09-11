@@ -44,15 +44,17 @@ nothing to arrange.
 | Role | training / calibration | held out | held out |
 | Varies | — | signal **magnitude** | signal **timing** |
 
-Everything else identical: N = 1,000, 600 days, the frozen population of §4, same seed set,
-same initial seeding.
+Everything else identical: **N = 3,000**, 600 days, **28-day awareness window**, **10 initial
+infected**, the frozen population of §4, same seed set.
 
 **Rationale.** The perception vector carries a level (`deaths_7day_mean`, `deaths_cumulative`)
 and a trend (`deaths_prev_week`). S2 stresses the level, S3 stresses the trend. An arm must
 track both to pass, and the two failure modes are distinguishable — an arm with an implicit
 fixed threshold will fail S2 specifically.
 
-**[Fact] Measured separation at N = 1,000, 25 seeds, 7-day mean signal, Weitz reference rule:**
+⚠️ **[Fact] Measured at N = 1,000, 25 seeds, 7-day signal, Weitz reference rule — i.e. under
+none of the currently settled parameters. Re-measure at N = 3,000 with the 28-day window and
+CBF before relying on these. Retained only as an indication of relative ordering.**
 
 | Scenario | peak I | final S | control final S |
 |---|---|---|---|
@@ -77,8 +79,11 @@ referent is the shift relative to that control, not the presence of a shape.
 
 | Scenarios | arm-2 calls (p = 0.3/day) | with weekly cadence |
 |---|---|---|
-| 3 | 540,000 | 270,000 |
-| 2 (drop S3) | 360,000 | 180,000 |
+| 3 | 1,620,000 | 774,000 |
+| 2 (drop S3) | 1,080,000 | 516,000 |
+
+(3,000 agents × 600 days × 3 scenarios; p = 0.3/day gives 180 decisions per agent, a weekly
+cadence gives ~86.)
 
 Arms 1, 3, 4 and all controls are free at any scenario count. **Sweep the re-decision cadence
 in arm 1 before committing** — it is free there, and it decides whether three scenarios are

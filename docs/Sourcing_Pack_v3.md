@@ -52,9 +52,12 @@ Nδ_c = 5–500 deaths/day (**50** in Figs 3, 6, 7) · ND_c = 2,500–10,000 · 
 
 ### Age-stratified IFR — Gozzi `models/constants.py` [Extracted]
 
-| Age | 0–9 | 10–19 | 20–29 | 30–39 | 40–49 | 50–59 | 60–69 | 70–79 | 80+ |
-|---|---|---|---|---|---|---|---|---|---|
-| IFR | 0.0000161 | 0.0000695 | 0.000309 | 0.000844 | 0.00161 | 0.00595 | 0.0193 | 0.0428 | 0.0780 |
+⚠️ **Use `IFR_10age` (10 bands), not the 9-band `IFR` list in the same file.** Only the 10-band
+version aligns with `pop_data_Nk.csv`. Note 20–29 is split into two bands sharing one value.
+
+| Band | 0–9 | 10–19 | 20–24 | 25–29 | 30–39 | 40–49 | 50–59 | 60–69 | 70–79 | 80+ |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IFR | 0.00161% | 0.00695% | 0.0309% | 0.0309% | 0.0844% | 0.161% | 0.595% | 1.93% | 4.28% | 7.80% |
 
 **This is your `vulnerability` feature, fully sourced with numbers.** A 5,000-fold range from
 youngest to oldest. Weitz's flat 0.01 sits between the 50–59 and 60–69 values.

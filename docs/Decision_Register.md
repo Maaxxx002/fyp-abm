@@ -21,7 +21,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A5 | One location, well-mixed | Both source papers are single well-mixed populations |
 | A6 | Three-level action: stay home / precautions / normal | Maps onto Weitz's continuous β reduction; sourced by CBF's `r` and PMT response cost |
 | A7 | **N = 3,000** | Revised up from 1,000 — see D3 |
-| A8 | Perception signal: **7-day rolling mean** of reported deaths | Weitz Methods; raw daily count is zero on ~98% of days |
+| A8 | Perception signal: **28-day rolling mean** of reported deaths | C7 — a 7-day window leaves the response ungraded at N ≤ 3,000. Smoothing itself is sourced to Weitz Methods; the 28-day length is a stated finite-population correction, not a behavioural claim |
 | A9 | Deaths, not cases, as the awareness driver | Urmi et al. lag-0 correlation; Weitz mechanism is fatality-driven |
 | A10 | Population: New York age structure, quota-drawn, frozen | Mean IFR 0.9718% vs Weitz's 1.000%; see B2 |
 | A11 | Vulnerability derived from age via `IFR_10age` | Zero free parameters |
@@ -34,6 +34,8 @@ Last updated: after the shape-metric investigation and the N decision.
 | A18 | Arm 4 distils on **S1 only**, evaluated on S2/S3 held out | Turns arm 4 from a fit check into a generalisation test |
 | A19 | Shape metric: **Weitz symmetry coefficient computed on incidence** | See D2 |
 | A20 | Integration: **12 sub-steps per day** | Gozzi's scheme; see D1 |
+| A21 | Initial infected: **10 agents** (0.33% at N=3,000) | D8 — a 1% seed removes the exponential growth phase entirely |
+| A22 | Repo `fyp-abm` is the build artefact; `docs/` holds the four specs and is authoritative | Claude Code sessions read `CLAUDE.md` + `docs/` |
 
 ## B. Sources — extraction status
 
@@ -200,7 +202,10 @@ sole explanations.
 | E2 | Re-decision cadence sweep in arm 1 (free) | E1 |
 | E3 | Realised state count from arm 1 logs | caching decision |
 | E4 | Re-measure C3 scenario separation with CBF at N=3,000 | scenario spec |
-| E5 | **ANSWERED — yes.** See C7. Reopens the N decision | E1 |
+| E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
+| E11 | `experiments/abm.py` uses a single daily step with raw-rate transitions, contradicting A20 | correctness of the delay kernel |
+| E12 | Whether switching to 12 sub-steps closes D6 (the T_H → oscillation discrepancy) | D6, shape metric |
+| E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) | arm 1 calibration |
@@ -214,3 +219,33 @@ sole explanations.
 - C3 used the Weitz reference rule, not CBF.
 - E9 remains unresolved: the ABM does not reproduce the ODE's T_H → oscillation relationship,
   and it is not yet known whether this is a metric problem or a simulator defect.
+
+---
+
+## G. Build-phase state
+
+Repo `fyp-abm` (GitHub). Layout: `docs/` · `src/` · `tests/` · `experiments/` · `results/` ·
+`CLAUDE.md` · `requirements.txt` · `.gitignore`.
+
+| Item | State |
+|---|---|
+| Verification Test 1 — ODE convergence | ✅ `tests/test_ode_convergence.py`, 2 tests passing. 10/10 seeds, N=100,000, behaviour off, 2% relative tolerance |
+| Verification Test 2 — mean-field recovery | ❌ not implemented. The `q = 1 − (1+(δ/δ_c)^k)^(−1/2)` relation exists inline in `experiments/abm.py` and is hand-checked only |
+| Verification Test 3 — renderer totality | ❌ cannot exist — no `Perception` dataclass or renderer yet |
+| `src/` | empty apart from `.gitkeep` |
+| `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps |
+| `experiments/metrics.py` | shape-metric exploration; computes the symmetry coefficient, which D7/D8 show is unreliable. Do not build on it |
+
+**G1 — Tolerance note.** Test 1 uses 2% relative tolerance against CLAUDE.md's stated "three
+decimals". Loose, but still ~2.4× tighter than needed to catch the D1 R₀ bug. Tighten to 1%
+when the test is repointed at `src/`.
+
+**G2 — Test 1 currently guards a pilot script, not the model.** When `src/` exists the test must
+be repointed, or the suite stays green while validating code that is no longer run.
+
+**G3 — [Speculation, medium confidence] E11 may explain D6.** A single daily step with
+`p = rate` gives the correct *mean* dwell time but a geometric rather than exponential
+*distribution* (variance 30 vs 36 for the infectious period). Oscillation in Weitz's model is
+driven by the delay kernel between infection and death, so a wrong kernel shape could preserve
+final size while distorting oscillation. Confirmed if switching to 12 sub-steps flips the
+T_H → wave-count direction; disconfirmed if it does not.
