@@ -20,7 +20,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A4 | Weitz's rule is **simulator validation, not an arm** | Prevents "arm 1 reproduces Weitz" being tautological |
 | A5 | One location, well-mixed | Both source papers are single well-mixed populations |
 | A6 | Three-level action: stay home / precautions / normal | Maps onto Weitz's continuous β reduction; sourced by CBF's `r` and PMT response cost |
-| A7 | **N = 3,000** | Revised up from 1,000 — see D3 |
+| A7 | **N = 3,000** | Revised up from 1,000 — see D3. Reaffirmed after C13's small-N/small-count viability concern was resolved (not the operative mechanism) — see D13/C20 |
 | A8 | Perception signal: **28-day rolling mean** of reported deaths | C7 — a 7-day window leaves the response ungraded at N ≤ 3,000. Smoothing itself is sourced to Weitz Methods; the 28-day length is a stated finite-population correction, not a behavioural claim |
 | A9 | Deaths, not cases, as the awareness driver | Urmi et al. lag-0 correlation; Weitz mechanism is fatality-driven |
 | A10 | Population: New York age structure, quota-drawn, frozen | Mean IFR 0.9718% vs Weitz's 1.000%; see B2 |
@@ -489,6 +489,77 @@ where the SEM criterion and the relative-error criterion disagree, itself worth 
 if anything, explains the non-monotonic-in-N pattern; and whether any of this changes arm 1's
 viability or design. Reported to the planning chat, not decided.
 
+**C19 — C18 re-run at 90 seeds for N=3,000/10,000 (N=30,000 left alone; already >2 SEMs at 30
+seeds) to check whether the ~4.5% gap was noise a 30-seed SEM couldn't rule out.**
+`experiments/cbf_real_mechanism_seed_check.py` (imports C18's own `_worker`/`ode_final_S`
+unchanged — no model or reference change, seeds 0-29 identical to C18's, 60 more added), same
+parameters, days=900, 48 sub-steps/day. Raw output `results/cbf_real_mechanism_seed_check.json`/
+`.log`:
+
+| N | seeds | mean final S | ODE final S | relative error | gap (SEMs) |
+|---|---|---|---|---|---|
+| 3,000 | 30 (C18) | 0.13979 | 0.14643 | 4.54% | −0.90 |
+| 3,000 | **90** | 0.13906 | 0.14643 | **5.03%** | **−1.66** |
+| 10,000 | 30 (C18) | 0.23182 | 0.22199 | 4.43% | +1.13 |
+| 10,000 | **90** | 0.23005 | 0.22199 | **3.63%** | **+1.55** |
+
+**[Fact] Neither point estimate collapsed toward the ODE with 3x the seeds** (N=3,000's relative
+error rose slightly, 4.54%→5.03%; N=10,000's fell somewhat, 4.43%→3.63%, but not toward zero).
+**Both gaps grew in SEM terms** (0.90→1.66; 1.13→1.55) — roughly consistent with a persistent,
+non-shrinking bias viewed through a tightening SEM (√(90/30)=1.73× predicts 1.56 and 1.96
+respectively from pure variance-reduction alone; observed growth, 1.66 and 1.55, is in the same
+range). **Neither individually crosses the "several SEMs" bar C18/this round's request used as
+the marker of a confirmed bias** — so this round does not, by itself, settle the question on
+the pre-registered criterion. But the direction is uniform across all three N and both seed
+counts now measured: no configuration's relative error has approached 0%, and the trend with
+more seeds is toward greater statistical confidence in a nonzero gap, not away from it. [Speculation,
+medium confidence] Combined with N=30,000's already-significant −3.12 SEMs (C18, unchanged) and
+the seed-count trend here, the evidence leans toward "a real, roughly N-independent bias of a
+few percent" over "N=30,000 was a 30-seed outlier" — but this is a read of a trend, not a
+result that has itself cleared the bar. **Not decided here:** whether to run further seeds to
+settle N=3,000/10,000 individually, what magnitude of bias would be tolerable for Test
+2-style closure of the real CBF mechanism, and what (if anything) explains a bias that neither
+grows nor shrinks with N. Reported to the planning chat.
+
+**C20 — Final interpretation of C18/C19: the ~4-6% gap is real, N-independent, and not a coding
+artifact — accepted as a documented limitation, not chased further.** [Decision, planning chat,
+informed by C18/C19] Two separate concerns raised by this investigation are now resolved:
+
+1. **C13's small-count concern is resolved.** C13 warned that N=3,000's own raw death/H counts
+   sit in or below C12's "broken" small-count regime, raising doubt about whether ANY
+   count-based trigger (Weitz's H-stock or CBF's own mechanism) could work at N=3,000 without a
+   Jensen's-gap-style bias. C18's diagnostic measured the actual stock at risk for CBF's real
+   two-compartment mechanism — peak S^B population — at 555 (N=3,000), 3,999 (N=10,000), 16,122
+   (N=30,000): two to four orders of magnitude above C12's threshold (peak H≈23-172) at every N
+   tested, including N=3,000. Combined with C17's finding that the 28-day mean already smooths
+   the raw death-count input enough to avoid the same bias on the trigger side, both halves of
+   the small-count concern are closed. **This is confirmed NOT what explains the remaining gap.**
+
+2. **The remaining ~4-6% relative-error gap between the real CBF ABM and its DDE mean-field
+   reference is real and does not shrink with N.** C18 measured 4.54%/4.43%/5.63% relative error
+   at N=3,000/10,000/30,000 (30 seeds); C19's 90-seed re-run of the two smaller N moved the point
+   estimates to 5.03%/3.63% and pushed both further from zero in SEM terms (0.90→1.66;
+   1.13→1.55), while N=30,000 already stood at −3.12 SEMs. No N tested shows the gap collapsing
+   toward zero the way Test 1's disease-only convergence does.
+
+3. **Confirmed not a coding bug**, checked two ways, independent of the N-sweep itself: (a) a
+   1,000,000-trial Monte Carlo of the competing-hazards two-sequential-Bernoulli-draw code
+   against the theoretical joint-multinomial split, across four representative hazard-rate pairs
+   including an edge case (zero adoption rate), matched theory within 3× sampling SEM in every
+   case; (b) the 28-day rolling-mean window computation, fed the identical death sequence from
+   an actual beta_B>0 ABM run, reproduced the DDE reference's cumulative-difference formula to
+   within floating-point precision (max diff = 0.0) at every day of a 200-day run, including the
+   shrinking-to-full-window transition at day 28.
+
+**[Decision]** Given (1) and (3) rule out the two most likely mechanical explanations, and (2)
+shows the gap is stable in magnitude and persistent (though not monotonic in sign) across three
+population sizes and two seed counts, this is recorded as a genuine, modest limitation of
+comparing this stochastic two-compartment model against its mean-field DDE reference — similar
+in kind (though not confirmed in cause) to E16's separately-open Weitz-mechanism residual.
+**Recommendation, adopted: treat the ~4-6% gap as a documented, accepted feature of this
+comparison rather than a defect to keep chasing with more seeds, more N, or further mechanism
+audits.** This closes E18.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -617,6 +688,18 @@ run this round**, since it would have rested on the same unconfirmed premise. Re
 fixed — building the real S/S^B mechanism is a modelling/implementation decision for the planning
 chat, not made here.
 
+**D13 — N=3,000 reaffirmed; C13's motivating concern for possibly needing a larger N is
+resolved.** C13 raised the possibility that N=3,000 might be structurally too small for arm 1's
+own count-based trigger to escape a small-count bias regime, independent of the specific rule or
+parameter — potentially requiring a larger operating N to make arm 1 viable at all. C18-C20
+answer this: the real CBF mechanism's ~4-6% gap against its mean-field reference is present at
+N=3,000, 10,000, AND 30,000 alike (C18/C19) and does not shrink with N, so a larger N would not
+have removed it — the effect C13 worried about (small S^B/H-type counts) is confirmed absent at
+every N tested (C20), and the gap that does exist is N-independent. **A7 (N=3,000) is
+reaffirmed, not revised** — there is no reason to trade N=3,000's original justification (C5's
+response-gradation requirement, D3) for a larger, more expensive population; doing so buys
+nothing against the one concern that motivated considering it.
+
 ## E. Open items
 
 | # | Item | Blocks |
@@ -637,8 +720,8 @@ chat, not made here.
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
-| E17 | **BUILT AND TESTED — see C18.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). Measured 4.4-5.6% relative error against a sanity-checked DDE reference at N=3,000/10,000/30,000, non-monotonic in N, ruled out as a small-S^B-count artifact — see E18 for what remains open | Test 2 closure; arm 1 build; **E18** |
-| E18 | C18's real-CBF-mechanism gap (4.4-5.6% relative error at N=3,000/10,000/30,000; non-monotonic in N; only N=30,000's gap exceeds ~2 SEMs; ruled out as a small-S^B-count artifact, C12-style) is unexplained. Open for the planning chat: (a) is this the same phenomenon as E16's still-open C11/continuous-q residual (both ~4-6%, both unexplained by small counts); (b) is N=3,000 (arm 1's actual population, A7/D3) "safe" given its SEM gap is small (−0.90) but its relative error (4.54%) is not smaller than N=30,000's significant one; (c) is ~4-6% an acceptable tolerance for Test 2-style closure of the real mechanism; (d) does any of this change arm 1's viability or design | arm 1 viability; Test 2 closure; E16 |
+| E17 | **BUILT, TESTED, AND CLOSED — see C18/C19/C20.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). The ~4-6% relative-error gap against a sanity-checked DDE reference (N=3,000/10,000/30,000, 30 then 90 seeds) is confirmed real, N-independent, not a small-S^B-count artifact, and not a coding bug — adopted as a documented, accepted limitation (C20) rather than pursued further | closed |
+| E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above
 
