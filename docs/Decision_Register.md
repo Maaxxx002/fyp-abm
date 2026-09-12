@@ -428,6 +428,67 @@ result — so this is not a foregone conclusion at N=3,000 and would need its ow
 tested: the two-sided (stochastic, per-agent) version of CBF's S/S^B mechanism — this remains a
 deterministic direct-g isolation only, per C12/C16's methodology.
 
+**C18 — CBF's REAL S/S^B mechanism (not `direct-g`) built and tested at N=3,000/10,000/30,000
+(D12/E17's requested follow-up).** `src/model.py`'s new `run_cbf_behaviour` implements S and
+S^B as separate tracked compartments with genuine sub-step competing-hazards transitions,
+verified directly against Gozzi's `compartment_model_age_deaths.py` (fetched and read in full
+this round): from S, one joint "leave" draw split by relative hazard between adoption
+(`prob_S_to_SB = beta_B*(1-exp(-gamma_beh*D(t)))`) and infection (full force of infection); from
+S^B, one joint "leave" draw split between relaxation (`prob_SB_to_S = mu_B*(S+R)/N`) and
+infection at the reduced rate `r*foi`. With individual agents rather than Gozzi's age-group
+binomial counts, the equivalent is two sequential per-agent Bernoulli draws (leave, then
+destination) — distributionally identical by multinomial thinning, not an approximation.
+beta_B=0.5, mu_B=0.01, r=0.5, gamma_beh=1 (Gozzi's own sourced demo values, C13, unmodified);
+D(t) is the project's actual settled signal — a 28-day rolling mean of daily deaths, shrinking
+window, days strictly before today (A8/C7, C17's convention) — not Gozzi's own literal
+yesterday-count.
+
+Reference: a genuine 7-state (S, S^B, E, I, H, R, D) delay-differential-equation system,
+fixed-step RK4 (dt=0.25d), same delay-history convention as the ABM. Sanity-checked first (as
+C17's reference was): with beta_B=0, S^B never receives inflow and the system collapses exactly
+to Test 1's validated 6-state system — reproduced 0.05952 to 5 decimals (0.0002% relative
+error), confirming the integrator before trusting its behavioural-mode output.
+
+`experiments/cbf_real_mechanism_test.py`, raw output `results/cbf_real_mechanism_test.json`/
+`.log`. Real per-agent stochastic S/S^B ABM (not `direct-g`), 30/30 seeds, days=900 (C16/C17's
+convergence-testing convention, not the 600-day production run length), 48 sub-steps/day:
+
+| N | mean peak daily deaths | ODE final S | ABM mean final S | relative error | gap (SEMs) |
+|---|---|---|---|---|---|
+| 3,000 | 2.6 | 0.14643 | 0.13979 | 4.54% | −0.90 |
+| 10,000 | 4.8 | 0.22199 | 0.23182 | 4.43% | 1.13 |
+| 30,000 | 9.2 | 0.29849 | 0.28169 | 5.63% | −3.12 |
+
+**[Fact] Unlike C16/C17's `direct-g` results (which improved or stayed flat as N grew — C17:
+2.16%/1.53% relative error at N=10,000/30,000, both gaps <2 SEMs), the real mechanism's relative
+error does NOT shrink monotonically with N (4.54% → 4.43% → 5.63%), and the sign of the gap
+flips between N=10,000 (+1.13 SEMs) and N=30,000 (−3.12 SEMs).** All three N show a
+similar-magnitude relative error (~4.4-5.6%), roughly double C17's `direct-g` error at the
+matching N, and N=30,000's gap is the only one exceeding ~2 SEMs.
+
+**[Fact] This is NOT a small-count artifact of the kind C12/D11 found for Weitz's H-stock.** A
+diagnostic run (10 seeds/N, not part of the committed batch) measured mean peak S^B population:
+555 (N=3,000), 3,999 (N=10,000), 16,122 (N=30,000) — two to four orders of magnitude above C12's
+"broken" threshold (peak H≈23-172, where the bias was shown to collapse). The bias here persists
+at S^B counts large by C12's own standard, so C12's explanation does not transfer to this
+mechanism.
+
+[Speculation, low confidence] The magnitude (~4-6%) and its failure to shrink with N instead
+resembles E16's still-open C11 residual — Weitz's own two-sided `q` mechanism (continuous-q)
+showed a statistically real 4.13% gap at N=100,000 (30 seeds, large H counts throughout) that
+was never explained by small counts either. If the two are related, the common thread may be an
+intrinsic mean-field-approximation gap in how a stochastic compartment split interacts with a
+nonlinear saturating adoption function, independent of N — but this is not established, only
+noted as a parallel worth checking.
+
+**Not decided here (per CLAUDE.md's working convention):** whether ~4-6% is an acceptable
+tolerance for Test-2-style closure of the real CBF mechanism; whether N=3,000 (arm 1's actual
+operating population, A7/D3) is "safe" by this measure — its own gap (−0.90 SEMs) is not
+significant, but its relative error (4.54%) is comparable to N=30,000's significant one, a case
+where the SEM criterion and the relative-error criterion disagree, itself worth flagging; what,
+if anything, explains the non-monotonic-in-N pattern; and whether any of this changes arm 1's
+viability or design. Reported to the planning chat, not decided.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -576,7 +637,8 @@ chat, not made here.
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
-| E17 | Build CBF's real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards, memory) to properly re-test mean-field recovery / arm 1 viability at any N — `direct-g` is confirmed NOT a valid stand-in for it (D12). Not built yet; C16/C17's results do not transfer to it | Test 2 closure; arm 1 build; C16/C17's validity scope |
+| E17 | **BUILT AND TESTED — see C18.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). Measured 4.4-5.6% relative error against a sanity-checked DDE reference at N=3,000/10,000/30,000, non-monotonic in N, ruled out as a small-S^B-count artifact — see E18 for what remains open | Test 2 closure; arm 1 build; **E18** |
+| E18 | C18's real-CBF-mechanism gap (4.4-5.6% relative error at N=3,000/10,000/30,000; non-monotonic in N; only N=30,000's gap exceeds ~2 SEMs; ruled out as a small-S^B-count artifact, C12-style) is unexplained. Open for the planning chat: (a) is this the same phenomenon as E16's still-open C11/continuous-q residual (both ~4-6%, both unexplained by small counts); (b) is N=3,000 (arm 1's actual population, A7/D3) "safe" given its SEM gap is small (−0.90) but its relative error (4.54%) is not smaller than N=30,000's significant one; (c) is ~4-6% an acceptable tolerance for Test 2-style closure of the real mechanism; (d) does any of this change arm 1's viability or design | arm 1 viability; Test 2 closure; E16 |
 
 ## F. Known limitations of everything measured above
 
@@ -598,7 +660,7 @@ Repo `fyp-abm` (GitHub). Layout: `docs/` · `src/` · `tests/` · `experiments/`
 | Verification Test 1 — ODE convergence | ✅ **CLOSED.** `tests/test_ode_convergence.py`, repointed to `src/model.py` (G2 resolved), 30/30 seeds, N=100,000, behaviour off, 1% relative tolerance (G1 resolved). Measured: mean final S=0.05926 vs ODE 0.05952, 0.431% relative error. See C10 |
 | Verification Test 2 — mean-field recovery | ❌ **BLOCKED, not passing.** δ fix (D10) now applied in `src/model.py`'s `run_weitz_behaviour` (continuous, per-sub-step, zero-lag) and re-tested at full N=100,000/30 seeds (C11): 4.13% relative error for the actual (continuous-q) implementation, still outside the file's stated 2% tolerance. The deterministic sanity variant also fails at this scale (4.56%, D11) — the residual is not fully explained by cadence or the two-sided mechanism. Root cause of the remaining ~4-6% gap is open (E16) |
 | Verification Test 3 — renderer totality | ❌ cannot exist — no `Perception` dataclass or renderer yet |
-| `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1) and Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23) — not arm 1's CBF, which does not exist yet |
+| `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1); Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23); and arm 1's real CBF mechanism (`run_cbf_behaviour`, S/S^B compartments with competing hazards, C18/E17) — no per-agent heterogeneity yet, awaits the Perception vector |
 | `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps. Untouched throughout the `src/model.py` build |
 | `experiments/metrics.py` | shape-metric exploration; computes the symmetry coefficient, which D7/D8 show is unreliable. Do not build on it |
 | `experiments/verify_substep_bias.py`, `verify_substep_scheme.py`, `verify_meanfield_delta_bug.py` | diagnostic scripts kept alongside the pilot, not part of `src/` — back C9, D9/G3, and D10 respectively |

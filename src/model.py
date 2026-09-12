@@ -25,7 +25,7 @@ H-compartment chain; 48 was measured to bring it below Test 1's tolerance).
 """
 import numpy as np
 
-S, E, I, H, R, D = 0, 1, 2, 3, 4, 5
+S, E, I, H, R, D, SB = 0, 1, 2, 3, 4, 5, 6
 
 
 def run(N, seed, days=600, seeds_infected=10,
@@ -98,6 +98,143 @@ def run(N, seed, days=600, seeds_infected=10,
         S=S_frac, prevalence=prevalence, incidence=daily_incidence,
         deaths=daily_deaths, N=N,
         total_infected=N - np.count_nonzero(state == S),
+    )
+
+
+def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
+                       R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
+                       f_D=0.01, T_H=14.0, n_substeps=48,
+                       beta_B=0.5, mu_B=0.01, r_factor=0.5, gamma_beh=1.0, window=28):
+    """Arm 1's REAL CBF mechanism (Decision_Register.md D12/E17) -- not the
+    `direct-g` simplification, which D12 confirmed is NOT a valid stand-in
+    for CBF (CBF has a genuine two-compartment, memory-laden structure that a
+    memoryless multiplier cannot reproduce).
+
+    S and S^B are separate tracked compartments. Each sub-step runs the same
+    sub-step competing-hazards transitions Gozzi's own
+    `compartment_model_age_deaths.py` implements (verified directly against
+    source, lines ~114-126): from S, agents race between "-> E" (force of
+    infection, full rate) and "-> S^B" (adoption); from S^B, agents race
+    between "-> S" (relaxation) and "-> E" (force of infection at the
+    reduced rate `r_factor * foi`). Gozzi draws one joint binomial for "did
+    this age-group leave the compartment" and then splits it by relative
+    hazard; here, with individual agents rather than age-group counts, the
+    equivalent is two sequential per-agent Bernoulli draws (leave, then
+    destination) -- distributionally identical for i.i.d. agents (standard
+    binomial/multinomial thinning), not an approximation of Gozzi's version:
+
+        prob_S_to_SB(t)  = beta_B * (1 - exp(-gamma_beh * D(t)))   -- adoption RATE
+        prob_SB_to_S(t)  = mu_B * (S(t) + R(t)) / N                -- relaxation RATE
+
+    D(t) is NOT Gozzi's own literal single-day-lagged raw count -- it is the
+    project's actual settled awareness signal (Decision_Register.md A8/C7,
+    confirmed to resolve the small-flow-count bias for CBF's own mechanism in
+    C17): a 28-day rolling mean of daily deaths, raw count units (not
+    per-capita -- gamma_beh was sourced against raw counts, C13), using only
+    days strictly before today (shrinking window for the first `window`
+    days).
+
+    beta_B/mu_B/r_factor/gamma_beh default to Gozzi's own sourced demo values
+    (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13) -- no per-agent
+    heterogeneity yet (register: that awaits the Perception vector).
+    """
+    dt = 1.0 / n_substeps
+    latent_rate = 1.0 / latent_period_days
+    infectious_rate = 1.0 / infectious_period_days
+    death_delay_rate = 1.0 / T_H
+    transmission_rate = R0 * infectious_rate
+
+    p_e_to_i = 1 - np.exp(-latent_rate * dt)
+    p_i_to_leave = 1 - np.exp(-infectious_rate * dt)
+    p_h_to_d = 1 - np.exp(-death_delay_rate * dt)
+
+    rng = np.random.default_rng(seed)
+    state = np.zeros(N, dtype=np.int8)
+    state[rng.choice(N, seeds_infected, replace=False)] = I
+
+    daily_deaths = np.zeros(days)
+    daily_incidence = np.zeros(days)
+    prevalence = np.zeros(days)
+    S_frac = np.zeros(days)
+
+    for t in range(days):
+        window_start = max(0, t - window)
+        D_mean = daily_deaths[window_start:t].mean() if t > 0 else 0.0
+        adoption_rate = beta_B * (1.0 - np.exp(-gamma_beh * D_mean))
+
+        day_new_e = 0
+        day_new_d = 0
+        for _ in range(n_substeps):
+            n_infectious = np.count_nonzero(state == I)
+            foi = transmission_rate * n_infectious / N
+            foi_reduced = r_factor * foi
+
+            n_s = np.count_nonzero(state == S)
+            n_r = np.count_nonzero(state == R)
+            relax_rate = mu_B * (n_s + n_r) / N
+
+            rate_total_s = adoption_rate + foi
+            if rate_total_s > 0:
+                p_leave_s = 1 - np.exp(-rate_total_s * dt)
+                frac_e_from_s = foi / rate_total_s
+            else:
+                p_leave_s = 0.0
+                frac_e_from_s = 0.0
+
+            rate_total_sb = relax_rate + foi_reduced
+            if rate_total_sb > 0:
+                p_leave_sb = 1 - np.exp(-rate_total_sb * dt)
+                frac_e_from_sb = foi_reduced / rate_total_sb
+            else:
+                p_leave_sb = 0.0
+                frac_e_from_sb = 0.0
+
+            s_mask = (state == S)
+            sb_mask = (state == SB)
+
+            leaving_s = s_mask & (rng.random(N) < p_leave_s)
+            to_e_from_s = leaving_s & (rng.random(N) < frac_e_from_s)
+            to_sb = leaving_s & ~to_e_from_s
+
+            leaving_sb = sb_mask & (rng.random(N) < p_leave_sb)
+            to_e_from_sb = leaving_sb & (rng.random(N) < frac_e_from_sb)
+            to_s = leaving_sb & ~to_e_from_sb
+
+            new_i = (state == E) & (rng.random(N) < p_e_to_i)
+            leaving_i = (state == I) & (rng.random(N) < p_i_to_leave)
+            to_h = leaving_i & (rng.random(N) < f_D)
+            to_r = leaving_i & ~to_h
+            new_d = (state == H) & (rng.random(N) < p_h_to_d)
+
+            state[new_d] = D
+            state[to_h] = H
+            state[to_r] = R
+            state[new_i] = I
+            state[to_e_from_s] = E
+            state[to_e_from_sb] = E
+            state[to_sb] = SB
+            state[to_s] = S
+
+            day_new_e += np.count_nonzero(to_e_from_s) + np.count_nonzero(to_e_from_sb)
+            day_new_d += np.count_nonzero(new_d)
+
+        daily_incidence[t] = day_new_e
+        daily_deaths[t] = day_new_d
+        prevalence[t] = np.count_nonzero(state == I)
+        S_frac[t] = (np.count_nonzero(state == S) + np.count_nonzero(state == SB)) / N
+
+        if (prevalence[t] == 0 and np.count_nonzero(state == E) == 0
+                and np.count_nonzero(state == H) == 0):
+            daily_deaths[t + 1:] = 0
+            daily_incidence[t + 1:] = 0
+            prevalence[t + 1:] = 0
+            S_frac[t + 1:] = S_frac[t]
+            break
+
+    return dict(
+        S=S_frac, prevalence=prevalence, incidence=daily_incidence,
+        deaths=daily_deaths, N=N,
+        total_infected=N - np.count_nonzero(state == S) - np.count_nonzero(state == SB),
     )
 
 
