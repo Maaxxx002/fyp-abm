@@ -197,6 +197,35 @@ noise, and **all three land outside even Test 1's 1% tolerance and outside the 2
 `tests/test_meanfield_recovery.py` currently states.** See D11 for why this contradicts the
 5-seed diagnostic, and E16 for the consequence.
 
+**C12 — δ_c sweep confirms the small-H-count hypothesis (D11).** Isolated to the deterministic
+`direct-g` variant only (no per-agent draws, no q, no cadence question — cleanest signal),
+N=100,000, 30/30 seeds, days=900, 48 sub-steps/day, `experiments/meanfield_deltac_sweep.py`,
+raw output `results/meanfield_deltac_sweep.json`. ODE reference recomputed separately for each
+δ_c (not reused from C11):
+
+| δ_c | mean peak H (agents) | ODE final S | ABM mean final S | relative error | gap in SEMs |
+|---|---|---|---|---|---|
+| 0.5 (baseline, C11) | 23.0 | 0.52502 | 0.50105 | 4.56% | −7.11 |
+| 2.0 | 66.5 | 0.29368 | 0.29399 | 0.10% | 0.26 |
+| 3.5 | 104.8 | 0.27850 | 0.27810 | 0.14% | −0.36 |
+| 7.0 | 172.5 | 0.25146 | 0.25347 | 0.80% | 2.23 |
+
+**The bias collapses as δ_c grows: 4.56% → 0.10% → 0.14% → 0.80%, and only δ_c=0.5's gap is
+large in SEM terms (the rest are within ~2 SEMs of zero).** [Fact] This confirms D11's
+speculation: at δ_c=0.5 the behavioural throttle is being driven by an H-compartment stock that
+peaks around 23 agents out of N=100,000 — small enough that the ABM's discrete, stochastic H(t)
+diverges materially from the ODE's continuous H(t) feeding the same nonlinear g(·). At δ_c≥2.0,
+where peak H is in the tens-to-hundreds, the discrepancy is gone. Note the measured peak H
+values (23, 66.5, 104.8, 172.5) run noticeably higher than D11's naive threshold approximation
+H≈δ_c·T_H (7, 28, 49, 98) — the epidemic overshoots the point where δ=δ_c before the throttle
+turns it over, roughly by a factor of ~2–3×, so use the measured peak-H figures, not the naive
+approximation, going forward. **Not yet done this round (deliberately — one variable isolated at
+a time):** re-checking whether the two-sided `q` variants (continuous-q, daily-q) show the same
+collapse at larger δ_c; whether Weitz's own N=10,000,000/δ_c=50 regime (peak H order ~10⁴–10⁵)
+would ever hit this regime at all, versus it being an artifact specific to rescaling δ_c down for
+smaller N; and what, if anything, this implies for Test 2's tolerance or for arm 1/2's actual
+operating δ_c (register-sourced, not free to change on this basis alone). Reported, not decided.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -278,13 +307,18 @@ per-agent stay-home draws at all — the only mechanism is `transmission_rate ×
 computed exactly as the ODE defines it — this rules out the two-sided `q`/Bernoulli mechanism
 *and* decision cadence as the sole cause of the residual gap (E16), because the deterministic,
 mechanism-free variant fails by nearly as much as the two `q`-based variants (4.13%/5.91%).
-[Speculation, low confidence] One candidate: δ_c=0.5 corresponds to an H-count threshold of only
-~7 agents (δ_c·T_H), so early in an epidemic `g(δ)` is being evaluated on small integer H counts
-where the ABM's discreteness diverges most from the ODE's continuous H(t) — a Jensen's-gap-style
-effect (E[g(H)] ≠ g(E[H]) for nonlinear g under population-level stochastic fluctuation in H,
-distinct from the sub-step time-discretisation bias C9 already ruled out as the cause here) — but
-this is not verified and no fix has been attempted. **This is a further undecided modelling
-question, reported rather than decided per CLAUDE.md's working conventions** — see E16.
+[Speculation, low confidence — CONFIRMED, see C12] One candidate: δ_c=0.5 corresponds to a small
+H-compartment stock (measured peak ~23 agents, C12), so early in an epidemic `g(δ)` is being
+evaluated on small integer H counts where the ABM's discreteness diverges most from the ODE's
+continuous H(t) — a Jensen's-gap-style effect (E[g(H)] ≠ g(E[H]) for nonlinear g under
+population-level stochastic fluctuation in H, distinct from the sub-step time-discretisation
+bias C9 already ruled out as the cause here). **C12's δ_c sweep (direct-g only, N=100,000, 30
+seeds) confirms this directly: 4.56% error at δ_c=0.5 (peak H≈23) collapses to 0.10-0.80% at
+δ_c=2.0/3.5/7.0 (peak H≈66-172), tracking the H-count scale, not δ_c per se.** Root cause of the
+C11 residual is no longer open for `direct-g`. **Still undecided (per CLAUDE.md's working
+conventions, reported not decided):** whether the two-sided `q` variants show the same collapse
+at larger δ_c (not tested this round — C12 deliberately isolated `direct-g` alone), and what this
+implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ_c — see E16.
 
 ## E. Open items
 
@@ -300,7 +334,7 @@ question, reported rather than decided per CLAUDE.md's working conventions** —
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
-| E16 | **UPDATED with full-scale numbers (C11), not yet resolved.** At N=100,000, 30/30 seeds, days=900: direct-g 4.56%, continuous-q 4.13%, daily-q 5.91% — all statistically real (6.6–8.1 SEMs from zero), not small-sample noise. The earlier 5-seed estimate (~1.6%/4.4%/7.1%) is superseded (D11) and its direct-g figure specifically was misleading. Finer cadence is still closer than daily (4.13% < 5.91%, same ordering as before), but since the mechanism-free `direct-g` variant fails by almost as much as either `q` variant, cadence and the two-sided Bernoulli mechanism are no longer plausible as the *sole* cause of the residual gap — see D11's speculation. No tolerance decision has been applied to these numbers (deliberately deferred). Open questions for the planning chat: (a) what causes the ~4-6% residual even in the deterministic case, (b) what cadence to adopt for arm 1/Test 2 given neither closes the gap, (c) whether Test 2's stated 2% tolerance is still the right gate | Test 2 closure; E2; arm 1 cadence choice |
+| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate | Test 2 closure; E2; arm 1 cadence choice |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) | arm 1 calibration |
