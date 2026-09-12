@@ -336,6 +336,60 @@ visited does not obviously increase with N. **This is a single seed per N, a sta
 CBF), and hand-picked bins — reported as a first empirical read, not a settled caching
 conclusion.** No N or caching decision made here.
 
+**C16 — δ_c-sweep methodology repeated with CBF's OWN mechanism (not Weitz's) — does N=30,000
+work for the real rule?** `experiments/cbf_deltac_sweep.py` (+ an inline extension to larger T,
+`results/cbf_deltac_sweep_ext.log`/`.json`), deterministic direct-g only, no per-agent draws, no
+S/S^B compartment split — same isolation principle as C12, but this time using CBF's actual
+sourced formula (C13): `g_CBF(D) = 1 − β_B·(1 − exp(−γ_beh·D))`, with **D = deaths[t−1], a raw
+one-day-LAGGED death count** (CBF's own published design — recomputed once per day, not every
+sub-step; this is not the D10 bug being reintroduced, it is what CBF's formula actually
+specifies). β_B held at Gozzi's sourced demo value 0.5 throughout (C13); γ_beh swept via its
+characteristic count `T = 1/γ_beh`, at values chosen to extend past C12's progression once the
+first four points didn't converge. 30/30 seeds, days=900, 48 sub-steps/day, ODE recomputed per
+(N, T):
+
+| N | T | mean peak daily deaths | ODE final S | ABM mean final S | relative error | gap (SEMs) |
+|---|---|---|---|---|---|---|
+| 30,000 | 0.5 | 8.2 | 0.31148 | 0.27435 | 11.92% | −17.92 |
+| 30,000 | 2.0 | 9.5 | 0.23202 | 0.20841 | 10.17% | −16.11 |
+| 30,000 | 3.5 | 10.2 | 0.18140 | 0.16703 | 7.92% | −12.58 |
+| 30,000 | 7.0 | 10.9 | 0.12896 | 0.12282 | 4.76% | −9.02 |
+| 30,000 | 15 | 11.6 | 0.09335 | 0.09126 | 2.24% | −4.56 |
+| 30,000 | **30** | **11.8** | 0.07652 | 0.07618 | **0.45%** | −0.96 |
+| 30,000 | **60** | **11.9** | 0.06800 | 0.06802 | **0.03%** | 0.06 |
+| 30,000 | 120 | 12.0 | 0.06375 | 0.06393 | 0.28% | 0.56 |
+| 30,000 | 250 | 12.0 | 0.06155 | 0.06190 | 0.57% | 1.10 |
+| 10,000 | 0.5 | 4.7 | 0.25686 | 0.17944 | 30.14% | −26.29 |
+| 10,000 | 2.0 | 5.1 | 0.13901 | 0.12183 | 12.36% | −11.56 |
+| 10,000 | 3.5 | 5.3 | 0.10727 | 0.09984 | 6.92% | −6.92 |
+| 10,000 | 7.0 | 5.4 | 0.08379 | 0.08097 | 3.37% | −3.79 |
+
+**[Fact] At N=30,000, the bias does become small — but not until T≈30–60 (γ_beh≈0.017–0.033),
+where it's statistically indistinguishable from zero (≤1 SEM).** Below that (T≤15), the error is
+large and highly significant (2.2–17.9 SEMs), far worse at every matched T than Weitz's own
+mechanism was in C12 (compare: Weitz needed only T≈2.0 to reach ≤0.3 SEMs; CBF needs T≈30–60, an
+order of magnitude higher). **Critically, mean peak daily deaths barely changes across this
+entire "safe" transition (11.6→11.8→11.9→12.0), sitting right at C14's disease-only ceiling for
+N=30,000 (12.03)** — the bias only vanishes once γ_beh is so small that the behavioural effect is
+nearly switched off (at T=60, peak transmission reduction is ~9%; at T=250, ~2%), i.e. the model
+is converging to something close to Test 1's already-validated no-behaviour case, not to a
+meaningfully-behavioural one. A γ_beh anywhere near Gozzi's own sourced demo value (γ_beh=1,
+i.e. T=1, between this sweep's T=0.5 and T=2.0 points) shows 10–12% error at N=30,000 — nowhere
+near safe.
+
+**Confound, flagged not resolved:** CBF's one-day lag (a discrete, previous-day count, unlike the
+corrected zero-lag continuous Weitz mechanism) is itself a plausible independent contributor to
+the residual — D10 showed a bare 1-day lag alone produced ~26% error even with H-based δ at
+N=100,000. This sweep does not separate "small flow-count" from "one-day lag" as two effects; it
+tests CBF's mechanism exactly as published, which has both. Isolating them (e.g. a zero-lag,
+continuous-flow variant of CBF's formula) has not been done and is a natural next step, not taken
+here since it wasn't asked for this round.
+
+**Answer to "does N=30,000 work for the real rule, not just Weitz's": only for a weak
+behavioural effect (T≳30, close to no-behaviour). For anything resembling Gozzi's own
+demonstrated γ_beh, N=30,000 is not safe by this measure.** Reported, not decided — no N,
+tolerance, or arm-1 design choice has been made on this basis.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -436,7 +490,7 @@ implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ
 |---|---|---|
 | E1 | Arm-2 budget at N=3,000 — 1.62M calls at p=0.3, 810k weekly, 540k weekly with 2 scenarios | arm 2 |
 | E2 | Re-decision cadence sweep in arm 1 (free) | E1 |
-| E3 | Realised state count from arm 1 logs. **First read with a stand-in rule (C15, not real CBF): 3,040-3,364 distinct states out of millions of decisions (ratio ~0.0002-0.0006, ~1,768-5,869x compression) at N=10,000/30,000** — one seed, hand-picked bins, not yet with the real CBF rule or at N=3,000 | caching decision |
+| E3 | Realised state count from arm 1 logs. **First read with a stand-in rule (C15, not real CBF): 3,040-3,364 distinct states out of millions of decisions (ratio ~0.0002-0.0006, ~1,768-5,869x compression) at N=10,000/30,000** — one seed, hand-picked bins, not yet with the real CBF rule or at N=3,000. **The option to build caching exists and looks promising on this first read, but whether to build it is Max's call, not a Claude Code decision — noted here, not acted on** | caching decision (Max's) |
 | E4 | Re-measure C3 scenario separation with CBF at N=3,000 | scenario spec |
 | E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
 | E11 | `experiments/abm.py` uses a single daily step with raw-rate transitions, contradicting A20 | correctness of the delay kernel |
@@ -444,7 +498,7 @@ implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
-| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13)** |
+| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13); N=30,000 tested for the real CBF mechanism and found NOT safe except at weak-behaviour settings (C16)** |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
