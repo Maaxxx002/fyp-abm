@@ -226,6 +226,64 @@ would ever hit this regime at all, versus it being an artifact specific to resca
 smaller N; and what, if anything, this implies for Test 2's tolerance or for arm 1/2's actual
 operating δ_c (register-sourced, not free to change on this basis alone). Reported, not decided.
 
+**C13 — Arm 1's own trigger constant (CBF's γ_beh, not Weitz's δ_c) checked against N=3,000, the
+project's actual settled population — higher priority follow-up to C12.**
+`experiments/cbf_gamma_beh_scale_check.py`, raw output `results/cbf_gamma_beh_scale_check.log`.
+
+*Sourced constant, verified directly against Gozzi's code* (`models/compartment_model_age_deaths.py`
+and `example.ipynb` cell 10 at `github.com/ngozzi/covid-behavior-models`, the same repo already
+used for A20/C9's substep-default verification): CBF's global mechanism is
+`prob_S_to_SB = β_B·(1 − exp(−γ_beh·deaths_yesterday))`, i.e. `deaths_yesterday` is a raw,
+previous-day death **count** (a flow), not a stock like Weitz's H. The only concrete numeric
+values anywhere in the repo — `constants.py` carries none, and per-city ABC posteriors are not
+published as one canonical number (E8, unchanged) — are the authors' own demo defaults in
+`example.ipynb`, run against Madrid (N=6,779,888): **β_B=0.5, μ_B=0.01, r=0.5, γ_beh=10⁰=1**,
+swept illustratively over γ_beh∈{1, 0.1, 0.01, 0.001}. [Fact] This is Gozzi's own code default,
+same evidentiary status as the `daily_steps=12` default settled empirically in C9 — not a fitted
+value.
+
+*Translating γ_beh into "an equivalent count" the way δ_c was is NOT clean, and is reported
+rather than decided, for two independent reasons:* (a) γ_beh is the rate constant of an
+**exponential** saturating function, not a power-law threshold like `(δ/δ_c)^k` — there is no
+single canonical "count" to read off; the half-saturation count `ln(2)/γ_beh` and the e-folding
+count `1/γ_beh` differ by <1.5×, so this ambiguity doesn't change the conclusion below, but it is
+a choice, not a fact. (b) Gozzi's γ_beh was demonstrated against a **raw same/previous-day death
+count**; this project's own arm-1 design (`Design_Spec_Perception_and_Population.md` §3) drives
+CBF from a **smoothed rolling-mean** death signal instead (`deaths_7day_mean` there; A8/C7 later
+settled the project-wide window at 28 days) — reusing γ_beh unchanged against a differently-scaled
+smoothed input is not well-defined without a re-derivation not attempted here.
+
+*What IS clean — the calculation, both ways:* at Gozzi's own reference scale (Madrid,
+N=6,779,888, γ_beh=1), the implied half-saturation count is **0.693 deaths/day** — already
+sub-single-digit at the AUTHORS' OWN calibration population, before touching N=3,000 at all. If
+γ_beh is rescaled the same proportional-to-N way δ_c was (`γ_beh_project = γ_beh_demo ×
+N_demo/N_project`), at N=3,000 that gives γ_beh≈2,260 and an implied half-saturation count of
+**0.00031 deaths/day** — saturating on the very first death. Both routes land far below
+single-digit, i.e. in the *worse-than-broken* range, not the safe tens-to-hundreds range C12
+established.
+
+*What is clean regardless of the translation choice — direct simulation, N=3,000, 30/30 seeds,
+600 days, 48 sub-steps/day, behaviour OFF (the upper bound; a working throttle only shrinks
+these further):*
+
+| Quantity | mean | std | min | max |
+|---|---|---|---|---|
+| peak H (stock, agents) | 12.93 | 2.61 | 6 | 19 |
+| peak daily deaths (flow, raw count) | 2.53 | 0.56 | 2 | 4 |
+
+**[Fact] At N=3,000, the raw counts ANY count-based behavioural trigger would see — Weitz's H
+stock or CBF's daily-death flow, regardless of which specific rule or parameter value drives it
+— are already in or below C12's "broken" regime (peak H≈23 there gave 4.56% error; N=3,000's own
+disease-only ceiling is peak H≈13, peak daily deaths≈2.5), and this is the *ceiling*, not the
+typical case, since a working behavioural throttle only suppresses transmission further and
+shrinks these counts more.** This reframes the question: it is not only "did we pick a bad δ_c,"
+but potentially "is N=3,000 itself too small for any death/hospitalisation-count-based
+behavioural trigger to escape the small-count bias regime" — independent of arm 1's specific
+rule. N=3,000 is a hard-settled constraint (A7/D3) chosen for a different reason (response
+gradation, C5), so this is **reported, not decided**: whether this is a genuine problem for arm
+1/Test 2, and if so whether the fix is a different N, a different trigger formulation, or
+something else, is for the planning chat.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -334,10 +392,10 @@ implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
-| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate | Test 2 closure; E2; arm 1 cadence choice |
+| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13)** |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
-| E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) | arm 1 calibration |
+| E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
 
