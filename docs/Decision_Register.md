@@ -284,6 +284,58 @@ gradation, C5), so this is **reported, not decided**: whether this is a genuine 
 1/Test 2, and if so whether the fix is a different N, a different trigger formulation, or
 something else, is for the planning chat.
 
+**C14 — Ceiling scaling check: is peak-H/peak-deaths growth linear in N?** Follow-up to C13,
+`experiments/ceiling_scaling_check.py`, raw output `results/ceiling_scaling_check.log`. Same
+disease-only (behaviour OFF), 30/30-seed, 600-day, 48-substep/day setup as C13, now also at
+N=10,000 and N=30,000:
+
+| N | peak H mean (std, min–max) | peak daily deaths mean (std, min–max) | N-ratio | peak-H-ratio | peak-deaths-ratio |
+|---|---|---|---|---|---|
+| 3,000 | 12.93 (2.61, 6–19) | 2.53 (0.56, 2–4) | 1.00× | 1.00× | 1.00× |
+| 10,000 | 38.10 (4.27, 30–47) | 5.50 (0.92, 4–7) | 3.33× | 2.95× | 2.17× |
+| 30,000 | 111.40 (9.91, 92–132) | 12.03 (1.72, 9–16) | 10.00× | 8.61× | 4.75× |
+
+**[Fact] Growth is sub-linear in N for both quantities, and much more so for peak daily deaths
+than peak H** (a 10× increase in N gives 8.61× peak H but only 4.75× peak daily deaths — H is a
+~14-day-dwell stock accumulating a flow, so it smooths the same sub-linearity further). By
+N=30,000, peak H (111.4) sits inside C12's "safe" range (66.5–172.5, ≤0.80% error there); peak
+daily deaths (12.0) is still well below C12's H-based safe range, but C12 never tested a
+deaths-flow-based trigger directly, so this is not a direct read-across — reported as raw scaling
+data only, no N recommendation implied.
+
+**C15 — State-count check (Design_Spec_Perception_and_Population.md §5) at N=10,000/30,000, a
+simple stand-in rule, no arm 1 built.** `experiments/state_count_check.py`, raw output
+`results/state_count_check.log`. Fields used: `age_band` (10, quota-drawn), `occupation_flex`
+and `response_efficacy` (3 bins each, Design_Spec §3/§4's already-decided provisional
+Beta(2,2)/fixed defaults — not invented here), `own_health` (3, Sec 2a's fully-specified
+mapping), and three population-wide dynamic fields binned with **hand-picked, explicitly
+provisional edges** (Design_Spec §8 item 2 states bins are unsettled) — `deaths_28day_mean`
+per-capita (8 bins, [0, 0.001]), `cumulative_deaths` per-capita (6 bins, [0, 0.01]), `social_norm`
+(10 bins, [0.5, 1.0]). **Omitted:** `local_deaths_7d` (CBF's local/contact-weighted mechanism) —
+no contact-network structure exists in the well-mixed `src/model.py` disease model (A5), so
+"local" would trivially equal "global" here; this omission removes a factor of 4 from the
+design spec's own combinatorial table and is flagged, not silently absorbed. Decision cadence:
+every decision-eligible agent (not in H/D) logged every day (p=1, the upper bound on total
+decisions — a lower cadence only shrinks the denominator, so this is the most conservative case
+for the ratio). One seed per N (a single full run, as asked):
+
+| N | distinct states | total decisions | ratio | compression if perfectly cached |
+|---|---|---|---|---|
+| 10,000 | 3,364 | 5,946,724 | 0.000566 | ~1,768× |
+| 30,000 | 3,040 | 17,840,400 | 0.000170 | ~5,869× |
+
+**[Fact] Distinct states realized (3,040–3,364) are a small fraction even of this stand-in's own
+structurally-reachable ceiling** — only 60 of the 90 (age×occ×eff) static combinations are ever
+realized (school-age and retired bands have a FIXED, not free, `occupation_flex` per Design_Spec
+§3, so they contribute only 1 occ-bin each, not 3 — verified directly, not a bug), giving a
+reachable ceiling of 60×3×8×6×10=86,400, of which ~3.5–3.9% is actually visited. **Distinct
+states did not grow with N (3,364 at N=10,000 vs 3,040 at N=30,000) while total decisions grew
+~3×** — larger N converges the epidemic trajectory closer to its deterministic (ODE-like) shape
+(register C9's convergence story), so the number of distinct day-to-day dynamic-bin combinations
+visited does not obviously increase with N. **This is a single seed per N, a stand-in rule (not
+CBF), and hand-picked bins — reported as a first empirical read, not a settled caching
+conclusion.** No N or caching decision made here.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -384,7 +436,7 @@ implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ
 |---|---|---|
 | E1 | Arm-2 budget at N=3,000 — 1.62M calls at p=0.3, 810k weekly, 540k weekly with 2 scenarios | arm 2 |
 | E2 | Re-decision cadence sweep in arm 1 (free) | E1 |
-| E3 | Realised state count from arm 1 logs | caching decision |
+| E3 | Realised state count from arm 1 logs. **First read with a stand-in rule (C15, not real CBF): 3,040-3,364 distinct states out of millions of decisions (ratio ~0.0002-0.0006, ~1,768-5,869x compression) at N=10,000/30,000** — one seed, hand-picked bins, not yet with the real CBF rule or at N=3,000 | caching decision |
 | E4 | Re-measure C3 scenario separation with CBF at N=3,000 | scenario spec |
 | E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
 | E11 | `experiments/abm.py` uses a single daily step with raw-rate transitions, contradicting A20 | correctness of the delay kernel |
