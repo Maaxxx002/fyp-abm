@@ -117,10 +117,13 @@ def run_weitz_behaviour(N, seed, days=600, seeds_infected=10,
 
         q(t) = 1 - (1 + (delta(t)/delta_c)^k)^(-1/2).
 
-    delta(t) is the PREVIOUS day's raw (unsmoothed, not-per-capita) death
-    count -- see tests/test_meanfield_recovery.py's docstring for why a
-    1-day lag was used instead of a same-day (zero-lag) signal. delta_c is a
-    raw count (not per-capita), matching Weitz Table 1's N*delta_c units.
+    delta(t) = gamma_H * H(t): Weitz's own definition (Decision_Register.md
+    D10), a continuous instantaneous rate from the CURRENT H-compartment
+    stock -- NOT a tally of realized D-transitions. Recomputed every
+    sub-step from the running H count, zero lag, and q is redrawn every
+    sub-step from it (register E16's "continuous-q" variant, the finest
+    cadence measured). delta_c is a raw count (not per-capita), matching
+    Weitz Table 1's N*delta_c units.
     """
     dt = 1.0 / n_substeps
     latent_rate = 1.0 / latent_period_days
@@ -142,13 +145,14 @@ def run_weitz_behaviour(N, seed, days=600, seeds_infected=10,
     S_frac = np.zeros(days)
 
     for t in range(days):
-        delta_t = daily_deaths[t - 1] if t > 0 else 0.0
-        q = 1.0 - (1.0 + (delta_t / delta_c) ** k) ** (-0.5)
-        out = rng.random(N) > q
-
         day_new_e = 0
         day_new_d = 0
         for _ in range(n_substeps):
+            n_h = np.count_nonzero(state == H)
+            delta_now = death_delay_rate * n_h
+            q = 1.0 - (1.0 + (delta_now / delta_c) ** k) ** (-0.5)
+            out = rng.random(N) > q
+
             infectious_mask = (state == I)
             n_infectious_out = np.count_nonzero(infectious_mask & out)
             force_of_infection = transmission_rate * n_infectious_out / N

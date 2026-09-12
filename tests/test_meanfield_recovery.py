@@ -16,30 +16,25 @@ so the population-level multiplier is (1-q)^2, and
 
 recovers Weitz's own g(delta) at the mean-field level (CLAUDE.md Test 2).
 
-delta(t): that day's raw (unsmoothed) death COUNT — not per-capita, not
-rolling-averaged. This is Weitz's own validation rule, distinct from the
-project's actual future Perception design (register A8: 28-day rolling mean
-of per-capita deaths).
+delta(t) = gamma_H * H(t) — Weitz's OWN definition of the death-rate signal
+(Decision_Register.md D10): a continuous instantaneous rate from the CURRENT
+H-compartment stock, not a tally of realized D-transitions. Originally
+mis-specified in this project as "raw death count from the running
+simulation" (a discrete tally, tried both lagged and same-day), which failed
+Test 2 by ~26-48% against the ODE (D10). Recomputing delta from the running
+H count fixes the diagnosis (D10; deterministic direct-g variant drops to
+~1.6%). This is Weitz's own validation rule, distinct from the project's
+actual future Perception design (register A8: 28-day rolling mean of
+per-capita deaths).
 
-Implementation note, flagged rather than silently settled: q(t) is decided
-once per day, before that day's 48 sub-steps of disease dynamics run, using
-the PREVIOUS day's realized death count (delta(t) = deaths(t-1)). This
-mirrors the single-pass causal structure already validated for Test 1 and
-the pilot's own "instant" signal convention (experiments/abm.py). A same-day
-(zero-lag) version would need the day's disease-progression transitions
-(E->I, I->H/R, H->D — all independent of "out" status) resolved in a
-separate pass BEFORE the day's contact-driven S->E transitions, so that the
-day's own realized death count is known before that day's behaviour is
-decided. That two-pass split forces I's within-day trajectory used by S->E
-to come from a different point (effectively next-day's I) than the
-synchronous per-substep I used by Test 1's single-pass model, introducing an
-unvalidated splitting-order artifact of its own. A 1-day lag on an aggregate
-outcome (final S — not a fine-grained shape metric) is expected to matter far
-less than that. The ODE reference below has no such lag (a continuous system
-has no "yesterday"); this asymmetry is part of the "extra layer of
-approximation" the 2% tolerance (vs Test 1's 1%) is meant to absorb. If the
-zero-lag version is wanted instead, say so and it can be built as a second
-variant.
+Cadence: q(t) is redrawn every sub-step from the current H-based delta, zero
+lag (register E16's "continuous-q" variant — the finest cadence measured,
+and the one `run_weitz_behaviour` implements). An alternative once-per-day
+cadence ("daily-q") was also measured and is closer to the register's
+original once-per-day framing, but showed a larger residual gap against the
+ODE (E16); see `experiments/verify_meanfield_delta_bug.py` for both variants
+compared side by side. Which cadence to adopt as final is not yet decided —
+see the register for the outstanding comparison.
 
 delta_c: Weitz Table 1 states N*delta_c = 50 deaths/day (Figs 3, 6, 7) at
 N=10,000,000 (Sourcing_Pack_v3.md); deaths/day is a raw count, not

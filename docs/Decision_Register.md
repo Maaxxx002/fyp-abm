@@ -179,6 +179,24 @@ contributes at 48), but not needed for the decision: 48 clears the tolerance wit
 days=900, behaviour off: mean final S = 0.05926 vs ODE target 0.05952 — **0.431% relative
 error**. Pass, with roughly 2.3× margin under the 1% gate.
 
+**C11 — Mean-field recovery re-run at full Test 2 scale (N=100,000, 30/30 seeds, days=900, 48
+sub-steps/day; `src/model.py`'s `run_weitz_behaviour` fixed to δ(t)=γ_H·H(t), continuous,
+recomputed every sub-step, zero lag — D10's fix, now actually applied in `src/`, not just the
+`experiments/verify_meanfield_delta_bug.py` diagnostic). ODE reference final S = 0.52502.
+`experiments/meanfield_recovery_fullscale.py`, raw output in
+`results/meanfield_recovery_fullscale.json`:
+
+| Variant | seeds used | mean final S | relative error | gap in SEMs |
+|---|---|---|---|---|
+| a. direct-g (deterministic, no per-agent draws) | 30/30 | 0.50105 | 4.56% | −7.11 |
+| b. continuous-q (two-sided, redrawn every sub-step — what `src/model.py` implements) | 30/30 | 0.50331 | 4.13% | −6.62 |
+| c. daily-q (two-sided, decided once/day — original spec cadence) | 30/30 | 0.49401 | 5.91% | −8.05 |
+
+All three are 6.6–8.1 SEMs below the ODE — statistically real at this scale, not sampling
+noise, and **all three land outside even Test 1's 1% tolerance and outside the 2% tolerance
+`tests/test_meanfield_recovery.py` currently states.** See D11 for why this contradicts the
+5-seed diagnostic, and E16 for the consequence.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -253,6 +271,21 @@ Recomputing δ this way (from the running H count each sub-step, no lag) drops t
 with this fix, the actual two-sided `q` mechanism still shows a residual gap against the ODE —
 see E16. Diagnostic script: `experiments/verify_meanfield_delta_bug.py`.
 
+**D11 — D10's 5-seed `direct-g` number (~1.6%) does not hold at full scale; withdrawn.** Re-run
+at N=100,000, 30/30 seeds, days=900 (C11): `direct-g` measures **4.56%**, not ~1.6%, a
+statistically real gap (−7.11 SEMs), not sampling noise. [Fact] Since `direct-g` has no
+per-agent stay-home draws at all — the only mechanism is `transmission_rate × g(δ) × I/N` with δ
+computed exactly as the ODE defines it — this rules out the two-sided `q`/Bernoulli mechanism
+*and* decision cadence as the sole cause of the residual gap (E16), because the deterministic,
+mechanism-free variant fails by nearly as much as the two `q`-based variants (4.13%/5.91%).
+[Speculation, low confidence] One candidate: δ_c=0.5 corresponds to an H-count threshold of only
+~7 agents (δ_c·T_H), so early in an epidemic `g(δ)` is being evaluated on small integer H counts
+where the ABM's discreteness diverges most from the ODE's continuous H(t) — a Jensen's-gap-style
+effect (E[g(H)] ≠ g(E[H]) for nonlinear g under population-level stochastic fluctuation in H,
+distinct from the sub-step time-discretisation bias C9 already ruled out as the cause here) — but
+this is not verified and no fix has been attempted. **This is a further undecided modelling
+question, reported rather than decided per CLAUDE.md's working conventions** — see E16.
+
 ## E. Open items
 
 | # | Item | Blocks |
@@ -267,7 +300,7 @@ see E16. Diagnostic script: `experiments/verify_meanfield_delta_bug.py`.
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
-| E16 | Even with D10's δ fix, the two-sided `q` mechanism still shows 4.4–7.1% error against the ODE at small scale (5–10 seeds, not yet the full N=100,000/30-seed run) — finer decision cadence measured closer (4.4% redrawn every sub-step vs 7.1% once/day, the cadence actually specified), echoing the 12→24→48 sub-step story (C9). Ties to E2/Scenario_Spec.md §5's "sweep the re-decision cadence" item — cadence may not be a free choice confined to arm 1; it may also gate whether Test 2 can pass at all | Test 2 closure; E2; arm 1 cadence choice |
+| E16 | **UPDATED with full-scale numbers (C11), not yet resolved.** At N=100,000, 30/30 seeds, days=900: direct-g 4.56%, continuous-q 4.13%, daily-q 5.91% — all statistically real (6.6–8.1 SEMs from zero), not small-sample noise. The earlier 5-seed estimate (~1.6%/4.4%/7.1%) is superseded (D11) and its direct-g figure specifically was misleading. Finer cadence is still closer than daily (4.13% < 5.91%, same ordering as before), but since the mechanism-free `direct-g` variant fails by almost as much as either `q` variant, cadence and the two-sided Bernoulli mechanism are no longer plausible as the *sole* cause of the residual gap — see D11's speculation. No tolerance decision has been applied to these numbers (deliberately deferred). Open questions for the planning chat: (a) what causes the ~4-6% residual even in the deterministic case, (b) what cadence to adopt for arm 1/Test 2 given neither closes the gap, (c) whether Test 2's stated 2% tolerance is still the right gate | Test 2 closure; E2; arm 1 cadence choice |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) | arm 1 calibration |
@@ -292,7 +325,7 @@ Repo `fyp-abm` (GitHub). Layout: `docs/` · `src/` · `tests/` · `experiments/`
 | Item | State |
 |---|---|
 | Verification Test 1 — ODE convergence | ✅ **CLOSED.** `tests/test_ode_convergence.py`, repointed to `src/model.py` (G2 resolved), 30/30 seeds, N=100,000, behaviour off, 1% relative tolerance (G1 resolved). Measured: mean final S=0.05926 vs ODE 0.05952, 0.431% relative error. See C10 |
-| Verification Test 2 — mean-field recovery | ❌ **BLOCKED, not passing.** `tests/test_meanfield_recovery.py` exists but fails (~26% error) under the originally-specified δ. Root cause found and a fix identified (D10); not yet re-tested at full N=100,000/30 seeds, and a residual gap remains even with the fix (E16) |
+| Verification Test 2 — mean-field recovery | ❌ **BLOCKED, not passing.** δ fix (D10) now applied in `src/model.py`'s `run_weitz_behaviour` (continuous, per-sub-step, zero-lag) and re-tested at full N=100,000/30 seeds (C11): 4.13% relative error for the actual (continuous-q) implementation, still outside the file's stated 2% tolerance. The deterministic sanity variant also fails at this scale (4.56%, D11) — the residual is not fully explained by cadence or the two-sided mechanism. Root cause of the remaining ~4-6% gap is open (E16) |
 | Verification Test 3 — renderer totality | ❌ cannot exist — no `Perception` dataclass or renderer yet |
 | `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1) and Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23) — not arm 1's CBF, which does not exist yet |
 | `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps. Untouched throughout the `src/model.py` build |
