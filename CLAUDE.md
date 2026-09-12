@@ -112,6 +112,11 @@ zero. Use 48 sub-steps in `src/`, and Test 1's 1% tolerance (G1) is now honestly
   headline result that was wrong.
 - Own errors plainly and correct the register.
 - Prefer small commits. Run the verification tests before claiming anything works.
+- **Before testing a simplified stand-in for a published mechanism (a formula, a scalar
+  multiplier, a single-compartment approximation), confirm directly from source that the
+  simplification is actually equivalent to the real mechanism — not just plausible.** This
+  project has hit this exact failure three times (δ(t) definition, the CBF lag, and direct-g
+  vs the real S/S^B structure).
 
 ## Repo layout
 

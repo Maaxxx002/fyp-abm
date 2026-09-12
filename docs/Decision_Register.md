@@ -390,6 +390,44 @@ behavioural effect (T≳30, close to no-behaviour). For anything resembling Gozz
 demonstrated γ_beh, N=30,000 is not safe by this measure.** Reported, not decided — no N,
 tolerance, or arm-1 design choice has been made on this basis.
 
+**C17 — CBF exactly as arm 1 is actually specified to run (not Gozzi's literal formula): the
+bias resolves at both N=10,000 and N=30,000.** Single test, not a sweep — the one configuration
+the project actually intends: `experiments/cbf_28day_mean_test.py`. `g_CBF(D) = 1 −
+β_B·(1−exp(−γ_beh·D))`, **β_B=0.5 and γ_beh=1 held exactly at Gozzi's sourced value (C13), not
+substituted** — the only change from C16 is that **D is the project's actual settled signal, a
+28-day rolling mean of daily deaths (A8/C7, Design_Spec §2/§3), using days strictly before today
+(shrinking window for the first 28 days), not Gozzi's literal single-day-lagged raw count.**
+Deterministic direct-g only, no per-agent draws. The ODE reference is a genuine delay
+differential equation (a trailing 28-day integral, `N·(Dcum(t)−Dcum(t−28))/28`) implemented as a
+fixed-step (dt=0.25 d) RK4 integrator with a stored cumulative-death history — sanity-checked
+against the known Test 1 ODE target with β_B=0 (behaviour off): reproduced 0.05952 to 5 decimals,
+confirming the integrator itself is correct before trusting its behavioural-mode output. 30/30
+seeds, days=900, 48 sub-steps/day:
+
+| N | mean peak daily deaths | ODE final S | ABM mean final S | relative error | gap (SEMs) |
+|---|---|---|---|---|---|
+| 10,000 | 5.3 | 0.13260 | 0.12973 | 2.16% | −1.10 |
+| 30,000 | 10.0 | 0.21761 | 0.21428 | 1.53% | −1.76 |
+
+**[Fact] Both gaps are within ~2 SEMs of zero — statistically indistinguishable from no bias,
+at Gozzi's own sourced γ_beh, unmodified.** This is a dramatic change from C16, where the same
+γ_beh=1 (T=1) against Gozzi's own literal one-day-lag signal showed 10,000: ~21% and 30,000:
+~11% error (interpolating C16's T=0.5/T=2.0 points), each 15+ SEMs from zero. **The 28-day
+averaging — adopted in A8/C7 for an unrelated reason (response gradation at small N, C5/C7) —
+also resolves the small-flow-count bias this session has been chasing since C11.** [Speculation,
+medium confidence] This is consistent with the working hypothesis all along (C12/D11/C13): the
+problem was never γ_beh specifically, it was feeding a nonlinear saturating function a raw,
+high-variance single-sample count; a 28-day mean is a ~28x variance-reduction on exactly that
+count, so this is the expected mechanism, not a coincidental fix.
+
+**Not yet answered, and not tested this round (not asked):** whether this also holds at
+N=3,000 — the project's actual settled operating population (A7/D3), not the N=10,000/30,000
+explored this session. C13 already showed N=3,000's own disease-only ceiling (peak daily
+deaths≈2.5) is smaller than N=10,000's here (5.3) — smaller than either point in this clean
+result — so this is not a foregone conclusion at N=3,000 and would need its own test. Also not
+tested: the two-sided (stochastic, per-agent) version of CBF's S/S^B mechanism — this remains a
+deterministic direct-g isolation only, per C12/C16's methodology.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -484,6 +522,40 @@ conventions, reported not decided):** whether the two-sided `q` variants show th
 at larger δ_c (not tested this round — C12 deliberately isolated `direct-g` alone), and what this
 implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ_c — see E16.
 
+**D12 — C16/C17's `direct-g` simplification is confirmed NOT a valid stand-in for CBF's real
+mechanism.** [Fact, verified directly against `models/compartment_model_age_deaths.py` lines
+74–147, the same repo already used for A20/C9/C13.] CBF is explicitly a **5-compartment** model
+(S, S^B, E, I, R) — S^B is a genuine tracked stock, not a derived instantaneous quantity. Each of
+the `daily_steps` sub-steps runs a proper **competing-hazards** split: from S, agents race between
+"→E" (force of infection, full rate) and "→S^B" (adoption, `prob_S_to_SB`), drawn as one joint
+binomial then split by relative hazard (source lines 114–118); from S^B, agents race between "→S"
+(relaxation, `prob_SB_to_S = μ_B·(S+R)/N`) and "→E" (force of infection at the *reduced* rate
+`r·β`) (lines 120–126). **Relaxation is driven by μ_B alone, essentially independent of the death
+signal.** With Gozzi's own sourced μ_B=0.01/day (C13), the relaxation half-life is
+`ln(2)/0.01≈69 days` — far slower than the disease's own timescale (latent+infectious≈8 days,
+T_H=14 days). Cautious agents stay cautious long after deaths subside: genuine memory/hysteresis
+that an instantaneous, memoryless multiplier `g(D)` structurally cannot reproduce. `direct-g` was
+a fair match for **Weitz's** mechanism (whose own published ODE literally *is* a direct
+multiplicative modulation, no separate compartment) — that does not carry over to CBF, which has
+a real two-compartment structure Weitz's does not.
+
+**What the correct version needs (not built):** an explicit S^B stock evolved sub-step-by-sub-step
+alongside S/E/I/H/R/D, with `prob_S_to_SB(t) = β_B·(1−exp(−γ_beh·D(t)))` (adoption, driven by
+whatever death signal — 28-day mean per C17, or otherwise) and `prob_SB_to_S(t) = μ_B·(S(t)+R(t))/N`
+(relaxation, driven by a roughly constant rate, *not* the death signal), with competing-hazards
+transitions at each sub-step exactly as Gozzi's code implements them.
+
+**Consequence for C16/C17: those results remain valid AS TESTS OF THE SIMPLIFIED `direct-g`
+FORMULA (methodologically consistent with C12's isolation approach), but they do NOT establish
+whether the REAL two-compartment CBF mechanism is safe at N=10,000/30,000 (let alone N=3,000).**
+S^B is itself a new stock subject to its own small-N discreteness questions (C12's own finding
+applied to a different compartment), and the adoption/relaxation timescale mismatch could produce
+dynamics (e.g. hysteresis across epidemic waves) a memoryless multiplier cannot exhibit in either
+direction — untested, either way. **The requested C17-style test at N=3,000 was deliberately NOT
+run this round**, since it would have rested on the same unconfirmed premise. Reported, not
+fixed — building the real S/S^B mechanism is a modelling/implementation decision for the planning
+chat, not made here.
+
 ## E. Open items
 
 | # | Item | Blocks |
@@ -498,12 +570,13 @@ implies for Test 2's δ_c=0.5 baseline, its tolerance, or arm 1/2's operating δ
 | E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
-| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13); N=30,000 tested for the real CBF mechanism and found NOT safe except at weak-behaviour settings (C16)** |
+| E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13); N=30,000 tested for the real CBF mechanism and found NOT safe except at weak-behaviour settings when using Gozzi's literal yesterday-count signal (C16) — but IS statistically clean at both N=10,000 and N=30,000 (gap <2 SEMs) once the project's own actual 28-day-mean signal is used instead, at Gozzi's own unmodified γ_beh (C17). N=3,000 itself still untested under C17's configuration. **D12: C16/C17 both used a `direct-g` simplification now confirmed NOT a valid stand-in for CBF's real 5-compartment, memory-laden mechanism — their results stand only as tests of that simplified formula, not of arm 1's actual planned dynamics; the N=3,000 test was withheld pending this** |
 | E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
+| E17 | Build CBF's real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards, memory) to properly re-test mean-field recovery / arm 1 viability at any N — `direct-g` is confirmed NOT a valid stand-in for it (D12). Not built yet; C16/C17's results do not transfer to it | Test 2 closure; arm 1 build; C16/C17's validity scope |
 
 ## F. Known limitations of everything measured above
 
