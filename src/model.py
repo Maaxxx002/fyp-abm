@@ -101,10 +101,26 @@ def run(N, seed, days=600, seeds_infected=10,
     )
 
 
-def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
+def cbf_r_from_response_efficacy(response_efficacy):
+    """CBF's per-agent protection factor `r_i`, from Perception's `response_efficacy`.
+
+    r_i = 1 - response_efficacy_i: higher response_efficacy (an agent's belief that
+    precautions work) gives a LOWER residual transmission rate while that agent is in
+    S^B. This mapping is a stated MODELLING CHOICE, not a sourced formula -- no paper
+    specifies how response_efficacy maps onto CBF's `r`, only that response_efficacy is
+    the PMT construct that maps to it (Sourcing_Pack_v3.md Sec 3a: beta=+0.251;
+    Design_Spec_Perception_and_Population.md Sec 2's field table). Same evidentiary
+    status as occupation_flex's values (register A13, this entry): sourced construct,
+    unsourced mapping. See Decision_Register.md for the entry recording this choice.
+    """
+    response_efficacy = np.asarray(response_efficacy, dtype=np.float64)
+    return 1.0 - response_efficacy
+
+
+def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
                        R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
                        f_D=0.01, T_H=14.0, n_substeps=48,
-                       beta_B=0.5, mu_B=0.01, r_factor=0.5, gamma_beh=1.0, window=28):
+                       beta_B=0.5, mu_B=0.01, gamma_beh=1.0, window=28):
     """Arm 1's REAL CBF mechanism (Decision_Register.md D12/E17) -- not the
     `direct-g` simplification, which D12 confirmed is NOT a valid stand-in
     for CBF (CBF has a genuine two-compartment, memory-laden structure that a
@@ -116,11 +132,12 @@ def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
     source, lines ~114-126): from S, agents race between "-> E" (force of
     infection, full rate) and "-> S^B" (adoption); from S^B, agents race
     between "-> S" (relaxation) and "-> E" (force of infection at the
-    reduced rate `r_factor * foi`). Gozzi draws one joint binomial for "did
-    this age-group leave the compartment" and then splits it by relative
-    hazard; here, with individual agents rather than age-group counts, the
-    equivalent is two sequential per-agent Bernoulli draws (leave, then
-    destination) -- distributionally identical for i.i.d. agents (standard
+    PER-AGENT reduced rate `r_i * foi`, r_i = cbf_r_from_response_efficacy(...)).
+    Gozzi draws one joint binomial for "did this age-group leave the
+    compartment" and then splits it by relative hazard; here, with
+    individual agents rather than age-group counts, the equivalent is two
+    sequential per-agent Bernoulli draws (leave, then destination) --
+    distributionally identical for i.i.d. agents (standard
     binomial/multinomial thinning), not an approximation of Gozzi's version:
 
         prob_S_to_SB(t)  = beta_B * (1 - exp(-gamma_beh * D(t)))   -- adoption RATE
@@ -134,10 +151,23 @@ def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
     days strictly before today (shrinking window for the first `window`
     days).
 
-    beta_B/mu_B/r_factor/gamma_beh default to Gozzi's own sourced demo values
-    (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13) -- no per-agent
-    heterogeneity yet (register: that awaits the Perception vector).
+    `response_efficacy` is REQUIRED, length N, index-aligned with agents --
+    normally `Population.response_efficacy` from src/population.py's
+    quota-drawn population (Design_Spec Sec 6 Step 4). This replaces the
+    earlier flat `r_factor=0.5` used for every agent (register C18/C19/C20's
+    validation round): r is now per-agent, `1 - response_efficacy_i`, not a
+    single population-wide constant.
+
+    beta_B/mu_B/gamma_beh default to Gozzi's own sourced demo values
+    (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13).
     """
+    if len(response_efficacy) != N:
+        raise ValueError(
+            f"response_efficacy has length {len(response_efficacy)}, expected N={N} "
+            "(one value per agent, index-aligned with the population)."
+        )
+    r = cbf_r_from_response_efficacy(response_efficacy)
+
     dt = 1.0 / n_substeps
     latent_rate = 1.0 / latent_period_days
     infectious_rate = 1.0 / infectious_period_days
@@ -167,7 +197,7 @@ def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
         for _ in range(n_substeps):
             n_infectious = np.count_nonzero(state == I)
             foi = transmission_rate * n_infectious / N
-            foi_reduced = r_factor * foi
+            foi_reduced = r * foi
 
             n_s = np.count_nonzero(state == S)
             n_r = np.count_nonzero(state == R)
@@ -181,13 +211,12 @@ def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
                 p_leave_s = 0.0
                 frac_e_from_s = 0.0
 
+            # foi_reduced (and hence rate_total_sb) is now per-agent (r_i varies), so this
+            # is an elementwise version of the scalar r_factor branch used previously.
             rate_total_sb = relax_rate + foi_reduced
-            if rate_total_sb > 0:
-                p_leave_sb = 1 - np.exp(-rate_total_sb * dt)
-                frac_e_from_sb = foi_reduced / rate_total_sb
-            else:
-                p_leave_sb = 0.0
-                frac_e_from_sb = 0.0
+            p_leave_sb = 1 - np.exp(-rate_total_sb * dt)
+            safe_rate_total_sb = np.where(rate_total_sb > 0, rate_total_sb, 1.0)
+            frac_e_from_sb = np.where(rate_total_sb > 0, foi_reduced / safe_rate_total_sb, 0.0)
 
             s_mask = (state == S)
             sb_mask = (state == SB)

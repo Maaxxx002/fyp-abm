@@ -26,7 +26,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A10 | Population: New York age structure, quota-drawn, frozen | Mean IFR 0.9718% vs Weitz's 1.000%; see B2 |
 | A11 | Vulnerability derived from age via `IFR_10age` | Zero free parameters |
 | A12 | `days_since_last_outing` **deleted** | No source; replaced by CBF's relaxation mechanism |
-| A13 | `response_efficacy` **added** | PMT β=+0.251, second-strongest determinant |
+| A13 | `response_efficacy` **added** — **implemented**, wired into CBF's `r` (`r_i = 1 - response_efficacy_i`) | PMT β=+0.251, second-strongest determinant; wiring and its unsourced-mapping caveat recorded in C21 |
 | A14 | `self_efficacy` deliberately excluded | Strongest determinant (β=+0.270) but no meaningful barrier in a single-venue three-level act |
 | A15 | Disease is **not named** in the arm-2 prompt | Arm 1 has no disease identity; naming it creates an input asymmetry, not a function difference |
 | A16 | Scenarios vary only R₀ and T_H | δ_c, k, r, β_B live inside arm 1's rule; varying them varies the object under test |
@@ -560,6 +560,43 @@ in kind (though not confirmed in cause) to E16's separately-open Weitz-mechanism
 comparison rather than a defect to keep chasing with more seeds, more N, or further mechanism
 audits.** This closes E18.
 
+**C21 — Per-agent `response_efficacy` wired into CBF's `r`, replacing the flat r=0.5 used
+throughout C13-C20's validation round.** `src/model.py` gains
+`cbf_r_from_response_efficacy(response_efficacy) = 1 - response_efficacy`, computed once per
+agent (static, not recomputed per day — response_efficacy does not change over an agent's
+lifetime) inside `run_cbf_behaviour`, which now REQUIRES a length-N `response_efficacy` array
+(normally `Population.response_efficacy` from `src/population.py`) in place of the old scalar
+`r_factor` parameter.
+
+**[Decision, unsourced]** The mapping itself — higher response_efficacy (an agent's belief that
+precautions work) gives a lower residual transmission rate `r_i` while that agent is in S^B —
+is a stated modelling choice, not a sourced formula: no paper specifies how response_efficacy
+maps onto CBF's `r`, only that response_efficacy is the PMT construct (β=+0.251) that maps to it
+(Sourcing_Pack_v3.md Sec 3a, Design_Spec_Perception_and_Population.md Sec 2). **Same
+evidentiary status as occupation_flex's own values (A13/A14 area): sourced construct, unsourced
+mapping/values.**
+
+Verified before calling this done (`tests/test_cbf_response_efficacy.py`): (a) `r_i == 1 -
+response_efficacy_i` checked directly against a handful of values and against a real built
+population; (b) the effective cautious transmission rate `r_i * beta` is confirmed strictly
+decreasing as response_efficacy rises from 0 to 1 (101-point sweep); (c) `run_cbf_behaviour` now
+rejects a `response_efficacy` array of the wrong length instead of silently misaligning it; (d)
+a smoke run with the real quota-drawn population wires through end to end without error.
+
+**Realised population-average `r_i`, measured not assumed** (N=3,000, Beta(2,2), seed=0 — the
+same population `tests/test_population.py` exercises): response_efficacy mean 0.4992 (SD
+0.2216), so **mean r_i = 0.5008**. This lands close to Gozzi's flat demo default (r=0.5, C13)
+because Beta(2,2)'s expectation is exactly 0.5 — but this is the realised finite-N draw, not a
+guarantee, and would differ under a different seed or a different swept Beta shape (Design_Spec
+Sec 6 Step 3's stated later sweep).
+
+**Not done this round (deliberately, per instruction): the N=3,000/10,000/30,000 validation
+battery (C18/C19/C20's own tests) has NOT been re-run with per-agent r.**
+`experiments/cbf_real_mechanism_test.py` and `experiments/cbf_real_mechanism_seed_check.py`
+still call the old `r_factor=` keyword and will error if run as-is — they need updating (build a
+`Population` per N, pass `response_efficacy` through) before they can run again. That update,
+and the re-run itself, are a separate step.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -743,7 +780,7 @@ Repo `fyp-abm` (GitHub). Layout: `docs/` · `src/` · `tests/` · `experiments/`
 | Verification Test 1 — ODE convergence | ✅ **CLOSED.** `tests/test_ode_convergence.py`, repointed to `src/model.py` (G2 resolved), 30/30 seeds, N=100,000, behaviour off, 1% relative tolerance (G1 resolved). Measured: mean final S=0.05926 vs ODE 0.05952, 0.431% relative error. See C10 |
 | Verification Test 2 — mean-field recovery | ❌ **BLOCKED, not passing.** δ fix (D10) now applied in `src/model.py`'s `run_weitz_behaviour` (continuous, per-sub-step, zero-lag) and re-tested at full N=100,000/30 seeds (C11): 4.13% relative error for the actual (continuous-q) implementation, still outside the file's stated 2% tolerance. The deterministic sanity variant also fails at this scale (4.56%, D11) — the residual is not fully explained by cadence or the two-sided mechanism. Root cause of the remaining ~4-6% gap is open (E16) |
 | Verification Test 3 — renderer totality | ❌ cannot exist — no `Perception` dataclass or renderer yet |
-| `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1); Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23); and arm 1's real CBF mechanism (`run_cbf_behaviour`, S/S^B compartments with competing hazards, C18/E17) — no per-agent heterogeneity yet, awaits the Perception vector |
+| `src/` | `model.py` — SEIR+H disease dynamics, behaviour off (`run`, Test 1); Weitz's own behaviour rule for simulator validation (`run_weitz_behaviour`, Test 2, A4/A19/A23); and arm 1's real CBF mechanism (`run_cbf_behaviour`, S/S^B compartments with competing hazards, C18/E17), now with per-agent heterogeneity in `r` via `cbf_r_from_response_efficacy` (C21). `perception.py` — the `Perception` dataclass (shape only, no renderer/computation yet). `population.py` — quota-drawn `Population` construction at N=3,000, `build_population` (age_band/vulnerability sourced and derived; occupation_flex/response_efficacy configurable free Beta draws) |
 | `experiments/abm.py` | validated pilot; **contradicts A20** — single daily step with raw-rate transitions rather than 12 sub-steps. Untouched throughout the `src/model.py` build |
 | `experiments/metrics.py` | shape-metric exploration; computes the symmetry coefficient, which D7/D8 show is unreliable. Do not build on it |
 | `experiments/verify_substep_bias.py`, `verify_substep_scheme.py`, `verify_meanfield_delta_bug.py` | diagnostic scripts kept alongside the pilot, not part of `src/` — back C9, D9/G3, and D10 respectively |
