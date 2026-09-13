@@ -11,18 +11,30 @@ Gozzi's own `compartment_model_age_deaths.py`, lines ~114-126):
 
     prob_S_to_SB(t) = beta_B * (1 - exp(-gamma_beh * D(t)))   -- adoption rate
     prob_SB_to_S(t) = mu_B * (S(t) + R(t)) / N                -- relaxation rate
-    S^B infected at the reduced rate r_factor * (force of infection)
+    S^B infected at the PER-AGENT reduced rate r_i * (force of infection)
 
 Sub-step competing-hazards transitions exactly as Gozzi's code: one joint
 "did this agent leave the compartment" draw, then split by relative hazard.
-No per-agent heterogeneity yet (Design_Spec's Perception vector does not
-exist yet). beta_B=0.5, mu_B=0.01, r_factor=0.5, gamma_beh=1 -- Gozzi's own
-sourced demo values (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13),
-unmodified. D(t) = 28-day rolling mean of daily deaths (A8/C7), using days
-strictly before today with a shrinking window for the first 28 days -- the
-project's actual settled signal, not Gozzi's own literal yesterday-count
-(confirmed the right choice for CBF's mechanism in C17, though C17 only
-tested it against the `direct-g` simplification).
+beta_B=0.5, mu_B=0.01, gamma_beh=1 -- Gozzi's own sourced demo values
+(Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13), unmodified. D(t) =
+28-day rolling mean of daily deaths (A8/C7), using days strictly before
+today with a shrinking window for the first 28 days -- the project's actual
+settled signal, not Gozzi's own literal yesterday-count (confirmed the
+right choice for CBF's mechanism in C17, though C17 only tested it against
+the `direct-g` simplification).
+
+UPDATE (Decision_Register.md C21/C22): `r` is no longer a flat scalar
+(r_factor=0.5, C18/C19's original round) -- it is now per-agent,
+`r_i = 1 - response_efficacy_i`, drawn from a real quota-drawn
+`src/population.py` Population (Beta(2,2), the design spec's proposed
+default). ⚠️ The DDE reference below (`_rhs`/`ode_final_S`) is UNCHANGED and
+still assumes a single shared `r_factor` (still defaulting to 0.5) for the
+whole S^B compartment -- it does NOT account for the response_efficacy
+distribution. That is a deliberate, stated limitation of this comparison
+(a bigger, separate task to fix properly), not an oversight: this round
+changes only the ABM side, so the ABM-vs-DDE comparison below is not fully
+apples-to-apples on the reference side, only on the ABM side relative to
+C18/C19.
 
 Reference: a genuine delay-differential-equation system (the 28-day mean is
 a trailing integral, not expressible as a plain ODE), 7 states
@@ -47,6 +59,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from model import run_cbf_behaviour  # noqa: E402
+from population import build_population  # noqa: E402
 
 R0 = 3.0
 LATENT_PERIOD_DAYS = 2.0
@@ -59,10 +72,13 @@ DAYS = 900          # matches C16/C17's convergence-testing convention, not the 
 N_SEEDS = 30
 BETA_B = 0.5        # Gozzi's own sourced demo default (C13), as-is
 MU_B = 0.01         # Gozzi's own sourced demo default (C13), as-is
-R_FACTOR = 0.5      # Gozzi's own sourced demo default (C13), as-is
+R_FACTOR = 0.5      # kept ONLY for the DDE reference below, which still assumes a flat r
+                    # (see module docstring's C21/C22 update note) -- the ABM no longer uses this
 GAMMA_BEH = 1.0     # Gozzi's own sourced demo default (C13), as-is -- not swept
 WINDOW = 28         # A8/C7's settled awareness window
 N_VALUES = [3_000, 10_000, 30_000]
+POPULATION_SEED = 0  # fixed population-construction seed (unrelated to disease-run seeds),
+                     # same convention as tests/test_population.py and register C21
 
 _LATENT_RATE = 1.0 / LATENT_PERIOD_DAYS
 _INFECTIOUS_RATE = 1.0 / INFECTIOUS_PERIOD_DAYS
@@ -144,14 +160,15 @@ def sanity_check_against_test1():
 
 
 def _worker(args):
-    N, seed = args
+    N, seed, response_efficacy = args
     t0 = time.time()
     result = run_cbf_behaviour(
-        N=N, seed=seed, days=DAYS, seeds_infected=SEEDS_INFECTED,
+        N=N, seed=seed, response_efficacy=response_efficacy,
+        days=DAYS, seeds_infected=SEEDS_INFECTED,
         R0=R0, latent_period_days=LATENT_PERIOD_DAYS,
         infectious_period_days=INFECTIOUS_PERIOD_DAYS,
         f_D=F_D, T_H=T_H, n_substeps=N_SUBSTEPS,
-        beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_BEH, window=WINDOW,
+        beta_B=BETA_B, mu_B=MU_B, gamma_beh=GAMMA_BEH, window=WINDOW,
     )
     s_final = float(result["S"][-1])
     peak_d = float(result["deaths"].max())
@@ -168,7 +185,19 @@ def main(n_seeds=N_SEEDS):
         print(f"N={N:,}: ODE final S = {ode_S:.5f}, ODE final H = {ode_H:.2f}")
     print(flush=True)
 
-    tasks = [(N, seed) for N in N_VALUES for seed in range(n_seeds)]
+    # One frozen Population per N (register C21/CLAUDE.md hard constraint 6: drawn once,
+    # reused across every seed). response_efficacy is the only field run_cbf_behaviour needs.
+    populations = {N: build_population(N=N, seed=POPULATION_SEED) for N in N_VALUES}
+    for N in N_VALUES:
+        re = populations[N].response_efficacy
+        print(f"N={N:,}: population built (seed={POPULATION_SEED}), "
+              f"response_efficacy mean={re.mean():.4f} (r_i mean={1-re.mean():.4f})")
+    print(flush=True)
+
+    tasks = [
+        (N, seed, populations[N].response_efficacy)
+        for N in N_VALUES for seed in range(n_seeds)
+    ]
     results = {N: {"S": [None] * n_seeds, "peakD": [None] * n_seeds} for N in N_VALUES}
     t_start = time.time()
     done = 0
@@ -182,10 +211,21 @@ def main(n_seeds=N_SEEDS):
                   flush=True)
 
     print("\n=== SUMMARY (REAL CBF mechanism: S/S^B compartments, competing hazards, "
-          "28-day mean signal, beta_B=0.5/mu_B=0.01/r=0.5/gamma_beh=1 as sourced) ===")
+          "28-day mean signal, beta_B=0.5/mu_B=0.01/gamma_beh=1 as sourced, "
+          "PER-AGENT r_i = 1 - response_efficacy_i, C21) ===")
+    print("WARNING: DDE reference unchanged: still assumes a single flat r=0.5 for the whole "
+          "S^B compartment -- does NOT account for the response_efficacy distribution. "
+          "This comparison is apples-to-apples on the ABM side vs C18/C19 only.\n")
+    # C18's original 30-seed flat-r=0.5 relative errors, for direct comparison (register).
+    C18_RELATIVE_ERROR = {3_000: 0.0454, 10_000: 0.0443, 30_000: 0.0563}
+
     summary = {
-        "beta_B": BETA_B, "mu_B": MU_B, "r_factor": R_FACTOR, "gamma_beh": GAMMA_BEH,
+        "beta_B": BETA_B, "mu_B": MU_B, "gamma_beh": GAMMA_BEH,
         "window": WINDOW, "days": DAYS, "n_substeps": N_SUBSTEPS, "n_seeds": n_seeds,
+        "population_seed": POPULATION_SEED,
+        "note": "r is now per-agent (r_i = 1 - response_efficacy_i); the DDE reference still "
+                "assumes a single flat r (see ode_final_S's r_factor default) and was NOT "
+                "changed to account for the response_efficacy distribution.",
         "results": {},
     }
     for N in N_VALUES:
@@ -197,17 +237,21 @@ def main(n_seeds=N_SEEDS):
         sem_S = float(s_arr.std(ddof=1) / np.sqrt(n_used))
         rel_err = abs(mean_S - ode_S) / ode_S
         gap_sems = (mean_S - ode_S) / sem_S
+        c18_rel_err = C18_RELATIVE_ERROR[N]
         summary["results"][str(N)] = {
             "ode_final_S": ode_S, "finals_S": results[N]["S"], "finals_peakD": results[N]["peakD"],
             "n_seeds_used": n_used, "mean_final_S": mean_S, "sem_final_S": sem_S,
             "relative_error": rel_err, "gap_sems": gap_sems,
             "mean_peak_daily_deaths": float(d_arr.mean()),
+            "population_response_efficacy_mean": float(populations[N].response_efficacy.mean()),
+            "c18_flat_r_relative_error": c18_rel_err,
         }
         # Denominator (CLAUDE.md convention): report how many of n_seeds this statistic is defined on.
         print(f"N={N:>7,}: {n_used}/{n_seeds} seeds, "
               f"mean peak daily deaths = {d_arr.mean():.1f}, "
               f"mean final S = {mean_S:.5f} (ODE {ode_S:.5f}), "
-              f"relative error = {rel_err*100:.2f}% ({gap_sems:.2f} SEMs)")
+              f"relative error = {rel_err*100:.2f}% ({gap_sems:.2f} SEMs) "
+              f"[C18 flat-r=0.5: {c18_rel_err*100:.2f}%]")
 
     os.makedirs(os.path.join(os.path.dirname(__file__), "..", "results"), exist_ok=True)
     out_path = os.path.join(os.path.dirname(__file__), "..", "results", "cbf_real_mechanism_test.json")

@@ -18,6 +18,14 @@ has no band edge at 65; band 7 (60-69) straddles it. `build_population`'s
 matching the only prior precedent in this repo, experiments/state_count_check.py, which itself
 labels the choice "a stand-in approximation, not a sourced rule") -- NOT a settled decision.
 Override the arguments once the planning chat picks one.
+
+⚠️ N=3,000 is this project's settled operating population (A7/D13) and the only N with an
+exact, published quota table (AGE_BAND_COUNTS_N3000, used verbatim). `build_population` also
+accepts other N (needed by validation experiments that sweep N, e.g. Decision_Register.md
+C18-C21) by applying the SAME largest-remainder method to the same sourced age-share
+percentages at a different total -- a mechanical extension of an already-sourced method, not a
+new invented number, but flagged here since it was deliberately NOT supported in this module's
+first version.
 """
 from dataclasses import dataclass
 
@@ -37,6 +45,17 @@ AGE_BAND_LABELS = [
 ]
 AGE_BAND_COUNTS_N3000 = [330, 337, 187, 240, 472, 378, 376, 333, 220, 127]
 N_AGE_BANDS = len(AGE_BAND_LABELS)
+
+# The same New York age-share percentages behind AGE_BAND_COUNTS_N3000 (Design_Spec Sec 6
+# Step 1's own table), used to extend the quota construction to N values other than 3,000 --
+# via the SAME largest-remainder method the design spec itself names as having produced
+# AGE_BAND_COUNTS_N3000 ("Largest-remainder rounding to exactly 3,000"), not an invented rule.
+# At N=3,000 exactly, AGE_BAND_COUNTS_N3000's published integers are still used verbatim
+# instead of recomputing from these percentages: recomputing hits a 3-way tie in the remainder
+# step that resolves two different ways at that specific total (see the note above), so the
+# already-published table remains authoritative there. At other N, exact ties among these many-
+# decimal quantities are vanishingly unlikely, so the standard method is applied directly.
+AGE_SHARES = [0.1102, 0.1123, 0.0625, 0.0800, 0.1572, 0.1259, 0.1252, 0.1111, 0.0734, 0.0423]
 
 # Design_Spec Sec 6 Step 2: IFR_10age (Gozzi constants.py), paired with pop_data_Nk.csv's
 # 10-band structure -- NOT the 9-band `IFR` list quoted elsewhere in Sourcing_Pack_v3.md, which
@@ -82,6 +101,22 @@ class Population:
         return len(self.age_band)
 
 
+def _largest_remainder_quota(shares, N):
+    """Standard largest-remainder (Hamilton) apportionment of N integer units across bands
+    by `shares` (need not sum to exactly 1 -- normalised first). Ties in the remainder step
+    are broken by ascending band index (deterministic; exact ties among these many-decimal
+    quantities are not expected in practice at the N values this project uses)."""
+    shares = np.asarray(shares, dtype=np.float64)
+    shares = shares / shares.sum()
+    raw = shares * N
+    counts = np.floor(raw).astype(np.int64)
+    remainder_budget = int(N - counts.sum())
+    remainders = raw - counts
+    order = np.argsort(-remainders, kind="stable")  # largest remainder first, ties -> band index
+    counts[order[:remainder_budget]] += 1
+    return counts.tolist()
+
+
 def build_population(
     N=3000,
     seed=0,
@@ -105,20 +140,19 @@ def build_population(
     population-construction seed, unrelated to and not to be confused with a disease-run seed
     (src/model.py's `run`/`run_weitz_behaviour`/`run_cbf_behaviour` seeds).
 
-    Raises NotImplementedError for any N other than 3,000: no other N has a sourced quota
-    table, and inventing a generic rounding rule for arbitrary N is exactly the kind of
-    unsourced parameter CLAUDE.md's hard constraint 1 rules out.
+    N=3,000 uses AGE_BAND_COUNTS_N3000, the design spec's own published quota, verbatim. Any
+    other N uses the same sourced New York age shares (AGE_SHARES) via the same
+    largest-remainder method the design spec names as having produced that table -- not a new
+    invented rule, but also not itself a citable source the way AGE_BAND_COUNTS_N3000 is.
     """
-    if N != 3000:
-        raise NotImplementedError(
-            f"No sourced age-band quota table exists for N={N}. "
-            "AGE_BAND_COUNTS_N3000 is sourced only for the project's settled N=3,000 "
-            "(register A7/D13); extending to other N would require inventing a rounding rule."
-        )
+    if N == 3000:
+        counts = AGE_BAND_COUNTS_N3000
+    else:
+        counts = _largest_remainder_quota(AGE_SHARES, N)
 
     age_band = np.concatenate([
         np.full(count, band, dtype=np.int64)
-        for band, count in enumerate(AGE_BAND_COUNTS_N3000)
+        for band, count in enumerate(counts)
     ])
     vulnerability = IFR_10AGE[age_band]
 

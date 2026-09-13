@@ -1,10 +1,16 @@
 """
-Follow-up to C18: does the ~4.5% gap at N=3,000/10,000 survive more seeds, or
+Follow-up to C18/C21: does the gap at N=3,000/10,000 survive more seeds, or
 was it noise that a 30-seed SEM couldn't rule out? N=30,000 already cleared
 ~2 SEMs at 30 seeds (C18) and is left alone here. No model or reference
 changes -- same run_cbf_behaviour, same DDE reference, same parameters
-(beta_B=0.5, mu_B=0.01, r_factor=0.5, gamma_beh=1, 28-day window), same
-days=900/48 sub-steps -- only the seed count changes, 30 -> 90.
+(beta_B=0.5, mu_B=0.01, gamma_beh=1, 28-day window), same days=900/48
+sub-steps -- only the seed count changes, 30 -> 90.
+
+UPDATE (register C21/C22): r is now per-agent (r_i = 1 - response_efficacy_i,
+from a real src/population.py Population), not the flat r_factor=0.5 this
+script originally used -- imports build_population and constructs one
+Population per N, same POPULATION_SEED convention as cbf_real_mechanism_test.py.
+The DDE reference is unchanged and still assumes a flat r (see that module).
 """
 import json
 import multiprocessing as mp
@@ -16,7 +22,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from cbf_real_mechanism_test import _worker, ode_final_S, DAYS, N_SUBSTEPS  # noqa: E402
+from cbf_real_mechanism_test import (  # noqa: E402
+    _worker, ode_final_S, DAYS, N_SUBSTEPS, POPULATION_SEED,
+)
+from population import build_population  # noqa: E402
 
 N_SEEDS = 90
 N_VALUES = [3_000, 10_000]
@@ -30,7 +39,17 @@ def main(n_seeds=N_SEEDS):
         print(f"N={N:,}: ODE final S = {ode_S:.5f}, ODE final H = {ode_H:.2f}")
     print(flush=True)
 
-    tasks = [(N, seed) for N in N_VALUES for seed in range(n_seeds)]
+    populations = {N: build_population(N=N, seed=POPULATION_SEED) for N in N_VALUES}
+    for N in N_VALUES:
+        re = populations[N].response_efficacy
+        print(f"N={N:,}: population built (seed={POPULATION_SEED}), "
+              f"response_efficacy mean={re.mean():.4f} (r_i mean={1-re.mean():.4f})")
+    print(flush=True)
+
+    tasks = [
+        (N, seed, populations[N].response_efficacy)
+        for N in N_VALUES for seed in range(n_seeds)
+    ]
     results = {N: {"S": [None] * n_seeds, "peakD": [None] * n_seeds} for N in N_VALUES}
     t_start = time.time()
     done = 0

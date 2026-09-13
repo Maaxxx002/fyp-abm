@@ -597,6 +597,40 @@ still call the old `r_factor=` keyword and will error if run as-is — they need
 `Population` per N, pass `response_efficacy` through) before they can run again. That update,
 and the re-run itself, are a separate step.
 
+**C22 — CBF with per-agent response_efficacy-derived r, validated at N=3,000/10,000/30,000
+against the same flat-r=0.5 DDE reference used in C18/C19. [Measured, closed]**
+
+**N=3,000 (operating size for all four arms): clean at every seed count tried (10, 30, 90) and
+across 5 independent population draws** — relative error 2.59-8.43%, all within 1 SEM of the
+reference. No evidence of a problem at the size actually used by the project.
+
+**N=10,000: real, non-zero gap**, confirmed by 5 independent population draws (10 seeds each,
+20.0-23.3%) and by extending one population from 30 to 90 seeds (17.34%→16.48%, gap growing
+from 3.49 to 5.48 SEMs — stable magnitude, increasing certainty it's real, not noise).
+
+**N=30,000: real but not yet converged** — extending 30→90 seeds moved the estimate itself
+(7.53%→12.29%, 3.47→7.54 SEMs), unlike N=10,000 where the estimate held steady. The true
+magnitude at this N is unresolved; that it is non-zero was already established (>3 SEMs at 30
+seeds, before the instability was found).
+
+**Ruled out as causes, each independently checked:** a bug in `build_population` (independently
+re-derived, exact match); a bug in the array-based per-agent hazard rewrite (bit-exact match to
+the old scalar code when every agent is given r=0.5); an unusual specific population draw at
+N=10,000 (5 independent draws, same result); response_efficacy=0 being mishandled as "no seed"
+(checked the literal source, no such branch exists); the hazard formula misbehaving at extreme
+response_efficacy values (isolated test at 0.0001/0.9999, correct direction, no NaN/inf/negative
+values); a pile-up of extreme agents at N=30,000 (1 agent above 0.999, 0 below 0.001).
+
+**Working hypothesis, unconfirmed:** the DDE reference assumes one shared r for the whole S^B
+compartment and has never been rebuilt for per-agent r; mixing many different r values is not
+guaranteed to average to the same dynamics as one shared r. Confirming this would require
+building a heterogeneous-r mean-field reference — separate, larger scope, not undertaken here.
+
+**Decision:** since no arm in this project runs above N=3,000, and N=3,000 shows no problem,
+this is recorded as a documented, accepted limitation of the N=10,000/30,000 stress test only —
+not chased further, same treatment as the earlier flat-r gap (C20). Revisit only if a future
+stage requires a validated arm 1 above N=3,000 (not currently planned).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a

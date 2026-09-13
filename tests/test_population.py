@@ -12,6 +12,7 @@ import pytest
 
 from population import (
     AGE_BAND_COUNTS_N3000,
+    AGE_SHARES,
     DEFAULT_RETIRED_AGE_BANDS,
     DEFAULT_SCHOOL_AGE_BANDS,
     IFR_10AGE,
@@ -113,6 +114,24 @@ def test_school_retired_band_assignment_is_configurable_not_hardcoded():
     assert not np.all(pop_band7_working.occupation_flex[band7_mask] == 1.0)
 
 
-def test_rejects_unsourced_N():
-    with pytest.raises(NotImplementedError):
-        build_population(N=1000)
+def test_other_N_uses_largest_remainder_of_the_same_sourced_shares():
+    # N != 3,000 is generated from AGE_SHARES via the same largest-remainder method the
+    # design spec used to produce AGE_BAND_COUNTS_N3000 -- not the exact published table
+    # (which only exists at N=3,000), but not an invented rule either.
+    for N in (10_000, 30_000):
+        pop = build_population(N=N, seed=0)
+        counts = np.bincount(pop.age_band, minlength=N_AGE_BANDS)
+        assert counts.sum() == N
+        # Every band's count should be within 1 of the raw (unrounded) share -- that's what
+        # largest-remainder guarantees.
+        shares = np.array(AGE_SHARES) / np.sum(AGE_SHARES)
+        raw = shares * N
+        assert np.all(np.abs(counts - raw) <= 1.0 + 1e-9)
+
+
+def test_n3000_still_uses_the_exact_published_table_not_the_generic_rule():
+    # The generic largest-remainder rule does NOT reproduce AGE_BAND_COUNTS_N3000 exactly
+    # (a 3-way tie resolves differently) -- build_population must special-case N=3,000.
+    pop = build_population(N=3000, seed=0)
+    counts = np.bincount(pop.age_band, minlength=N_AGE_BANDS)
+    assert counts.tolist() == AGE_BAND_COUNTS_N3000
