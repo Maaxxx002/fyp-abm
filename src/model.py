@@ -28,6 +28,22 @@ import numpy as np
 S, E, I, H, R, D, SB = 0, 1, 2, 3, 4, 5, 6
 
 
+def _check_f_D(f_D, N):
+    """f_D is either a scalar (the flat 0.01 default) or a length-N per-agent array
+    (normally `Population.vulnerability` = IFR_10AGE[age_band], register C23). Either
+    way it is used as `rng.random(N) < f_D` at the I->{H,R} split, so a scalar and a
+    constant array give bit-identical runs."""
+    if np.ndim(f_D) == 0:
+        return f_D
+    f_D = np.asarray(f_D, dtype=np.float64)
+    if f_D.shape != (N,):
+        raise ValueError(
+            f"f_D has shape {f_D.shape}, expected a scalar or shape ({N},) "
+            "(one value per agent, index-aligned with the population)."
+        )
+    return f_D
+
+
 def run(N, seed, days=600, seeds_infected=10,
         R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
         f_D=0.01, T_H=14.0, n_substeps=48):
@@ -36,7 +52,11 @@ def run(N, seed, days=600, seeds_infected=10,
     Each day is advanced over n_substeps sub-steps of dt=1/n_substeps; each
     transition (S->E force of infection, E->I, I->{H,R}, H->D) uses
     probability 1-exp(-rate*dt) (register A20/C9).
+
+    `f_D` is a scalar (flat, default 0.01) or a length-N per-agent array
+    (age-based mortality, `Population.vulnerability`; register C23).
     """
+    f_D = _check_f_D(f_D, N)
     dt = 1.0 / n_substeps
     latent_rate = 1.0 / latent_period_days
     infectious_rate = 1.0 / infectious_period_days
@@ -120,7 +140,8 @@ def cbf_r_from_response_efficacy(response_efficacy):
 def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
                        R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
                        f_D=0.01, T_H=14.0, n_substeps=48,
-                       beta_B=0.5, mu_B=0.01, gamma_beh=1.0, window=28):
+                       beta_B=0.5, mu_B=0.01, gamma_beh=1.0, window=28,
+                       detection_rate=1.0, truncate_by_age_band=None):
     """Arm 1's REAL CBF mechanism (Decision_Register.md D12/E17) -- not the
     `direct-g` simplification, which D12 confirmed is NOT a valid stand-in
     for CBF (CBF has a genuine two-compartment, memory-laden structure that a
@@ -160,6 +181,24 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
 
     beta_B/mu_B/gamma_beh default to Gozzi's own sourced demo values
     (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13).
+
+    `f_D`: scalar (flat 0.01 default) or length-N per-agent array (register C23).
+
+    Death reporting (register C23). Agents perceive REPORTED deaths, not realised
+    ones; the recorded `deaths` series is always the realised count. Gozzi's
+    source (`compartment_model_age_deaths.py` line 152, default
+    deaths_delay="fixed") does
+
+        deaths[:, (t-1)+int(Delta)] = (detection_rate * np.random.binomial(new_R_day, ifr)).astype(int)
+
+    i.e. a MULTIPLIER on the count (not binomial thinning), then an integer cast
+    per age group. Default here: `reported = detection_rate * realised` with no
+    cast (the cast is negligible at Gozzi's city scale but removes most of the
+    signal at N=3,000). Passing `truncate_by_age_band` (length-N age-band array)
+    reproduces the literal source: reported = sum over bands of
+    floor(detection_rate * band deaths). Gozzi's 14-day Delta is deliberately NOT
+    added: the H compartment (T_H) already provides the infection-to-death delay.
+    detection_rate=1.0 with no truncation reproduces the earlier code bit-for-bit.
     """
     if len(response_efficacy) != N:
         raise ValueError(
@@ -167,6 +206,12 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
             "(one value per agent, index-aligned with the population)."
         )
     r = cbf_r_from_response_efficacy(response_efficacy)
+    f_D = _check_f_D(f_D, N)
+    if truncate_by_age_band is not None:
+        truncate_by_age_band = np.asarray(truncate_by_age_band)
+        if truncate_by_age_band.shape != (N,):
+            raise ValueError(f"truncate_by_age_band must have shape ({N},)")
+        n_bands = int(truncate_by_age_band.max()) + 1
 
     dt = 1.0 / n_substeps
     latent_rate = 1.0 / latent_period_days
@@ -183,17 +228,26 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
     state[rng.choice(N, seeds_infected, replace=False)] = I
 
     daily_deaths = np.zeros(days)
+    reported_deaths = np.zeros(days)
+    awareness_signal = np.zeros(days)
     daily_incidence = np.zeros(days)
     prevalence = np.zeros(days)
+    exposed = np.zeros(days)
+    SB_count = np.zeros(days)
     S_frac = np.zeros(days)
+    if truncate_by_age_band is not None:
+        deaths_by_band = np.zeros((days, n_bands))
 
     for t in range(days):
         window_start = max(0, t - window)
-        D_mean = daily_deaths[window_start:t].mean() if t > 0 else 0.0
+        D_mean = reported_deaths[window_start:t].mean() if t > 0 else 0.0
+        awareness_signal[t] = D_mean
         adoption_rate = beta_B * (1.0 - np.exp(-gamma_beh * D_mean))
 
         day_new_e = 0
         day_new_d = 0
+        if truncate_by_age_band is not None:
+            day_new_d_band = np.zeros(n_bands)
         for _ in range(n_substeps):
             n_infectious = np.count_nonzero(state == I)
             foi = transmission_rate * n_infectious / N
@@ -246,10 +300,19 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
 
             day_new_e += np.count_nonzero(to_e_from_s) + np.count_nonzero(to_e_from_sb)
             day_new_d += np.count_nonzero(new_d)
+            if truncate_by_age_band is not None:
+                day_new_d_band += np.bincount(truncate_by_age_band[new_d], minlength=n_bands)
 
         daily_incidence[t] = day_new_e
         daily_deaths[t] = day_new_d
+        if truncate_by_age_band is not None:
+            deaths_by_band[t] = day_new_d_band
+            reported_deaths[t] = np.floor(detection_rate * day_new_d_band).sum()
+        else:
+            reported_deaths[t] = detection_rate * day_new_d
         prevalence[t] = np.count_nonzero(state == I)
+        exposed[t] = np.count_nonzero(state == E)
+        SB_count[t] = np.count_nonzero(state == SB)
         S_frac[t] = (np.count_nonzero(state == S) + np.count_nonzero(state == SB)) / N
 
         if (prevalence[t] == 0 and np.count_nonzero(state == E) == 0
@@ -262,8 +325,10 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
 
     return dict(
         S=S_frac, prevalence=prevalence, incidence=daily_incidence,
-        deaths=daily_deaths, N=N,
+        deaths=daily_deaths, reported_deaths=reported_deaths,
+        awareness_signal=awareness_signal, exposed=exposed, SB=SB_count, N=N,
         total_infected=N - np.count_nonzero(state == S) - np.count_nonzero(state == SB),
+        **({"deaths_by_band": deaths_by_band} if truncate_by_age_band is not None else {}),
     )
 
 

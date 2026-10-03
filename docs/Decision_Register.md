@@ -631,6 +631,111 @@ this is recorded as a documented, accepted limitation of the N=10,000/30,000 str
 not chased further, same treatment as the earlier flat-r gap (C20). Revisit only if a future
 stage requires a validated arm 1 above N=3,000 (not currently planned).
 
+**C23 — "Gozzi as-is" arm-1 baseline (step 1 of the supervisor's one-modification-at-a-time
+plan): 28-day mean vs yesterday's-deaths signal, with Gozzi's 70% reporting and age-based IFR.
+[Measured facts only; no decision taken.]** Planning-chat inputs (not re-decided): flat r=0.5
+for every agent; detection 0.7 and per-agent f_D = IFR_10AGE[age_band] adopted; Weitz disease
+parameters and 48 sub-steps kept; Gozzi's 14-day Δ NOT added (H with T_H=14 already supplies
+the infection-to-death delay).
+
+*Code.* `src/model.py`: `run()` and `run_cbf_behaviour()` accept `f_D` as a scalar (default
+0.01) or a length-N per-agent array; `run_cbf_behaviour()` gains `detection_rate` (default 1.0)
+and optional `truncate_by_age_band`. Agents perceive reported deaths; the recorded `deaths`
+series is always the realised count. Tests: `tests/test_mortality_and_reporting.py` (defaults
+bit-identical to the pre-change HEAD code, loaded via git; per-agent f_D mean 0.009718; signal
+= window mean of 0.7 × realised; literal-cast mode; detection never changes realised deaths).
+
+*How Gozzi applies 0.7 — from source.* `models/compartment_model_age_deaths.py` line 152
+(default `deaths_delay="fixed"`; repo commit 7ddda64):
+`deaths[:, (t-1)+int(Delta)] = (detection_rate * np.random.binomial(new_R_day, ifr)).astype(int)`.
+It is a **multiplier on the count, not binomial thinning**, followed by an **integer cast per age
+group per day**. (The `"gamma"` delay branch, lines 154–163, applies no detection at all.) At
+Gozzi's city scale the cast is negligible; at N=3,000 a single death in a band becomes
+floor(0.7)=0. [Decision, Max, this session] Main configs use the plain multiplier (no cast); the
+literal cast was added as an extra measured config (2T) rather than assumed away.
+
+*Setup.* `experiments/step1_gozzi_baseline.py`, `results/step1_gozzi_baseline.{json,log}`.
+N=3,000 quota population (seed 0), r=0.5 flat, β_B=0.5, μ_B=0.01, γ_beh=1, 48 sub-steps, R0=3,
+latent 2 d, infectious 6 d, T_H=14, 10 initial infected, 900 days, seeds 0–29 for every config.
+Controls are `run_cbf_behaviour` with β_B=0 (identical to the no-behaviour model in
+distribution, and same random-number pattern as the behavioural runs, so seeds pair). DDE
+reference: C18's `ode_final_S`, now parameterised by `f_D` and `detection_rate` (detection
+scales the signal inside γ_beh·D); age-based configs use f_D = 0.009718. DDE sanity check with
+β_B=0 reproduced 0.05952 (0.0002% error); default arguments reproduce C18's 0.14643.
+
+| config | window | detection | f_D | final S | peak I | peak S^B | peak daily deaths |
+|---|---|---|---|---|---|---|---|
+| 1 | 1 | 0.7 | age | 0.18214 ± 0.00647 | 543.1 ± 14.1 | 918.6 ± 47.3 | 2.47 ± 0.10 |
+| 2 | 28 | 0.7 | age | 0.14438 ± 0.00868 | 592.5 ± 16.6 | 567.2 ± 62.1 | 2.50 ± 0.11 |
+| 3 | 28 | 1.0 | flat 0.01 | 0.13979 ± 0.00740 | 606.5 ± 13.3 | 534.0 ± 47.1 | 2.60 ± 0.10 |
+| 2T | 28 | 0.7, per-band floor | age | 0.06533 ± 0.00178 | 676.5 ± 5.1 | 89.4 ± 13.9 | 2.70 ± 0.13 |
+| ctrl A | — | — | age | 0.05850 ± 0.00104 | 679.2 ± 4.9 | — | 2.73 ± 0.14 |
+| ctrl B | — | — | flat 0.01 | 0.05850 ± 0.00104 | 679.2 ± 4.9 | — | 2.73 ± 0.17 |
+
+Mean ± SEM, n=30 for every cell. Peak I and peak S^B are agent counts. Controls A and B have
+identical S and I trajectories because, with no behaviour, f_D only routes I-leavers to H or R
+(both non-infectious), and the random draws are the same; only deaths differ (29.3 vs 28.0
+total).
+
+*Pass mark (a)* — paired difference from control (same seed), n=30:
+
+| config | Δ peak I | Δ final S | (a) |
+|---|---|---|---|
+| 1 | −136.2 ± 12.8 (−10.61 SEM) | +0.1236 ± 0.0063 (+19.57 SEM) | pass |
+| 2 | −86.8 ± 15.8 (−5.48 SEM) | +0.0859 ± 0.0086 (+10.00 SEM) | pass |
+| 3 | −72.7 ± 13.4 (−5.43 SEM) | +0.0813 ± 0.0074 (+11.02 SEM) | pass |
+| 2T | −2.7 ± 1.8 (−1.52 SEM) | +0.0068 ± 0.0019 (+3.68 SEM) | fail (peak I) |
+
+*Pass mark (b)* — ABM mean final S vs the continuous-signal DDE, n=30:
+
+| config | DDE | rel. error | gap | (b) ≤6% |
+|---|---|---|---|---|
+| 1 | 0.20675 | 11.90% | −3.80 SEM | fail |
+| 2 | 0.12763 | 13.12% | +1.93 SEM | fail |
+| 3 | 0.14643 | 4.54% | −0.90 SEM | pass |
+| 2T | 0.12763 (not like-for-like) | 48.81% | −34.95 SEM | fail |
+
+**[Fact] Config 2's (b) failure is within noise at 30 seeds.** At N=3,000, one SEM of final S
+is ~6.8% of the reference — larger than the 6% band itself, so a 30-seed run cannot resolve
+it. Supplementary run (`experiments/step1_supplement.py`, `results/step1_supplement.{json,log}`;
+seeds 0–29 identical to the main run, extended to 0–89):
+
+| config | n=30 rel. error (gap) | n=90 rel. error (gap) |
+|---|---|---|
+| 1 | 11.90% (−3.80 SEM) | **17.07% (−9.13 SEM)** |
+| 2 | 13.12% (+1.93 SEM) | **1.52% (+0.47 SEM)** |
+| 3 | 4.54% (−0.90 SEM) | 5.03% (−1.66 SEM) — identical to C19 |
+| det 0.7 only, flat f_D | 3.48% (−0.76 SEM) | 4.25% (−1.56 SEM) |
+| age f_D only, det 1.0 | 14.97% (+1.99 SEM) | 1.46% (+0.40 SEM) |
+
+The one-at-a-time split shows the high 30-seed config-2 value came from seeds 0–29 running high
+under age-based f_D, not from a reference mismatch: both single changes sit within the C18–C20
+band at 90 seeds. **Config 1's gap is real and grows with seeds.**
+
+*Other measured items.*
+- Runs with any E or I agent at day 600: 0/30 in every config; at day 900: 0/30 in every config.
+- **Config 3 vs C18: bit-identical on 30/30 seeds** (mean 0.13979 both; paired diff 0). At 90
+  seeds it also reproduces C19 exactly (0.13906).
+- Config 2 − config 3 (effect of 70% reporting + age-based f_D together), paired, n=30: final S
+  +0.0046 ± 0.0095 (+0.48 SEM); peak I −14.1 ± 17.6 (−0.80 SEM). Not distinguishable from zero.
+- Reported/realised deaths, pooled over 30 runs: 0.7000 (configs 1, 2); **0.0668 for 2T** — the
+  literal per-band cast removes ~90% of the signal at N=3,000, and behaviour is nearly switched
+  off (peak S^B 89 vs 567).
+- Diagnostic DDE holding the signal fixed within each day (the ABM's own convention) instead of
+  updating it every RK4 step: config 1 ref 0.20331 (rel. error 10.41%, −3.27 SEM), config 2
+  0.12539, config 3 0.14368 (2.71%). The convention difference does not explain config 1's gap.
+- Mean-field f_D: using f_D = 0.009718 is exact in expectation here, since with flat r the
+  infection hazard does not depend on age. It would not be exact with per-agent r (C21/C22).
+
+*Recorded predictions (planning chat, written before running) vs outcome.* Config 1: "passes
+(a), fails (b) with relative error > 10%" — **as predicted** (11.90% at n=30, 17.07% at n=90).
+Config 2: "passes both" — **(a) pass; (b) fail at the pre-registered n=30 (13.12%, +1.93 SEM)**,
+but 1.52% (+0.47 SEM) at n=90.
+
+**Not decided here:** whether yesterday's-deaths is dropped; whether the literal per-band cast
+or the plain multiplier is the "as-is" baseline; whether pass mark (b)'s seed count should be
+raised given its 30-seed resolution at N=3,000. No settled value was changed.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a

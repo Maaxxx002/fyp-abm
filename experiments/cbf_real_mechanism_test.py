@@ -90,8 +90,12 @@ TEST1_ODE_TARGET = 0.05952
 TEST1_TOLERANCE = 0.001  # 3 decimals, per CLAUDE.md Test 1
 
 
-def _rhs(y, adoption_rate, r_factor):
-    """7-state DDE right-hand side: s, sb, e, i, h, r, d (all fractions of N)."""
+def _rhs(y, adoption_rate, r_factor, f_D=F_D):
+    """7-state DDE right-hand side: s, sb, e, i, h, r, d (all fractions of N).
+
+    f_D is a scalar. For age-based mortality (register C23) pass the population-weighted
+    mean IFR: in this well-mixed model with a single shared r, infection hazard is
+    age-independent, so expected deaths = mean IFR x exits from I."""
     s, sb, e, i, h, r, d = y
     foi = _TRANSMISSION_RATE * i
     flow_s_to_e = foi * s
@@ -103,18 +107,27 @@ def _rhs(y, adoption_rate, r_factor):
         flow_s_to_sb - flow_sb_to_s - flow_sb_to_e,
         flow_s_to_e + flow_sb_to_e - _LATENT_RATE * e,
         _LATENT_RATE * e - _INFECTIOUS_RATE * i,
-        F_D * _INFECTIOUS_RATE * i - _DEATH_DELAY_RATE * h,
-        (1 - F_D) * _INFECTIOUS_RATE * i,
+        f_D * _INFECTIOUS_RATE * i - _DEATH_DELAY_RATE * h,
+        (1 - f_D) * _INFECTIOUS_RATE * i,
         _DEATH_DELAY_RATE * h,
     ])
 
 
 def ode_final_S(N, beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_BEH,
-                 window=WINDOW, days=DAYS, dt=0.25):
-    """RK4 integration of the 7-state S/S^B DDE. Returns (final S = s+sb, final H count)."""
+                 window=WINDOW, days=DAYS, dt=0.25, f_D=F_D, detection_rate=1.0,
+                 signal_update="continuous"):
+    """RK4 integration of the 7-state S/S^B DDE. Returns (final S = s+sb, final H count).
+
+    detection_rate scales the death signal agents perceive (register C23); the death
+    compartment itself is unscaled. signal_update="continuous" (default, C17/C18's
+    reference) recomputes the trailing-window mean every RK4 step; "daily" instead holds
+    it fixed within each day at the mean over whole days strictly before today -- the
+    ABM's own convention -- and is a DIAGNOSTIC only (C23), not the pass-mark reference."""
     n_steps = int(round(days / dt))
     steps_per_window = int(round(window / dt))
     assert abs(steps_per_window * dt - window) < 1e-9, "dt must evenly divide the window"
+    steps_per_day = int(round(1.0 / dt))
+    assert signal_update in ("continuous", "daily")
 
     I0 = 1e-6
     y = np.array([1 - I0, 0.0, 0.0, I0, 0.0, 0.0, 0.0])  # s, sb, e, i, h, r, d
@@ -123,18 +136,26 @@ def ode_final_S(N, beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_
 
     for step in range(n_steps):
         t_days = step * dt
-        if step == 0:
-            D_delay = 0.0
-        elif step < steps_per_window:
-            D_delay = N * dcum_history[step] / t_days
-        else:
-            D_delay = N * (dcum_history[step] - dcum_history[step - steps_per_window]) / window
-        adoption_rate = beta_B * (1.0 - np.exp(-gamma_beh * D_delay))
+        if signal_update == "continuous":
+            if step == 0:
+                D_delay = 0.0
+            elif step < steps_per_window:
+                D_delay = N * dcum_history[step] / t_days
+            else:
+                D_delay = N * (dcum_history[step] - dcum_history[step - steps_per_window]) / window
+        elif step % steps_per_day == 0:
+            day = step // steps_per_day
+            if day == 0:
+                D_delay = 0.0
+            else:
+                w = min(day, int(window))
+                D_delay = N * (dcum_history[step] - dcum_history[step - w * steps_per_day]) / w
+        adoption_rate = beta_B * (1.0 - np.exp(-gamma_beh * detection_rate * D_delay))
 
-        k1 = _rhs(y, adoption_rate, r_factor)
-        k2 = _rhs(y + 0.5 * dt * k1, adoption_rate, r_factor)
-        k3 = _rhs(y + 0.5 * dt * k2, adoption_rate, r_factor)
-        k4 = _rhs(y + dt * k3, adoption_rate, r_factor)
+        k1 = _rhs(y, adoption_rate, r_factor, f_D)
+        k2 = _rhs(y + 0.5 * dt * k1, adoption_rate, r_factor, f_D)
+        k3 = _rhs(y + 0.5 * dt * k2, adoption_rate, r_factor, f_D)
+        k4 = _rhs(y + dt * k3, adoption_rate, r_factor, f_D)
         y = y + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
         dcum_history[step + 1] = y[6]
 
