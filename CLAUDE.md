@@ -43,11 +43,11 @@ arm information another lacks breaks the entire comparison.
 | Initial infected | 10 agents | register D8 — larger seeds destroy the growth phase |
 | Integration | **48 sub-steps/day**, `1 − exp(−rate·dt)` | measured convergence, register C9 (Gozzi's own default of 12 is insufficient for this model's extra H-compartment chain) |
 | R₀ / latent / infectious | 3.0 / 2 d / 6 d | Weitz Table 1 |
-| f_D | 0.01 flat (aggregate); per-agent from `IFR_10age` | Weitz / Gozzi |
+| f_D | **per-agent** `IFR_10age[age_band]` (mean 0.009718); 0.01 flat only in the DDE/aggregate reference for flat-f_D checks | Gozzi; register A26 |
 | T_H | 14 d default | Weitz Fig 6 |
-| Awareness signal | **28-day rolling mean** of reported deaths | register C7 |
-| Detection rate | 0.7 | Gozzi |
-| Death delay Δ | 14 d | Gozzi |
+| Awareness signal | **28-day rolling mean** of reported deaths; Gozzi's one-day signal rejected | register C7, A24 |
+| Detection rate | 0.7, **plain multiplier** on realised deaths, no integer truncation (deviation from Gozzi's code) | Gozzi; register A25 |
+| Death delay Δ | **not added** — the H compartment (T_H) already supplies the infection-to-death delay | register A25 |
 | Age structure | New York `pop_data_Nk.csv`, 10 bands | Gozzi repo |
 | Population-weighted IFR | 0.9718% (vs Weitz's 1.000%) | computed |
 | Scenarios | S1 R₀=3/T_H=14 · S2 R₀=2 · S3 T_H=28 | `docs/Scenario_Spec.md` |
@@ -112,6 +112,11 @@ zero. Use 48 sub-steps in `src/`, and Test 1's 1% tolerance (G1) is now honestly
   headline result that was wrong.
 - Own errors plainly and correct the register.
 - Prefer small commits. Run the verification tests before claiming anything works.
+- **Pass marks (register A27/A28), fixed for every config:**
+  (a) lower peak I and higher final S than the config's own no-behaviour control, each by
+  > 2 SEM of the paired (same-seed) difference. (b) vs the DDE reference: FAIL only if
+  relative error > 6% AND gap > 2 SEM; relative error > 6% with gap ≤ 2 SEM is INCONCLUSIVE →
+  re-run that config at 90 seeds and apply the same rule.
 - **Before testing a simplified stand-in for a published mechanism (a formula, a scalar
   multiplier, a single-compartment approximation), confirm directly from source that the
   simplification is actually equivalent to the real mechanism — not just plausible.** This
