@@ -144,6 +144,10 @@ def build_population(
     other N uses the same sourced New York age shares (AGE_SHARES) via the same
     largest-remainder method the design spec names as having produced that table -- not a new
     invented rule, but also not itself a citable source the way AGE_BAND_COUNTS_N3000 is.
+    Checked for N=1,000 (register C26): largest remainder on Gozzi's raw New York
+    pop_data_Nk.csv counts gives the same bands as on AGE_SHARES -- [110, 112, 63, 80, 157,
+    126, 125, 111, 74, 42], mean IFR 0.9718% -- with no near-ties in the remainder step; the
+    same raw-CSV calculation reproduces AGE_BAND_COUNTS_N3000 exactly.
     """
     if N == 3000:
         counts = AGE_BAND_COUNTS_N3000

@@ -135,3 +135,27 @@ def test_n3000_still_uses_the_exact_published_table_not_the_generic_rule():
     pop = build_population(N=3000, seed=0)
     counts = np.bincount(pop.age_band, minlength=N_AGE_BANDS)
     assert counts.tolist() == AGE_BAND_COUNTS_N3000
+
+
+# Gozzi repo, data/new_york/population-data/pop_data_Nk.csv (commit 7ddda64), the raw counts
+# behind Design_Spec Sec 6 Step 1's share table. Largest remainder on these reproduces the
+# spec's published N=3,000 table exactly, which confirms the method.
+NY_POP_DATA_NK = [918348, 935923, 520613, 666577, 1310754, 1049445, 1043803, 926388, 611723,
+                  352323]
+EXPECTED_COUNTS_N1000 = [110, 112, 63, 80, 157, 126, 125, 111, 74, 42]
+
+
+def test_largest_remainder_on_raw_csv_reproduces_published_n3000_table():
+    from population import AGE_BAND_COUNTS_N3000, _largest_remainder_quota
+    assert _largest_remainder_quota(NY_POP_DATA_NK, 3000) == AGE_BAND_COUNTS_N3000
+
+
+def test_n1000_quota_counts_and_mean_ifr():
+    from population import _largest_remainder_quota
+    pop = build_population(N=1000, seed=0)
+    counts = np.bincount(pop.age_band, minlength=10).tolist()
+    assert counts == EXPECTED_COUNTS_N1000
+    # same result whether apportioned from the spec's 2-decimal shares or the raw CSV
+    assert _largest_remainder_quota(NY_POP_DATA_NK, 1000) == EXPECTED_COUNTS_N1000
+    assert len(pop) == 1000
+    assert round(float(pop.vulnerability.mean()), 6) == 0.009718
