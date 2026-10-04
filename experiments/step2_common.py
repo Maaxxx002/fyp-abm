@@ -70,6 +70,8 @@ def run_one(args):
         window=WINDOW, detection_rate=DETECTION, **disease,
     )
     peak_signal = float(out["awareness_signal"].max())
+    active = out["exposed"] + out["prevalence"]
+    active_days = np.nonzero(active > 0)[0]
     rec = dict(
         final_S=float(out["S"][-1]),
         peak_I=float(out["prevalence"].max()),
@@ -82,6 +84,9 @@ def run_one(args):
         adoption_at_peak_signal=float(BETA_B * (1.0 - np.exp(-gamma_beh * peak_signal)))
         if cfg["behaviour"] else 0.0,
         total_incidence=float(out["incidence"].sum()),
+        # day index t is the end of day t+1; "day 600" = index 599 (C23 convention)
+        active_at_day600=bool(len(active) >= 600 and active[599] > 0),
+        last_active_day=int(active_days.max()) + 1 if len(active_days) else 0,
     )
     return name, seed, rec, time.time() - t0
 

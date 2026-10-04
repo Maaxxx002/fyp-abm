@@ -952,6 +952,77 @@ deaths S3 − S1 = −0.20 ± 0.11 (N=1,000), −0.30 ± 0.16 (N=3,000).
 Not decided here: N, γ_beh, scenario set, or whether A27 should change given the two
 borderline n=30 FAILs.
 
+**C28 — Re-scoring under the revised pass mark (b) (A31), and the day-600 check at N=3,000 (A32).
+[Measured facts only.]** `experiments/step2_rescore_day600.py`,
+`results/step2_rescore_day600.{json,log}`. Old verdicts are kept visible below. **A31 was
+adopted after the C26/C27 pattern was observed** (see A31).
+
+*Re-scoring.* Existing 30-/90-seed results reused. The only new 90-seed run the revised rule
+required was C23 config 2T (seeds 30–89 added; seeds 0–29 bit-identical to C23, 30/30). "A27"
+is the superseded rule (FAIL if > 6% and > 2 SEM at n=30; INCONCLUSIVE → 90 seeds); "as
+recorded" is the verdict in the original entry where that differed (C23 predates A27).
+
+| config | n=30: rel. err, gap | n=90: rel. err, gap | as recorded | A27 | **A31** |
+|---|---|---|---|---|---|
+| C23 config 1 (window 1) | 11.90%, −3.80 | 17.07%, −9.13 | FAIL | FAIL | **FAIL** |
+| C23 config 2 (= C24 F = C26 N3000 γ1 = C27 N3000 S1) | 13.12%, +1.93 | 1.52%, +0.47 | FAIL (C23, pre-A27) | INCONCL. → PASS | **PASS** |
+| C23 config 3 (C18 setup) | 4.54%, −0.90 | 5.03%, −1.66 (C19) | PASS | PASS | **PASS** |
+| C23 config 2T (literal truncation; DDE not like-for-like) | 48.81%, −34.95 | **47.62%, −45.04** (new) | FAIL | FAIL | **FAIL** |
+| C23 suppl. det 0.7 only, flat f_D | 3.48%, −0.76 | 4.25%, −1.56 | — | PASS | **PASS** |
+| C23 suppl. age f_D only, det 1.0 | 14.97%, +1.99 | 1.46%, +0.40 | — | INCONCL. → PASS | **PASS** |
+| C25 G, Gozzi disease, 48 sub-steps | not run (3a failed) | — | — | — | — |
+| C25 add. G, Gozzi disease, 96 sub-steps | 2.37%, −0.49 | — | PASS | PASS | **PASS** |
+| C26 N1000 γ0.25 | 5.28%, −1.13 | — | PASS | PASS | **PASS** |
+| C26 N1000 γ0.5 | 4.19%, −0.74 | — | PASS | PASS | **PASS** |
+| C26 N1000 γ1 (= C27 N1000 S1) | 4.73%, −0.69 | — | PASS | PASS | **PASS** |
+| C26 N1000 γ2 | 7.30%, −0.95 | 2.85%, +0.61 | INCONCL. → PASS | INCONCL. → PASS | **PASS** |
+| C26 N1000 γ4 | 9.66%, −1.30 | 1.22%, −0.26 | INCONCL. → PASS | INCONCL. → PASS | **PASS** |
+| C26 N3000 γ0.25 | 6.20%, +1.72 | 0.92%, +0.53 | INCONCL. → PASS | INCONCL. → PASS | **PASS** |
+| C26 N3000 γ0.5 | 6.45%, +1.42 | 0.18%, +0.08 | INCONCL. → PASS | INCONCL. → PASS | **PASS** |
+| C26 N3000 γ2 | 16.36%, +2.06 | 0.64%, +0.16 (C26 diagnostic) | FAIL | FAIL | **PASS ← changed** |
+| C26 N3000 γ4 | 9.52%, +1.24 | 4.56%, −1.16 | INCONCL. → PASS | INCONCL. → PASS | **PASS** |
+| C27 N1000 S2 | 9.01%, −2.11 | 3.21%, −1.31 (C27 diagnostic) | FAIL | FAIL | **PASS ← changed** |
+| C27 N1000 S3 | 5.12%, −0.63 | — | PASS | PASS | **PASS** |
+| C27 N3000 S2 | 1.59%, +0.37 | — | PASS | PASS | **PASS** |
+| C27 N3000 S3 | 1.88%, +0.30 | — | PASS | PASS | **PASS** |
+
+Gaps in SEMs. Not scored: C24 PR ((b) does not apply, C22/C24). C25 addendum's F is C23
+config 2.
+
+**Recorded prediction (planning chat):** "only C26 N=3,000 γ_beh=2 and C27 N=1,000 S2 change
+(FAIL → PASS); nothing else changes." **Outcome: as predicted** against A27. Against the original
+C23 wording, C23 config 2 also reads PASS now, but that change already happened under A27.
+**Remaining (b) FAILs under A31: C23 config 1 (one-day signal; rejected in A24) and C23
+config 2T (literal truncation; rejected in A25).**
+
+*Day-600 check, N=3,000, seeds 0–29, re-run at days=900* (final S and peak I bit-identical to the
+stored C26/C27 runs on 30/30 seeds for every config):
+
+| config | runs with E+I > 0 at day 600 | latest day E+I > 0 (all runs) | median last active day |
+|---|---|---|---|
+| control (C26; = C27 S1 control) | 0/30 | 126 | 93 |
+| γ_beh 0.25 | 0/30 | 126 | 91 |
+| γ_beh 0.5 | 0/30 | 126 | 91 |
+| γ_beh 1 (= C27 S1) | 0/30 | 131 | 92 |
+| γ_beh 2 | 0/30 | 213 | 99 |
+| γ_beh 4 | 0/30 | 235 | 109 |
+| C27 S2 behaviour | 0/30 | **401** | 132 |
+| C27 S2 control | 0/30 | 173 | 136 |
+| C27 S3 behaviour | 0/30 | 126 | 91 |
+| C27 S3 control | 0/30 | 126 | 93 |
+
+"Day d" = the end-of-day state at index d−1 (C23 convention).
+
+**Recorded prediction:** "0 runs still infected at day 600 everywhere; S3 and γ_beh=0.25 the most
+likely exceptions." **Outcome: 0/30 everywhere, as predicted.** The longest tails are not S3 or
+γ_beh=0.25 (both 126, the same as the control). They are S2 with behaviour (401) and the strongest
+γ_beh points (γ=4: 235; γ=2: 213). The latest activity anywhere is 199 days before day 600.
+This check covers E+I only; deaths after day 600 were not counted directly. Agents already in H
+can still die after E+I reaches 0, with exponential H exits (mean 14 d; 28 d in S3). Computed
+bound, not measured: an agent entering H at the latest active day is still in H at day 600 with
+probability exp(−199/14) ≈ 6.7×10⁻⁷ (S2, day 401). For S3 (day 126, T_H=28) it is
+exp(−474/28) ≈ 4.4×10⁻⁸.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
