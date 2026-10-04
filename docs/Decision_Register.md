@@ -741,6 +741,66 @@ but 1.52% (+0.47 SEM) at n=90.
 or the plain multiplier is the "as-is" baseline; whether pass mark (b)'s seed count should be
 raised given its 30-seed resolution at N=3,000. No settled value was changed.
 
+**C24 — Modification A: per-agent r vs flat r, on the C23-config-2 foundation. [Measured facts
+only; no decision taken.]** `experiments/step2_personal_r.py` (+ `step2_common.py`),
+`results/step2_personal_r.{json,log}`. Foundation (F): N=3,000 frozen quota population (seed 0),
+real CBF, flat r=0.5, β_B=0.5, μ_B=0.01, γ_beh=1, window 28, detection 0.7 (A25), per-agent f_D
+(A26), Weitz disease, 48 sub-steps, 10 initial infected, 900 days. PR changes only r:
+r_i = 1 − response_efficacy_i (C21), from the same population (response_efficacy mean 0.4992 →
+mean r_i 0.5008). Control A = β_B=0. Seeds 0–89 for every config. F and A are bit-identical to
+C23's config 2 / Control A on seeds 0–29 (30/30 each).
+
+| | F (flat r) | PR (per-agent r) | A (no behaviour) |
+|---|---|---|---|
+| final S | 0.12957 ± 0.00412 | 0.13969 ± 0.00506 | 0.05912 ± 0.00063 |
+| peak I | 620.7 ± 7.7 | 618.1 ± 8.1 | 679.8 ± 2.6 |
+| peak S^B | 463.6 ± 26.2 | 472.7 ± 26.2 | — |
+| peak daily deaths | 2.50 ± 0.07 | 2.54 ± 0.07 | 2.69 ± 0.08 |
+
+n=90 for every cell; runs with E or I agents at day 900: 0/90 in each config.
+
+**Primary — paired difference PR − F (same seed), n=90:** final S **+0.01012 ± 0.00107
+(+9.47 SEM)**; peak I **−2.63 ± 0.84 (−3.12 SEM)**; peak S^B +9.08 ± 1.48 (+6.13 SEM); peak daily
+deaths +0.044 ± 0.027 (+1.65 SEM). **[Fact] Detectable by the stated criterion** (|diff| > 2 SEM
+in both final S and peak I). In relative terms: final S +7.8% of F's value, peak I −0.4%.
+
+**Pass mark (a), n=90:** PR vs A: peak I −61.7 ± 8.0 (−7.76 SEM), final S +0.0806 ± 0.0051
+(+15.70 SEM) → pass. F vs A: −59.1 ± 7.5 (−7.90 SEM), +0.0704 ± 0.0042 (+16.78 SEM) → pass.
+
+**Pass mark (b):** not applied to PR (the DDE assumes one shared r, C22). F, for continuity
+under A27: n=30 13.12% / +1.93 SEM → INCONCLUSIVE; n=90 1.52% / +0.47 SEM → PASS (as C23).
+
+**Recorded prediction (planning chat, written before running):** "PR has slightly higher final S
+than F; whether the difference exceeds 2 SEM at N=3,000 is uncertain." **Outcome:** higher
+final S, as predicted, and the difference exceeds 2 SEM (+9.47 SEM).
+
+[Speculation, medium confidence] Mean r_i is essentially 0.5, so the shift comes from the
+spread of r, not its mean: agents with low r_i (high response_efficacy) are both better
+protected and, being uninfected longer, stay in S/S^B, so infection selectively depletes the
+high-r agents — the same kind of heterogeneity effect C22 hypothesised for the N=10,000/30,000
+gap. Not tested.
+
+**C25 — Modification B: Gozzi disease parameters vs Weitz. Step 3a convergence check FAILED;
+3b not run. [Measured facts only.]** Gozzi disease set, checked against source
+(`models/constants.py`: `mu = 1/2.5` → infectious_period_days=2.5; `eps = 1/4` →
+latent_period_days=4; `example.ipynb`: R0=2.5); transmission rate R0/infectious = 1.0/day.
+T_H=14 and everything else unchanged. `experiments/step2_gozzi_disease.py`,
+`results/step2_gozzi_disease.{json,log}`. The DDE reference (`ode_final_S`) now also takes the
+disease parameters; defaults still reproduce C18 (0.14643) and C23 config 2 (0.12763).
+
+Step 3a (behaviour off, N=100,000, 30 seeds, 48 sub-steps, 900 days; analytical final size
+s = exp(−2.5(1−s)) = 0.10736):
+- DDE with β_B=0: 0.10736 (0.0046% relative error) — passes.
+- **ABM: mean final S 0.10624 ± 0.00040 (n=30), relative error 1.043%, gap −2.79 SEM — FAILS
+  the < 1% tolerance.** Per instruction, 3b was not run.
+
+For comparison, the same check under the Weitz set (C9, 48 sub-steps) gave 0.05% relative
+error. [Speculation, medium confidence] The ABM sits below the target (more infection than the
+continuous model), the same direction as the sub-step discretisation bias C9 measured. The
+Gozzi set's rates are larger per step (infectious rate 0.4/day vs 0.167/day, transmission
+1.0/day vs 0.5/day), so 48 sub-steps may no longer be enough for it. Not tested — e.g. a
+96-sub-step run of the same check would confirm or rule this out. Not decided here.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a

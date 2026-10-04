@@ -90,14 +90,18 @@ TEST1_ODE_TARGET = 0.05952
 TEST1_TOLERANCE = 0.001  # 3 decimals, per CLAUDE.md Test 1
 
 
-def _rhs(y, adoption_rate, r_factor, f_D=F_D):
+_DEFAULT_RATES = (_TRANSMISSION_RATE, _LATENT_RATE, _INFECTIOUS_RATE, _DEATH_DELAY_RATE)
+
+
+def _rhs(y, adoption_rate, r_factor, f_D=F_D, rates=_DEFAULT_RATES):
     """7-state DDE right-hand side: s, sb, e, i, h, r, d (all fractions of N).
 
     f_D is a scalar. For age-based mortality (register C23) pass the population-weighted
     mean IFR: in this well-mixed model with a single shared r, infection hazard is
     age-independent, so expected deaths = mean IFR x exits from I."""
+    transmission_rate, latent_rate, infectious_rate, death_delay_rate = rates
     s, sb, e, i, h, r, d = y
-    foi = _TRANSMISSION_RATE * i
+    foi = transmission_rate * i
     flow_s_to_e = foi * s
     flow_s_to_sb = adoption_rate * s
     flow_sb_to_s = MU_B * (s + r) * sb
@@ -105,17 +109,18 @@ def _rhs(y, adoption_rate, r_factor, f_D=F_D):
     return np.array([
         -flow_s_to_e - flow_s_to_sb + flow_sb_to_s,
         flow_s_to_sb - flow_sb_to_s - flow_sb_to_e,
-        flow_s_to_e + flow_sb_to_e - _LATENT_RATE * e,
-        _LATENT_RATE * e - _INFECTIOUS_RATE * i,
-        f_D * _INFECTIOUS_RATE * i - _DEATH_DELAY_RATE * h,
-        (1 - f_D) * _INFECTIOUS_RATE * i,
-        _DEATH_DELAY_RATE * h,
+        flow_s_to_e + flow_sb_to_e - latent_rate * e,
+        latent_rate * e - infectious_rate * i,
+        f_D * infectious_rate * i - death_delay_rate * h,
+        (1 - f_D) * infectious_rate * i,
+        death_delay_rate * h,
     ])
 
 
 def ode_final_S(N, beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_BEH,
                  window=WINDOW, days=DAYS, dt=0.25, f_D=F_D, detection_rate=1.0,
-                 signal_update="continuous"):
+                 signal_update="continuous", R0=R0, latent_period_days=LATENT_PERIOD_DAYS,
+                 infectious_period_days=INFECTIOUS_PERIOD_DAYS, T_H=T_H):
     """RK4 integration of the 7-state S/S^B DDE. Returns (final S = s+sb, final H count).
 
     detection_rate scales the death signal agents perceive (register C23); the death
@@ -127,6 +132,8 @@ def ode_final_S(N, beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_
     steps_per_window = int(round(window / dt))
     assert abs(steps_per_window * dt - window) < 1e-9, "dt must evenly divide the window"
     steps_per_day = int(round(1.0 / dt))
+    rates = (R0 / infectious_period_days, 1.0 / latent_period_days,
+             1.0 / infectious_period_days, 1.0 / T_H)
     assert signal_update in ("continuous", "daily")
 
     I0 = 1e-6
@@ -152,10 +159,10 @@ def ode_final_S(N, beta_B=BETA_B, mu_B=MU_B, r_factor=R_FACTOR, gamma_beh=GAMMA_
                 D_delay = N * (dcum_history[step] - dcum_history[step - w * steps_per_day]) / w
         adoption_rate = beta_B * (1.0 - np.exp(-gamma_beh * detection_rate * D_delay))
 
-        k1 = _rhs(y, adoption_rate, r_factor, f_D)
-        k2 = _rhs(y + 0.5 * dt * k1, adoption_rate, r_factor, f_D)
-        k3 = _rhs(y + 0.5 * dt * k2, adoption_rate, r_factor, f_D)
-        k4 = _rhs(y + dt * k3, adoption_rate, r_factor, f_D)
+        k1 = _rhs(y, adoption_rate, r_factor, f_D, rates)
+        k2 = _rhs(y + 0.5 * dt * k1, adoption_rate, r_factor, f_D, rates)
+        k3 = _rhs(y + 0.5 * dt * k2, adoption_rate, r_factor, f_D, rates)
+        k4 = _rhs(y + dt * k3, adoption_rate, r_factor, f_D, rates)
         y = y + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
         dcum_history[step + 1] = y[6]
 
