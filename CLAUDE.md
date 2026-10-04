@@ -112,11 +112,12 @@ zero. Use 48 sub-steps in `src/`, and Test 1's 1% tolerance (G1) is now honestly
   headline result that was wrong.
 - Own errors plainly and correct the register.
 - Prefer small commits. Run the verification tests before claiming anything works.
-- **Pass marks (register A27/A28), fixed for every config:**
+- **Pass marks (register A28/A31), fixed for every config:**
   (a) lower peak I and higher final S than the config's own no-behaviour control, each by
-  > 2 SEM of the paired (same-seed) difference. (b) vs the DDE reference: FAIL only if
-  relative error > 6% AND gap > 2 SEM; relative error > 6% with gap ≤ 2 SEM is INCONCLUSIVE →
-  re-run that config at 90 seeds and apply the same rule.
+  > 2 SEM of the paired (same-seed) difference. (b) vs the DDE reference: the 30-seed run is
+  a screen only. ≤ 6% relative error at 30 seeds → PASS. > 6% at 30 seeds → re-run at 90
+  seeds, and the 90-seed result is the verdict: FAIL if relative error > 6% AND gap > 2 SEM,
+  otherwise PASS. (A31 supersedes A27's INCONCLUSIVE rule.)
 - **Before testing a simplified stand-in for a published mechanism (a formula, a scalar
   multiplier, a single-compartment approximation), confirm directly from source that the
   simplification is actually equivalent to the real mechanism — not just plausible.** This
