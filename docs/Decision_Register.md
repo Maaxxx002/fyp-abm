@@ -802,6 +802,44 @@ Gozzi set's rates are larger per step (infectious rate 0.4/day vs 0.167/day, tra
 1.0/day vs 0.5/day), so 48 sub-steps may no longer be enough for it. Not tested — e.g. a
 96-sub-step run of the same check would confirm or rule this out. Not decided here.
 
+**C25 addendum — Gozzi disease set at 96 sub-steps: convergence passes; Step 3b run. [Measured
+facts only.]** `python experiments/step2_gozzi_disease.py --substeps 96`,
+`results/step2_gozzi_disease_96sub.{json,log}`. Only the Gozzi-set configs (3a check, G, CG) use
+96 sub-steps; the Weitz foundation F and its control A stay at 48 (main setup unchanged). The
+sub-step counts differ because at 48 the Gozzi set failed the < 1% convergence check (above),
+while 48 already converges for the Weitz set (C9).
+
+*3a re-check* (behaviour off, N=100,000, same 30 seeds as C25, 96 sub-steps): ABM mean final S
+**0.10701 ± 0.00035 (n=30) vs 0.10736 — relative error 0.329%, gap −1.02 SEM → PASS**
+(48 sub-steps: 1.043%, −2.79 SEM). Recorded prediction ("passes, well under 1%"): as predicted.
+
+*3b* (N=3,000, seeds 0–29 = C24's first 30; foundation otherwise unchanged; flat r=0.5):
+
+| n=30 | Weitz F (48 sub-steps) | Weitz control A | Gozzi G (96) | Gozzi control CG (96) |
+|---|---|---|---|---|
+| final S | 0.1444 ± 0.0087 | 0.0585 ± 0.0010 | 0.1984 ± 0.0098 | 0.1038 ± 0.0019 |
+| peak I | 592.5 ± 16.6 | 679.2 ± 4.9 | 253.9 ± 6.2 | 281.0 ± 3.5 |
+| peak S^B | 567.2 ± 62.1 | — | 602.1 ± 40.2 | — |
+| peak daily deaths | 2.50 ± 0.11 | 2.73 ± 0.14 | 2.47 ± 0.12 | 2.43 ± 0.13 |
+
+Runs with E or I agents at day 900: 0/30 in every config.
+
+Behavioural effect (paired vs own control, n=30):
+- final S: Weitz +0.0859 ± 0.0086 (+10.00 SEM); Gozzi +0.0946 ± 0.0096 (+9.89 SEM).
+- peak I: Weitz −86.8 ± 15.8 (−5.48 SEM, −12.8% of control); Gozzi −27.1 ± 5.1 (−5.34 SEM,
+  −9.7% of control).
+
+**Pass mark (a), G vs CG: PASS** (peak I −5.34 SEM, final S +9.89 SEM). Recorded prediction
+("G passes (a)"): as predicted.
+**Pass mark (b), G vs Gozzi-parameterised DDE (0.20318): relative error 2.37%, gap −0.49 SEM
+(n=30) → PASS** under A27; no 90-seed re-run needed. (F at n=30 reads INCONCLUSIVE, 13.12%; at
+n=90 it is PASS, 1.52% — C23/C24.)
+
+Other measured facts: Gozzi peak prevalence is ~0.4× Weitz's (shorter infectious period, 2.5 vs
+6 d). The N=3,000 no-behaviour final S sits below the analytical value for both sets (CG 0.1038
+vs 0.10736, −3.3%; A 0.0585 vs 0.05952, −1.7%). [Speculation, medium confidence] A finite-N effect, since at
+N=100,000 both converge; not separately tested.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a

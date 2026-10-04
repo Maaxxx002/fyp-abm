@@ -60,7 +60,7 @@ def run_one(args):
     t0 = time.time()
     out = run_cbf_behaviour(
         N=cfg["N"], seed=seed, response_efficacy=response_efficacy, days=cfg["days"],
-        seeds_infected=10, f_D=pop.vulnerability, T_H=T_H, n_substeps=48,
+        seeds_infected=10, f_D=pop.vulnerability, T_H=T_H, n_substeps=cfg.get("n_substeps", 48),
         beta_B=BETA_B if cfg["behaviour"] else 0.0, mu_B=MU_B, gamma_beh=GAMMA_BEH,
         window=WINDOW, detection_rate=DETECTION, **disease_params(cfg["disease"]),
     )

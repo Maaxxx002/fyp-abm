@@ -14,7 +14,11 @@ T_H, IFR, detection and behaviour parameters unchanged from the foundation.
     Pass (a) G vs CG; pass (b) G vs the Gozzi-parameterised DDE under the A27 rule, with an
     automatic 90-seed re-run of G if INCONCLUSIVE.
 
-Usage:  python experiments/step2_gozzi_disease.py --timing | (no flag for the full run)
+C25 addendum: `--substeps 96` runs the Gozzi-set configs (3a check, G, CG) at 96 sub-steps;
+the Weitz foundation F and its control A stay at 48 (the main setup is unchanged). Output
+then goes to results/step2_gozzi_disease_96sub.json.
+
+Usage:  python experiments/step2_gozzi_disease.py [--substeps 96] [--timing]
 """
 import json
 import multiprocessing as mp
@@ -46,7 +50,16 @@ def dde(cfg, beta_B=c.BETA_B):
                        detection_rate=c.DETECTION, **c.disease_params(cfg["disease"]))[0]
 
 
+GOZZI_SUBSTEPS = (int(sys.argv[sys.argv.index("--substeps") + 1])
+                  if "--substeps" in sys.argv else 48)
+for _cfg in (CONV, CONFIGS["G"], CONFIGS["CG"]):
+    _cfg["n_substeps"] = GOZZI_SUBSTEPS
+OUT_NAME = ("step2_gozzi_disease.json" if GOZZI_SUBSTEPS == 48
+            else f"step2_gozzi_disease_{GOZZI_SUBSTEPS}sub.json")
+
+
 def main():
+    print(f"Gozzi-set configs at {GOZZI_SUBSTEPS} sub-steps; Weitz F/A at 48.")
     if "--timing" in sys.argv:
         tasks = [("CONV", CONV, 0)] + [(k, v, 0) for k, v in CONFIGS.items()]
         res, times, wall = c.run_pool(tasks)
@@ -58,7 +71,8 @@ def main():
 
     out = {}
     # ---------------- 3a
-    print("=== 3a: convergence check, Gozzi disease set, behaviour off, N=100,000 ===")
+    print(f"=== 3a: convergence check, Gozzi disease set, behaviour off, N=100,000, "
+          f"{GOZZI_SUBSTEPS} sub-steps ===")
     dde_conv = dde(CONV, beta_B=0.0)
     dde_rel = abs(dde_conv - FINAL_SIZE_TARGET) / FINAL_SIZE_TARGET
     print(f"  DDE (beta_B=0): {dde_conv:.5f} vs target {FINAL_SIZE_TARGET:.5f} "
@@ -74,7 +88,7 @@ def main():
     out["3a"] = dict(dde=dde_conv, dde_relative_error=dde_rel, mean=m, sem=se, n=n,
                      relative_error=rel, passes=bool(ok),
                      per_seed=[res_conv["CONV"][s]["final_S"] for s in seeds30])
-    path = os.path.join(HERE, "..", "results", "step2_gozzi_disease.json")
+    path = os.path.join(HERE, "..", "results", OUT_NAME)
     if not ok:
         print("STOP: 3a failed -- 3b not run.")
         json.dump(out, open(path, "w"), indent=2)
