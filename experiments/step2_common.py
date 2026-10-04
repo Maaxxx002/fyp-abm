@@ -57,19 +57,31 @@ def run_one(args):
         r_kw = dict(r=R_FLAT)
     else:  # C24's per-agent r, superseded by A29; kept only to reproduce C24
         r_kw = dict(experimental_r_from_response_efficacy=pop.response_efficacy)
+    disease = dict(disease_params(cfg["disease"]))
+    if "R0" in cfg:  # scenario override (Scenario_Spec: only R0 and T_H may vary)
+        disease["R0"] = cfg["R0"]
+    gamma_beh = cfg.get("gamma_beh", GAMMA_BEH)
     t0 = time.time()
     out = run_cbf_behaviour(
         N=cfg["N"], seed=seed, days=cfg["days"], **r_kw,
-        seeds_infected=10, f_D=pop.vulnerability, T_H=T_H, n_substeps=cfg.get("n_substeps", 48),
-        beta_B=BETA_B if cfg["behaviour"] else 0.0, mu_B=MU_B, gamma_beh=GAMMA_BEH,
-        window=WINDOW, detection_rate=DETECTION, **disease_params(cfg["disease"]),
+        seeds_infected=10, f_D=pop.vulnerability, T_H=cfg.get("T_H", T_H),
+        n_substeps=cfg.get("n_substeps", 48),
+        beta_B=BETA_B if cfg["behaviour"] else 0.0, mu_B=MU_B, gamma_beh=gamma_beh,
+        window=WINDOW, detection_rate=DETECTION, **disease,
     )
+    peak_signal = float(out["awareness_signal"].max())
     rec = dict(
         final_S=float(out["S"][-1]),
         peak_I=float(out["prevalence"].max()),
         peak_SB=float(out["SB"].max()),
         peak_daily_deaths=float(out["deaths"].max()),
         infected_at_end=bool(out["exposed"][-1] + out["prevalence"][-1] > 0),
+        peak_day=int(out["prevalence"].argmax()),
+        peak_signal=peak_signal,
+        # adoption RATE (per day) the S agents face at the run's maximum death signal
+        adoption_at_peak_signal=float(BETA_B * (1.0 - np.exp(-gamma_beh * peak_signal)))
+        if cfg["behaviour"] else 0.0,
+        total_incidence=float(out["incidence"].sum()),
     )
     return name, seed, rec, time.time() - t0
 
@@ -144,3 +156,27 @@ def run_pool(tasks, n_workers=None):
             res.setdefault(name, {})[seed] = rec
             times.setdefault(name, []).append(dt)
     return res, times, time.time() - t0
+
+
+def pass_b_with_rerun(res, name, cfg, ref, seeds30, extra_seeds=range(30, 90)):
+    """A27: evaluate (b) at n=30; if INCONCLUSIVE, run the extra seeds for this config
+    only, store them in res[name], and re-evaluate at n=90. Returns a list of verdict dicts."""
+    out = [pass_b(values(res, name, "final_S", seeds30), ref)]
+    if out[0]["verdict"] == "INCONCLUSIVE":
+        extra, _, _ = run_pool([(name, cfg, s) for s in extra_seeds])
+        res[name].update(extra[name])
+        seeds = list(seeds30) + list(extra_seeds)
+        out.append(pass_b(values(res, name, "final_S", seeds), ref))
+    return out
+
+
+def dde_final_S(cfg):
+    """C18's DDE reference (experiments/cbf_real_mechanism_test.py) parameterised for cfg."""
+    from cbf_real_mechanism_test import ode_final_S
+    disease = dict(disease_params(cfg["disease"]))
+    if "R0" in cfg:
+        disease["R0"] = cfg["R0"]
+    return ode_final_S(N=cfg["N"], beta_B=BETA_B if cfg["behaviour"] else 0.0, r_factor=R_FLAT,
+                       gamma_beh=cfg.get("gamma_beh", GAMMA_BEH), window=WINDOW,
+                       days=cfg["days"], f_D=float(population(cfg["N"]).vulnerability.mean()),
+                       detection_rate=DETECTION, T_H=cfg.get("T_H", T_H), **disease)[0]

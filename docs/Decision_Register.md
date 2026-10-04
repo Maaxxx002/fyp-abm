@@ -840,6 +840,115 @@ Other measured facts: Gozzi peak prevalence is ~0.4× Weitz's (shorter infectiou
 vs 0.10736, −3.3%; A 0.0585 vs 0.05952, −1.7%). [Speculation, medium confidence] A finite-N effect, since at
 N=100,000 both converge; not separately tested.
 
+**C26 — Gradation sweep over γ_beh at N=1,000 and N=3,000. [Measured facts only; no decision on
+N or γ_beh.]** `experiments/step2_gradation.py`, `results/step2_gradation.{json,log}`.
+Foundation (flat r=0.5 per A29; detection 0.7; per-agent f_D; Weitz disease; 48 sub-steps; 10
+initial infected; 900 days). γ_beh ∈ {0.25, 0.5, 1, 2, 4} × Gozzi's sourced default — a
+sensitivity sweep, not a calibration. Seeds 0–29 for every config; one no-behaviour control per N.
+
+*Prerequisite code (committed):* `run_cbf_behaviour` now defaults to flat r=0.5, and the C21
+mapping sits behind `experimental_r_from_response_efficacy`. C23 config 2 reproduces
+bit-identically (30/30 seeds), as do C24's F and PR (90/90 each). The N=1,000 quota population
+uses the Design Spec's largest-remainder method. On Gozzi's raw New York `pop_data_Nk.csv`
+counts, the same method reproduces the published N=3,000 table exactly. At N=1,000 it gives
+**[110, 112, 63, 80, 157, 126, 125, 111, 74, 42]** (same from the raw CSV or from the spec's
+2-decimal shares; no near-ties), realised mean IFR **0.971836%** (N=3,000: 0.971791%).
+
+| N | γ_beh | final S | peak I | peak S^B | adoption rate at peak signal (/day) | (a) | (b) |
+|---|---|---|---|---|---|---|---|
+| 1,000 | ctrl | 0.0554 ± 0.0020 | 233.7 ± 3.2 | — | — | | |
+| 1,000 | 0.25 | 0.0650 ± 0.0032 | 229.8 ± 3.7 | 34.1 ± 5.2 | 0.0231 ± 0.0022 | pass | pass (5.28%) |
+| 1,000 | 0.5 | 0.0733 ± 0.0043 | 229.0 ± 4.1 | 57.6 ± 9.8 | 0.0443 ± 0.0041 | **fail** (peak I −1.92 SEM) | pass (4.19%) |
+| 1,000 | 1 | 0.0857 ± 0.0061 | 225.1 ± 5.0 | 85.4 ± 15.9 | 0.0837 ± 0.0071 | pass | pass (4.73%) |
+| 1,000 | 2 | 0.1030 ± 0.0086 | 219.6 ± 6.3 | 122.3 ± 23.0 | 0.1487 ± 0.0105 | pass | inconcl. → pass at n=90 (2.85%) |
+| 1,000 | 4 | 0.1277 ± 0.0105 | 215.0 ± 6.7 | 169.5 ± 28.2 | 0.2479 ± 0.0122 | pass | inconcl. → pass at n=90 (1.22%) |
+| 3,000 | ctrl | 0.0585 ± 0.0010 | 679.2 ± 4.9 | — | — | | |
+| 3,000 | 0.25 | 0.0888 ± 0.0030 | 655.6 ± 7.3 | 227.5 ± 15.5 | 0.0564 ± 0.0022 | pass | inconcl. → pass at n=90 (0.92%) |
+| 3,000 | 0.5 | 0.1078 ± 0.0046 | 634.0 ± 10.4 | 347.6 ± 31.6 | 0.1037 ± 0.0038 | pass | inconcl. → pass at n=90 (0.18%) |
+| 3,000 | 1 | 0.1444 ± 0.0087 | 592.5 ± 16.6 | 567.2 ± 62.1 | 0.1761 ± 0.0054 | pass | inconcl. → pass at n=90 (1.52%) |
+| 3,000 | 2 | 0.1903 ± 0.0130 | 538.3 ± 24.6 | 893.3 ± 98.9 | 0.2761 ± 0.0091 | pass | **FAIL** (16.36%, +2.06 SEM, n=30) |
+| 3,000 | 4 | 0.2277 ± 0.0159 | 478.0 ± 30.1 | 1227.4 ± 126.8 | 0.3817 ± 0.0101 | pass | inconcl. → pass at n=90 (4.56%) |
+
+n=30 per cell (the n=90 re-runs affect only the (b) column). Runs with E or I agents at day 900:
+0/30 everywhere. Adoption rate = β_B(1 − exp(−γ_beh·D_max)), with D_max the run's maximum
+28-day reported-death signal; β_B cap = 0.5/day.
+
+**Gradation (paired adjacent steps in final S, n=30):**
+- N=1,000: +5.08, +4.18, +6.18, +6.76 SEM; monotonic → **GRADED** (4/4 steps significant).
+- N=3,000: +9.08, +8.37, +9.36, +9.70 SEM; monotonic → **GRADED** (4/4).
+- Peak I steps at N=3,000: −4.37, −5.44, −5.57, −8.15 SEM. At N=1,000: −0.83, −2.70, −2.69,
+  −2.17 SEM.
+
+**[Fact] The peak death signal scales with N** (raw counts, C13): D_max ≈ 0.19 at N=1,000 vs
+0.39–0.48 at N=3,000. So the same γ_beh gives a weaker response at N=1,000: the S1
+final-S effect is +0.030 there vs +0.086 at N=3,000.
+
+**Recorded prediction (planning chat):** "steps below γ_beh=1 significant, steps above 1 small
+(adoption already near the β_B cap); GRADED at N=3,000." **Outcome:** GRADED at N=3,000, as
+predicted. **But steps above 1 are not small** (+9.36, +9.70 SEM; peak-I steps grow), and
+adoption at the peak signal is not near the cap: 0.38 of 0.5 at γ_beh=4, 0.18 at γ_beh=1.
+
+*Diagnostic outside the A27 rule (verdict unchanged):*
+`results/step2_fail_diagnostic_90.log`. N=3,000 γ_beh=2 extended to seeds 0–89 gives 0.16460
+± 0.00645 vs DDE 0.16355: 0.64%, +0.16 SEM. Of the five distinct N=3,000 behavioural points re-run or
+diagnosed at 90 seeds (γ_beh 0.25, 0.5, 1, 2, 4; S1 is the γ_beh=1 point), all five moved
+closer to the DDE, and all five 30-seed means sat above their 90-seed means. These are not independent observations: common random numbers make
+the configs correlated across seeds.
+
+**C27 — Scenario separation S1/S2/S3 with the real CBF arm 1, N=1,000 and N=3,000 (closes the
+measurement asked for in E4). [Measured facts only; no decision on N or scenarios.]**
+`experiments/step2_scenarios.py`, `results/step2_scenarios.{json,log}`. Scenario_Spec §3:
+S1 R0=3/T_H=14, S2 R0=2/T_H=14, S3 R0=3/T_H=28. Each has behaviour (foundation, γ_beh=1) and
+its own no-behaviour control. Seeds 0–29. Run length is 900 days (foundation), not the spec's
+600. S1 is the same configuration as C26's γ_beh=1 point, and the numbers match.
+
+| N | scen. | final S beh / ctrl | peak I beh / ctrl | peak day beh / ctrl | peak S^B | effect final S | effect peak I | (a) | (b) |
+|---|---|---|---|---|---|---|---|---|---|
+| 1,000 | S1 | 0.0857 / 0.0554 | 225.1 / 233.7 | 27.3 / 27.2 | 85.4 | +0.0304 ± 0.0055 (+5.49) | −8.6 ± 3.7 (−2.33) | pass | pass (4.73%) |
+| 1,000 | S2 | 0.2720 / 0.1969 | 123.2 / 134.2 | 40.3 / 40.2 | 217.8 | +0.0751 ± 0.0111 (+6.79) | −11.0 ± 3.5 (−3.13) | pass | **FAIL** (9.01%, −2.11 SEM, n=30) |
+| 1,000 | S3 | 0.0757 / 0.0554 | 227.6 / 233.7 | 27.2 / 27.2 | 74.2 | +0.0203 ± 0.0059 (+3.47) | −6.2 ± 3.5 (−1.75) | **fail** (peak I) | pass (5.12%) |
+| 3,000 | S1 | 0.1444 / 0.0585 | 592.5 / 679.2 | 32.4 / 32.2 | 567.2 | +0.0859 ± 0.0086 (+10.00) | −86.8 ± 15.8 (−5.48) | pass | inconcl. → pass at n=90 (1.52%) |
+| 3,000 | S2 | 0.4075 / 0.2045 | 268.8 / 352.0 | 50.7 / 52.6 | 1217.8 | +0.2029 ± 0.0169 (+12.03) | −83.1 ± 13.6 (−6.12) | pass | pass (1.59%) |
+| 3,000 | S3 | 0.1094 / 0.0585 | 631.7 / 679.2 | 31.7 / 32.2 | 380.1 | +0.0509 ± 0.0066 (+7.74) | −47.5 ± 11.2 (−4.23) | pass | pass (1.88%) |
+
+n=30 for every statistic. Effects are paired differences from the scenario's own control (in
+SEMs). Runs with E or I agents at day 900: 0/30 everywhere.
+
+**Separation (difference of behavioural effects vs S1, per seed, n=30):**
+- N=1,000: S2 final S +0.0447 ± 0.0082 (+5.43 SEM), peak I −2.4 ± 2.9 (−0.81); S3 final S
+  −0.0100 ± 0.0026 (−3.91 SEM), peak I +2.5 ± 1.3 (+1.87). Both separate on final S → **PASS**.
+- N=3,000: S2 final S +0.1171 ± 0.0129 (+9.09 SEM), peak I +3.6 ± 9.8 (+0.37); S3 final S
+  −0.0350 ± 0.0060 (−5.82 SEM), peak I +39.3 ± 9.9 (+3.96 SEM). Both separate → **PASS**.
+
+**[Fact] S1 and S3 controls are identical in infections on the same seeds** (final S, peak I,
+peak day, total incidence identical on 30/30 seeds at both N). Only deaths move: peak daily
+deaths S3 − S1 = −0.20 ± 0.11 (N=1,000), −0.30 ± 0.16 (N=3,000).
+
+**Recorded predictions (planning chat) vs outcome:**
+- "S3 has a higher peak I than S1 (later reaction)" — N=3,000: yes (631.7 vs 592.5; the effect
+  differs by +39.3, +3.96 SEM). N=1,000: 227.6 vs 225.1, the effect difference not significant
+  (+1.87 SEM).
+- "S2 has a smaller behavioural effect than S1 (weaker death signal)" — **not as predicted.**
+  S2's final-S effect is larger (N=3,000: +0.203 vs +0.086; N=1,000: +0.075 vs +0.030). Its
+  absolute peak-I effect is not distinguishable from S1's (−83.1 vs −86.8, +0.37 SEM). As a
+  fraction of its own control's peak, the reduction is larger in S2 (−23.6% vs −12.8%).
+- "Both separate at N=3,000" — as predicted.
+
+*Diagnostic outside the A27 rule (verdict unchanged):* N=1,000 S2 extended to seeds 0–89 gives
+0.28934 ± 0.00735 vs DDE 0.29894: 3.21%, −1.31 SEM (`results/step2_fail_diagnostic_90.log`).
+
+**N=1,000 vs N=3,000 on the four criteria (planning chat's decision rule; not applied here):**
+
+| criterion | N=1,000 | N=3,000 |
+|---|---|---|
+| (a), all 8 behavioural configs | **2 fail**: γ_beh=0.5 (peak I −1.92 SEM), S3 (peak I −1.75 SEM) | all pass |
+| (b), A27 rule | **1 FAIL**: S2 (9.01%, −2.11 SEM); passes at n=90 in the diagnostic | **1 FAIL**: γ_beh=2 (16.36%, +2.06 SEM); passes at n=90 in the diagnostic |
+| GRADED | GRADED (4/4) | GRADED (4/4) |
+| SEPARATION | PASS (on final S only) | PASS |
+
+Not decided here: N, γ_beh, scenario set, or whether A27 should change given the two
+borderline n=30 FAILs.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
