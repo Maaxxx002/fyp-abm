@@ -26,7 +26,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A10 | Population: New York age structure, quota-drawn, frozen | Mean IFR 0.9718% vs Weitz's 1.000%; see B2 |
 | A11 | Vulnerability derived from age via `IFR_10age` | Zero free parameters |
 | A12 | `days_since_last_outing` **deleted** | No source; replaced by CBF's relaxation mechanism |
-| A13 | `response_efficacy` **added** — **implemented**, wired into CBF's `r` (`r_i = 1 - response_efficacy_i`) | PMT β=+0.251, second-strongest determinant; wiring and its unsourced-mapping caveat recorded in C21 |
+| A13 | `response_efficacy` **added** — **implemented**, wired into CBF's `r` (`r_i = 1 - response_efficacy_i`). **The wiring into `r` is superseded by A29**; the field itself is retained | PMT β=+0.251, second-strongest determinant; wiring and its unsourced-mapping caveat recorded in C21 |
 | A14 | `self_efficacy` deliberately excluded | Strongest determinant (β=+0.270) but no meaningful barrier in a single-venue three-level act |
 | A15 | Disease is **not named** in the arm-2 prompt | Arm 1 has no disease identity; naming it creates an input asymmetry, not a function difference |
 | A16 | Scenarios vary only R₀ and T_H | δ_c, k, r, β_B live inside arm 1's rule; varying them varies the object under test |
@@ -42,6 +42,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A26 | Mortality: **per-agent f_D = IFR_10age[age_band]** (population mean 0.009718), replacing A2's flat 0.01 for the model runs | [Decision, planning chat (Max), C23] Gozzi's age-based IFR adopted; the DDE reference uses the population-weighted mean, exact in expectation while r is shared (C23) |
 | A27 | **Pass mark (b) rule, fixed for all future steps:** FAIL only if relative error > 6% AND gap > 2 SEM. Relative error > 6% with gap ≤ 2 SEM is **INCONCLUSIVE** → re-run that config at 90 seeds and apply the same rule. Applies identically to every config | [Decision, planning chat (Max), C23] At N=3,000 / 30 seeds, 1 SEM of final S is ~6.8% of the reference, wider than the 6% band itself (C23: config 2 read 13.12% / +1.93 SEM at 30 seeds, 1.52% / +0.47 SEM at 90) |
 | A28 | **Pass mark (a), unchanged:** lower peak I and higher final S than the config's own no-behaviour control, each by > 2 SEM of the paired (same-seed) difference | [Decision, planning chat (Max), C23] |
+| A29 | **Arm-level physics uses flat r = 0.5 for all agents** (Gozzi). `response_efficacy` is **retained as a Perception field** available to all arms as a decision input; arm 1 (CBF) ignores it, as Gozzi's original does. Applies to arms 2–4 too: Act must be identical across arms | [Decision, planning chat (Max), C24] The PMT construct is sourced as a determinant of protective-behaviour ADOPTION (Think), not of protective EFFECTIVENESS (Act); the C21 mapping `r_i = 1 − response_efficacy_i` is unsourced and conflated the two. C24 measured that mapping's effect as +0.0101 final S (+9.47 SEM, n=90) at N=3,000 — recorded as the measured cost of the removed modification. Supersedes A13's wiring and C21's mapping |
 
 ## B. Sources — extraction status
 
