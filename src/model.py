@@ -122,7 +122,13 @@ def run(N, seed, days=600, seeds_infected=10,
 
 
 def cbf_r_from_response_efficacy(response_efficacy):
-    """CBF's per-agent protection factor `r_i`, from Perception's `response_efficacy`.
+    """SUPERSEDED by register A29 -- not used on any default call path. Kept only so the
+    C21/C22/C24 experiments can be reproduced, via run_cbf_behaviour's
+    `experimental_r_from_response_efficacy` flag. A29: response_efficacy is a determinant
+    of protective-behaviour ADOPTION, not of protective EFFECTIVENESS; arm-level physics
+    uses flat r = 0.5 for every agent.
+
+    CBF's per-agent protection factor `r_i`, from Perception's `response_efficacy`.
 
     r_i = 1 - response_efficacy_i: higher response_efficacy (an agent's belief that
     precautions work) gives a LOWER residual transmission rate while that agent is in
@@ -137,11 +143,12 @@ def cbf_r_from_response_efficacy(response_efficacy):
     return 1.0 - response_efficacy
 
 
-def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
+def run_cbf_behaviour(N, seed, days=600, seeds_infected=10,
                        R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
                        f_D=0.01, T_H=14.0, n_substeps=48,
                        beta_B=0.5, mu_B=0.01, gamma_beh=1.0, window=28,
-                       detection_rate=1.0, truncate_by_age_band=None):
+                       detection_rate=1.0, truncate_by_age_band=None,
+                       r=0.5, experimental_r_from_response_efficacy=None):
     """Arm 1's REAL CBF mechanism (Decision_Register.md D12/E17) -- not the
     `direct-g` simplification, which D12 confirmed is NOT a valid stand-in
     for CBF (CBF has a genuine two-compartment, memory-laden structure that a
@@ -153,7 +160,7 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
     source, lines ~114-126): from S, agents race between "-> E" (force of
     infection, full rate) and "-> S^B" (adoption); from S^B, agents race
     between "-> S" (relaxation) and "-> E" (force of infection at the
-    PER-AGENT reduced rate `r_i * foi`, r_i = cbf_r_from_response_efficacy(...)).
+    reduced rate `r * foi`).
     Gozzi draws one joint binomial for "did this age-group leave the
     compartment" and then splits it by relative hazard; here, with
     individual agents rather than age-group counts, the equivalent is two
@@ -172,12 +179,11 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
     days strictly before today (shrinking window for the first `window`
     days).
 
-    `response_efficacy` is REQUIRED, length N, index-aligned with agents --
-    normally `Population.response_efficacy` from src/population.py's
-    quota-drawn population (Design_Spec Sec 6 Step 4). This replaces the
-    earlier flat `r_factor=0.5` used for every agent (register C18/C19/C20's
-    validation round): r is now per-agent, `1 - response_efficacy_i`, not a
-    single population-wide constant.
+    `r` (register A29): CBF's protection factor, flat 0.5 for every agent by
+    default (Gozzi's own value, C13). A scalar or a length-N array is accepted.
+    `experimental_r_from_response_efficacy` (SUPERSEDED by A29; for reproducing
+    C21/C22/C24 only): a length-N response_efficacy array, giving per-agent
+    r_i = 1 - response_efficacy_i. It cannot be combined with a non-default `r`.
 
     beta_B/mu_B/gamma_beh default to Gozzi's own sourced demo values
     (Sourcing_Pack_v3.md Sec 2b, Decision_Register.md C13).
@@ -200,12 +206,22 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
     added: the H compartment (T_H) already provides the infection-to-death delay.
     detection_rate=1.0 with no truncation reproduces the earlier code bit-for-bit.
     """
-    if len(response_efficacy) != N:
-        raise ValueError(
-            f"response_efficacy has length {len(response_efficacy)}, expected N={N} "
-            "(one value per agent, index-aligned with the population)."
-        )
-    r = cbf_r_from_response_efficacy(response_efficacy)
+    if experimental_r_from_response_efficacy is not None:
+        if np.ndim(r) != 0 or r != 0.5:
+            raise ValueError("pass either r or experimental_r_from_response_efficacy, not both")
+        if len(experimental_r_from_response_efficacy) != N:
+            raise ValueError(
+                f"experimental_r_from_response_efficacy has length "
+                f"{len(experimental_r_from_response_efficacy)}, expected N={N} "
+                "(one value per agent, index-aligned with the population)."
+            )
+        r = cbf_r_from_response_efficacy(experimental_r_from_response_efficacy)
+    elif np.ndim(r) == 0:
+        r = np.full(N, float(r))  # per-agent array keeps arithmetic identical to C21-C24 runs
+    else:
+        r = np.asarray(r, dtype=np.float64)
+        if r.shape != (N,):
+            raise ValueError(f"r has shape {r.shape}, expected a scalar or ({N},)")
     f_D = _check_f_D(f_D, N)
     if truncate_by_age_band is not None:
         truncate_by_age_band = np.asarray(truncate_by_age_band)
@@ -326,7 +342,7 @@ def run_cbf_behaviour(N, seed, response_efficacy, days=600, seeds_infected=10,
     return dict(
         S=S_frac, prevalence=prevalence, incidence=daily_incidence,
         deaths=daily_deaths, reported_deaths=reported_deaths,
-        awareness_signal=awareness_signal, exposed=exposed, SB=SB_count, N=N,
+        awareness_signal=awareness_signal, exposed=exposed, SB=SB_count, N=N, r=r,
         total_infected=N - np.count_nonzero(state == S) - np.count_nonzero(state == SB),
         **({"deaths_by_band": deaths_by_band} if truncate_by_age_band is not None else {}),
     )

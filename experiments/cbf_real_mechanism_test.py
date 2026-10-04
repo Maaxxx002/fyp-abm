@@ -191,7 +191,7 @@ def _worker(args):
     N, seed, response_efficacy = args
     t0 = time.time()
     result = run_cbf_behaviour(
-        N=N, seed=seed, response_efficacy=response_efficacy,
+        N=N, seed=seed, experimental_r_from_response_efficacy=response_efficacy,  # C21/C22; superseded by A29
         days=DAYS, seeds_infected=SEEDS_INFECTED,
         R0=R0, latent_period_days=LATENT_PERIOD_DAYS,
         infectious_period_days=INFECTIOUS_PERIOD_DAYS,

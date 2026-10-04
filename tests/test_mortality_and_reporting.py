@@ -2,8 +2,9 @@
 Tests for register C23's two additions to src/model.py: per-agent (age-based) f_D, and
 death reporting (detection_rate, optionally with Gozzi's literal per-age-band integer cast).
 
-The bit-identity tests load the committed (HEAD) src/model.py via git, so "current code"
-means the code before these additions, not a re-run of the new code against itself.
+The bit-identity tests load src/model.py as of commit de9e06a (before C23's additions and
+A29's flat-r refactor) via git, so "current code" means the earlier code, not a re-run of the
+new code against itself.
 """
 import importlib.util
 import pathlib
@@ -18,16 +19,17 @@ from population import build_population
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 N_SMALL = 600
 DAYS_SMALL = 200
+PRE_CHANGE_COMMIT = "de9e06a"
 
 
-def _load_head_model(tmp_path):
+def _load_pre_change_model(tmp_path):
     try:
         src = subprocess.run(
-            ["git", "show", "HEAD:src/model.py"], cwd=ROOT,
+            ["git", "show", f"{PRE_CHANGE_COMMIT}:src/model.py"], cwd=ROOT,
             capture_output=True, check=True, text=True, encoding="utf8",
         ).stdout
     except (OSError, subprocess.CalledProcessError):
-        pytest.skip("git HEAD version of src/model.py not available")
+        pytest.skip("pre-change src/model.py not available from git")
     path = tmp_path / "model_head.py"
     path.write_text(src, encoding="utf8")
     spec = importlib.util.spec_from_file_location("model_head", path)
@@ -38,7 +40,7 @@ def _load_head_model(tmp_path):
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
 def test_run_defaults_bit_identical_to_head(tmp_path, seed):
-    head = _load_head_model(tmp_path)
+    head = _load_pre_change_model(tmp_path)
     old = head.run(N=N_SMALL, seed=seed, days=DAYS_SMALL)
     new = run(N=N_SMALL, seed=seed, days=DAYS_SMALL)
     assert np.array_equal(old["S"], new["S"])
@@ -47,20 +49,19 @@ def test_run_defaults_bit_identical_to_head(tmp_path, seed):
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
 def test_cbf_defaults_bit_identical_to_head(tmp_path, seed):
-    head = _load_head_model(tmp_path)
+    head = _load_pre_change_model(tmp_path)
     re = np.full(N_SMALL, 0.5)
     old = head.run_cbf_behaviour(N=N_SMALL, seed=seed, response_efficacy=re, days=DAYS_SMALL)
-    new = run_cbf_behaviour(N=N_SMALL, seed=seed, response_efficacy=re, days=DAYS_SMALL,
-                            f_D=0.01, detection_rate=1.0)
+    new = run_cbf_behaviour(N=N_SMALL, seed=seed, days=DAYS_SMALL,
+                            f_D=0.01, detection_rate=1.0)  # default r = 0.5
     assert np.array_equal(old["S"], new["S"])
     assert np.array_equal(old["deaths"], new["deaths"])
     assert np.array_equal(new["reported_deaths"], new["deaths"])
 
 
 def test_constant_f_D_array_equals_scalar():
-    re = np.full(N_SMALL, 0.5)
-    a = run_cbf_behaviour(N=N_SMALL, seed=4, response_efficacy=re, days=DAYS_SMALL, f_D=0.01)
-    b = run_cbf_behaviour(N=N_SMALL, seed=4, response_efficacy=re, days=DAYS_SMALL,
+    a = run_cbf_behaviour(N=N_SMALL, seed=4, days=DAYS_SMALL, f_D=0.01)
+    b = run_cbf_behaviour(N=N_SMALL, seed=4, days=DAYS_SMALL,
                           f_D=np.full(N_SMALL, 0.01))
     assert np.array_equal(a["S"], b["S"]) and np.array_equal(a["deaths"], b["deaths"])
     c = run(N=N_SMALL, seed=4, days=DAYS_SMALL, f_D=0.01)
@@ -72,7 +73,7 @@ def test_f_D_wrong_length_rejected():
     with pytest.raises(ValueError):
         run(N=N_SMALL, seed=0, days=5, f_D=np.full(N_SMALL - 1, 0.01))
     with pytest.raises(ValueError):
-        run_cbf_behaviour(N=N_SMALL, seed=0, response_efficacy=np.full(N_SMALL, 0.5),
+        run_cbf_behaviour(N=N_SMALL, seed=0,
                           days=5, f_D=np.full(N_SMALL + 1, 0.01))
 
 
@@ -94,7 +95,7 @@ def test_age_based_f_D_actually_changes_who_dies():
 
 def _cbf(**kw):
     pop = build_population(N=3000, seed=0)
-    args = dict(N=3000, seed=0, response_efficacy=np.full(3000, 0.5), days=300,
+    args = dict(N=3000, seed=0, days=300,
                 f_D=pop.vulnerability)
     args.update(kw)
     return run_cbf_behaviour(**args), pop

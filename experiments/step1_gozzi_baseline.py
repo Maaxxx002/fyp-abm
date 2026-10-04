@@ -48,7 +48,7 @@ POPULATION_SEED = 0
 N_SEEDS = 30
 DAYS = 900
 CHECK_DAYS = (600, 900)
-R_FLAT = 0.5          # planning-chat decision: flat r for all agents (response_efficacy = 0.5)
+R_FLAT = 0.5          # planning-chat decision: flat r for all agents (register A29)
 BETA_B, MU_B, GAMMA_BEH = 0.5, 0.01, 1.0
 DETECTION = 0.7
 FLAT_F_D = 0.01
@@ -81,7 +81,7 @@ def _worker(args):
     pop = _pop()
     t0 = time.time()
     out = run_cbf_behaviour(
-        N=N, seed=seed, response_efficacy=np.full(N, 1.0 - R_FLAT), days=DAYS,
+        N=N, seed=seed, r=R_FLAT, days=DAYS,
         seeds_infected=10, R0=3.0, latent_period_days=2.0, infectious_period_days=6.0,
         f_D=pop.vulnerability if cfg["f_D"] == "age" else FLAT_F_D, T_H=14.0,
         n_substeps=48, beta_B=BETA_B if cfg["behaviour"] else 0.0, mu_B=MU_B,

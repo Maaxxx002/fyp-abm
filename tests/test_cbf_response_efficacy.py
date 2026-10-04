@@ -1,4 +1,9 @@
 """
+UPDATE (register A29): the response_efficacy -> r mapping is SUPERSEDED. Default runs use flat
+r = 0.5 for every agent; the mapping survives only behind run_cbf_behaviour's
+`experimental_r_from_response_efficacy` flag, for reproducing C21/C22/C24. The tests below
+cover both the A29 default and that the superseded path still behaves as it did.
+
 Tests for wiring per-agent response_efficacy into CBF's r (Decision_Register.md A13,
 this build's new entry recording r_i = 1 - response_efficacy_i as a stated, unsourced
 mapping). Covers the formula itself, its monotonicity, and that run_cbf_behaviour actually
@@ -47,7 +52,7 @@ def test_run_cbf_behaviour_accepts_per_agent_response_efficacy():
     # Smoke test: the real Beta(2,2)-drawn population wires through end to end.
     pop = build_population(N=3000, seed=0)
     result = run_cbf_behaviour(
-        N=3000, seed=0, response_efficacy=pop.response_efficacy,
+        N=3000, seed=0, experimental_r_from_response_efficacy=pop.response_efficacy,
         days=120, n_substeps=48,
     )
     assert result["S"].shape == (120,)
@@ -57,7 +62,8 @@ def test_run_cbf_behaviour_accepts_per_agent_response_efficacy():
 
 def test_run_cbf_behaviour_rejects_mismatched_response_efficacy_length():
     with pytest.raises(ValueError):
-        run_cbf_behaviour(N=3000, seed=0, response_efficacy=np.full(10, 0.5), days=5)
+        run_cbf_behaviour(N=3000, seed=0, experimental_r_from_response_efficacy=np.full(10, 0.5),
+                          days=5)
 
 
 def test_realised_population_average_r_near_gozzi_default():
@@ -69,3 +75,23 @@ def test_realised_population_average_r_near_gozzi_default():
     mean_r = r.mean()
     # Loose bound: this is a report-the-number check, not a tight equality assertion.
     assert 0.4 < mean_r < 0.6
+
+
+def test_default_call_uses_flat_r_half_for_every_agent():
+    # Register A29: arm-level physics uses flat r = 0.5 for all agents.
+    result = run_cbf_behaviour(N=3000, seed=0, days=5)
+    assert result["r"].shape == (3000,)
+    assert np.all(result["r"] == 0.5)
+
+
+def test_experimental_flag_gives_one_minus_response_efficacy():
+    pop = build_population(N=3000, seed=0)
+    result = run_cbf_behaviour(N=3000, seed=0, days=5,
+                               experimental_r_from_response_efficacy=pop.response_efficacy)
+    np.testing.assert_array_equal(result["r"], 1.0 - pop.response_efficacy)
+
+
+def test_r_and_experimental_flag_cannot_be_combined():
+    with pytest.raises(ValueError):
+        run_cbf_behaviour(N=3000, seed=0, days=5, r=0.3,
+                          experimental_r_from_response_efficacy=np.full(3000, 0.5))

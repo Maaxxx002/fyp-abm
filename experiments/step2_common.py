@@ -54,12 +54,12 @@ def run_one(args):
     name, cfg, seed = args
     pop = population(cfg["N"])
     if cfg["r"] == "flat":
-        response_efficacy = np.full(cfg["N"], 1.0 - R_FLAT)
-    else:
-        response_efficacy = pop.response_efficacy
+        r_kw = dict(r=R_FLAT)
+    else:  # C24's per-agent r, superseded by A29; kept only to reproduce C24
+        r_kw = dict(experimental_r_from_response_efficacy=pop.response_efficacy)
     t0 = time.time()
     out = run_cbf_behaviour(
-        N=cfg["N"], seed=seed, response_efficacy=response_efficacy, days=cfg["days"],
+        N=cfg["N"], seed=seed, days=cfg["days"], **r_kw,
         seeds_infected=10, f_D=pop.vulnerability, T_H=T_H, n_substeps=cfg.get("n_substeps", 48),
         beta_B=BETA_B if cfg["behaviour"] else 0.0, mu_B=MU_B, gamma_beh=GAMMA_BEH,
         window=WINDOW, detection_rate=DETECTION, **disease_params(cfg["disease"]),
