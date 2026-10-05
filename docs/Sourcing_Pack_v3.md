@@ -81,7 +81,7 @@ Symmetry coefficient: at the smoothed daily-death peak `t_P`, find `Δt` where t
 value equals 10% of peak; take `value(t_P − Δt) / value(t_P + Δt)`. Symmetric = 1, plateau < 1.
 LOESS on log-transformed deaths, zero-death days excluded.
 
-⚠️ **[Fact] Works on ODE output (control 0.48, awareness 0.10); did NOT discriminate in the
+⚠️ **[Fact] Works on ODE output (control 0.48, awareness 0.10); **[UNVERIFIED - not reproducible, see register D14; do not cite.]** did NOT discriminate in the
 stochastic ABM pilot (control 0.65, awareness 0.97 — wrong direction).** Probable cause: peak
 detection latching onto a stochastic local maximum plus a 600-day window too short for the
 behavioural run to finish declining. **Do not gate on it until fixed.** Use peak-height

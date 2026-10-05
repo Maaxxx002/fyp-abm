@@ -95,7 +95,7 @@ affordable.
 
 Two independent shape metrics have failed in the ABM while working on ODE output:
 
-1. **Weitz's symmetry coefficient** — ODE: control 0.48, awareness 0.10 (clean separation).
+1. **Weitz's symmetry coefficient** — ODE: control 0.48, awareness 0.10 (clean separation). **[UNVERIFIED - not reproducible, see register D14; do not cite.]**
    ABM: control 0.65, awareness 0.97 (wrong direction).
 2. **Wave count** — Weitz's ODE reproduces their published result that waves rise with T_H
    (2, 2, 3, 3 at T_H = 7, 14, 21, 28). The ABM does not, and two reasonable prominence
