@@ -1023,6 +1023,102 @@ bound, not measured: an agent entering H at the latest active day is still in H 
 probability exp(−199/14) ≈ 6.7×10⁻⁷ (S2, day 401). For S3 (day 126, T_H=28) it is
 exp(−474/28) ≈ 4.4×10⁻⁸.
 
+**C29 — Step 3 Phase 1: candidate shape metrics validated on KNOWN cases only (no arm scored).
+[Measured facts only; the final metric is not chosen here.]** `experiments/step3_shape_metrics.py`;
+outputs in `results/step3/` (`sim_series.npz`, `stage1.{json,log}`, `stage2.{json,log}`, figures
+`K1_ode.png`, `K2_abm_N100000.png`, `K3_abm_N3000.png`). Staged run, as instructed: stage 1 scored
+P1–P3 at default settings for every metric; stage 2 ran P4 only for metric/kind pairs passing
+P1–P3. A metric failing P1–P3 fails regardless of P4. Criteria P1–P4 were fixed by the planning
+chat before running and are unchanged.
+
+*Known cases (600 days; daily incidence, i.e. new infections per day, is the primary series; seeds
+0–29 everywhere):*
+- **K1, Weitz model B ODE.** Implemented from Weitz's own code (`seirdelay_plat.m`,
+  jsweitz/covid19-git-plateaus): β=0.5, latent 2 d, infectious 6 d, T_H=14, f_D=0.01, initial
+  E=1/N with N=10⁷. Daily incidence = S(t)−S(t+1). (a) no behaviour; (b) g = 1/(1+(δ/δ_c)^k),
+  δ = γ_H·H, Nδ_c = 50, **k = 2**. k is sourced from Weitz's model-B scripts
+  `figseir_Hdel_k2.m` and `figseir_Hlong_k2D.m` (`pars.awareness = 2`, `Dcrit = 0.5e-5`),
+  not from a PNAS figure number. That repo's model-A script `figseir_baseplat_k2_D.m` sweeps
+  k ∈ {1, 2, 4}, and `figseir_phase2.m` uses k = 1.
+- **K2, Weitz-rule ABM, N=100,000.** `run_weitz_behaviour` (continuous-q, δ_c = 0.5, k = 2;
+  the C11/Test 2 configuration) and its control `run()` on the same seeds.
+- **K3, no-behaviour ABM, N=3,000.** `run()` with per-agent f_D (A26), 48 sub-steps.
+
+*Metrics, as sourced or as instructed (plateau direction in brackets):*
+- **M1** EpidemicKabu 0.2.7 (pip; Ruiz G. & Ruales B.): number of waves = cut points + 1. The
+  library pipeline is called exactly as `waves.run()` minus its CSV/plot output. Kernel 18 is the
+  library's only built-in value; `fbi` = 0 (signature default). [more waves — the direction is
+  an operationalisation agreed with Max, not sourced]
+- **M2** Hoen et al. 2015 (JMIR 17:e169) two-peak metric, Multimedia Appendix eq. S1:
+  TP = max over i<j of √((sᵢ−vᵢⱼ)(sⱼ−vᵢⱼ)), vᵢⱼ = min over i≤k≤j of sₖ. Applied to per-capita
+  incidence; no tunables. [higher]
+- **M3** T10–90 duration. [longer]
+- **M4** peak-to-mean ratio over the T10–90 window. [lower]
+- **SA** symmetry coefficient as implemented in `experiments/metrics.py` (`sym_pt`: centred
+  7-day moving average; cutoff·peak / value at t_P+Δt). Verified identical to `metrics.py` on
+  10/10 test runs. [lower]
+- **SB** symmetry coefficient per Weitz's R code (`deaths/national_deaths_metric.R`: zero days
+  dropped, `loess(log y ~ day)` with R defaults span 0.75 / degree 2, D_l/D_r at the 10%
+  cutoff). **An approximation:** R is not installed, so this is a direct tricube local-quadratic
+  fit rather than R's default kd-tree interpolation surface, on a 0.1-day grid rather than
+  0.01. [lower]
+- **M5** averaged curve: runs aligned at the first day cumulative incidence ≥ 1% of N, per-capita
+  mean over the common window, then M3/M4/SA/SB on it, with a 1,000-resample bootstrap over runs
+  (seed 20261004, 95% percentile interval).
+
+**Stage 1, default settings** (n defined / 30 for every per-run statistic; paired = K2 behaviour −
+K2 control, same seed):
+
+| metric | P1: K1 ODE ctrl → beh | P2: K2 per-run (n beh/ctrl; paired diff) | P2: K2 averaged (95% CIs) | P3: K3 per-run mean / averaged | K3 SD ÷ K1 gap | P1–P3 |
+|---|---|---|---|---|---|---|
+| M1 waves | 1 → 4 ✓ | 30/30; 1.00 → 8.57, +7.57 ± 0.14 (+53.6 SEM) ✓ | — | 1.00 (all 30 runs = 1) ✓ | 0.00 | **pass** |
+| M2 TP | 5.6×10⁻¹⁰ → 9.8×10⁻⁴ ✓ | 30/30; +2.1×10⁻⁴ ± 1.3×10⁻⁴ (+1.58 SEM) ✗ | — | 0.0122 — closer to beh ✗ | 2.27 | fail |
+| M3 T10–90 | 23 → 461 d ✓ | 30/30; 23.5 → 483.5, +460 ± 4.4 (+103.8 SEM) ✓ | beh 477 [465, 487] vs ctrl 23 [22, 23] ✓ | 23.2 / 23 ✓ | 0.002 | **pass (both)** |
+| M4 peak/mean | 1.435 → 3.822 ✗ (wrong direction) | 30/30; +4.22 ± 0.33 (+12.8 SEM, wrong direction) ✗ | beh 4.02 [3.45, 4.70] vs ctrl 1.43 [1.40, 1.44], wrong direction ✗ | 1.551 / 1.437 ✓ | 0.03 | fail |
+| SA sym (metrics.py) | 0.841 → 0.432 ✓ | **29**/30 ✗; −0.217 ± 0.088 (−2.47 SEM) | beh undefined (0/1,000 bootstrap curves) ✗ | 0.939 / 0.918 ✓ | 0.67 | fail |
+| SB sym (Weitz LOESS) | 1.321 → 0.147 ✓ | **0**/30 behaviour runs defined ✗ | beh and ctrl undefined (0/1,000 each) ✗ | 1.007 ✓ / K3 0.884 (closer to ctrl) but K2-ctrl averaged undefined ✗ | 0.11 | fail |
+
+**Stage 2, P4** (only M1 per-run and M3 per-run / averaged qualified; verdicts at every variant
+equal the default's):
+- **M1, kernel 9 / 36:** ODE 1 → 4 / 1 → 2; paired +9.87 (+39.1 SEM) / +4.67 (+38.7 SEM);
+  K3 mean 1.067 / 1.000. All of P1–P3 hold → **P4 pass**.
+- **M3, 5–95 / 20–80, per-run:** ODE 32 → 503 / 15 → 339; paired +501 (+196.7 SEM) /
+  +345 (+67.2 SEM); K3 31.2 / 14.2 → **P4 pass**.
+- **M3 averaged, 5–95 / 20–80 / alignment 0.5% / 2%:** beh vs ctrl CIs [525, 535] vs [31, 31];
+  [339, 364] vs [14, 15]; [472, 491] vs [23, 23]; [446, 468] vs [23, 23]. K3 averaged
+  31 / 14 / 24 / 23 → **P4 pass**.
+
+**PASS list: M1 (EpidemicKabu wave count, per-run); M3 (T10–90, per-run); M3 on the averaged
+curve (M5).** **FAIL list:** M2 (P2, P3); M4 per-run and averaged (P1, P2 — wrong direction);
+SA per-run (P2) and averaged (P2); SB per-run (P2) and averaged (P2, P3).
+
+**Recorded predictions (planning chat) vs outcome:**
+- "M3 passes all": as predicted.
+- "M4 passes all": **not as predicted.** It fails P1 on the ODE itself: the plateau's
+  peak-to-mean ratio is *higher* (3.82 vs 1.44), because the plateau's T10–90 window is long
+  and low relative to its early peak.
+- "Per-run symmetry fails P2 (< 30/30 or wrong direction)": as predicted, for both versions
+  (SA 29/30; SB 0/30).
+- "M5 symmetry on the averaged curve may pass": **did not.** The averaged K2 behaviour curve has
+  no pre-peak 10% crossing: by the time 1% has been infected, incidence is already at 82% of
+  the averaged peak, which comes 5 days later. The same holds at 0.5% and 2% alignment (day 0
+  at 50% and 100% of peak). This is structural for this behaviour case, not noise.
+- "M1 uncertain": passes.
+
+**Caveats, measured:**
+- **The behaviour cases are not finished at day 600.** All 30/30 K2 behaviour runs are still
+  infecting at day 600 (mean 48 per day over days 571–600, vs a mean peak of 347). Cumulative
+  incidence by day 600 is 0.370 (K2) and 0.339 (K1 ODE). The ODE reaches 0.678 by day 2,000,
+  where its T10–90 would be 1,249 d. So on K1(b)/K2, M3 partly measures the 600-day window, not
+  the epidemic's full duration. All K2 control and K3 runs have ended (0/30 active in the last
+  30 days). (C28: no arm-1 run at N=3,000 was active after day 401.)
+- **M1 on K2 behaviour counts 8.6 waves vs the ODE's 4.** The extra waves come from stochastic
+  wiggles on a long low plateau at N=100,000. P3 tests only the no-behaviour side for fake
+  plateaus; it does not test over-counting on a genuine plateau.
+- **SA and SB disagree on the no-behaviour ODE** (0.841 vs 1.321). The symmetry coefficient is
+  sensitive to its smoothing method; see D14.
+- Simulation wall time was 6.8 min (90 runs).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -1162,6 +1258,24 @@ every N tested (C20), and the gap that does exist is N-independent. **A7 (N=3,00
 reaffirmed, not revised** — there is no reason to trade N=3,000's original justification (C5's
 response-gradation requirement, D3) for a larger, more expensive population; doing so buys
 nothing against the one concern that motivated considering it.
+
+**D14 — Data-correctness note: the symmetry-coefficient ODE values 0.48 (control) / 0.10
+(awareness) are unverified; do not cite them.** These values, quoted in `Sourcing_Pack_v3.md`
+(Referent metric section), `Scenario_Spec.md` §6 and earlier in this register, **could not be
+reproduced by any code in this repo or by Weitz's own method** (C29). Fresh K1 values (Weitz
+model B, k=2, Nδ_c=50, T_H=14, 600 days; C29) replace them:
+
+| symmetry coefficient | incidence ctrl / beh | deaths ctrl / beh |
+|---|---|---|
+| `experiments/metrics.py` `sym_pt` (SA) | 0.841 / 0.432 | 0.264 / 0.171 |
+| Weitz R-LOESS method, Python approximation (SB) | 1.321 / 0.147 | 1.443 / 0.170 |
+
+SB approximates Weitz's R `loess` (R is not installed): a direct tricube local-quadratic fit, not
+R's default interpolation surface, on a 0.1-day grid instead of 0.01. **Correction to a statement
+made while planning C29:** "Weitz-LOESS is undefined on control incidence" was measured on
+`metrics.py`'s own ODE (initial I=10⁻⁶, instantaneous rate rather than daily-integrated
+incidence). On K1 as specified it is defined (1.321). That is itself evidence of how sensitive
+this metric is to inputs that should be immaterial.
 
 ## E. Open items
 
