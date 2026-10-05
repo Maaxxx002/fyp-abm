@@ -88,6 +88,8 @@ def run_one(args):
         active_at_day600=bool(len(active) >= 600 and active[599] > 0),
         last_active_day=int(active_days.max()) + 1 if len(active_days) else 0,
     )
+    if cfg.get("keep_series"):  # daily series for shape metrics (C30); no RNG change
+        rec["series"] = {k: out[k] for k in ("incidence", "prevalence", "exposed")}
     return name, seed, rec, time.time() - t0
 
 

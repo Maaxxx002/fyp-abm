@@ -1122,6 +1122,69 @@ SA per-run (P2) and averaged (P2); SB per-run (P2) and averaged (P2, P3).
   sensitive to its smoothing method; see D14.
 - Simulation wall time was 6.8 min (90 runs).
 
+**C30 — Arm 1 scored on the frozen shape-metric list (A33–A35). [Measured facts only; no
+decision on which metric "wins" or what the score means for the project.]**
+`experiments/step3_score_arm1.py`; outputs `results/step3/arm1_scores.{json,log}`, figures
+`arm1_S1.png`, `arm1_S2.png`, `arm1_S3.png`, `arm1_stretch_summary.png`. Foundation arm 1, N=3,000,
+**days=600**, seeds 0–29: (a) S1/S2/S3 with own controls (C27); (b) S1 at γ_beh 0.25–4 sharing
+the S1 control (C26). S1 = γ_beh 1 (one configuration, run once). No daily series had been
+cached by C26/C27, so all 10 configs were re-run with series kept. **Final S and peak I are
+bit-identical to the stored C26/C27 runs on 30/30 seeds for all 10 configs.** M3 = T10–90 on
+daily incidence; stretch = arm M3 ÷ own-control M3 (A34). Bootstrap: 1,000 paired resamples of
+seeds (seed 20261005).
+
+**Truncation (A35): every config valid.** 0/30 runs with E+I > 0 at day 600, for all 7 arm
+configs and all 3 controls.
+
+| config | M3 arm / control (d, mean ± SEM) | paired Δ M3 (d) | stretch, ratio of means [95% CI] | stretch, mean per-seed ratio | averaged-curve M3 arm / ctrl [95% CI] | M1 waves arm / ctrl; paired | peak I reduction | final S increase |
+|---|---|---|---|---|---|---|---|---|
+| S1 (= γ 1) | 24.93 ± 0.85 / 23.10 ± 0.20 | +1.83 ± 0.83 (+2.21 SEM) | ×1.079 [1.018, 1.158] | ×1.080 ± 0.036 | 26 [24, 27] / 23 [22, 23] | 1.00 / 1.03; −0.03 (−1.00 SEM) | 12.8% (−5.48 SEM) | +0.0859 (+10.00 SEM) |
+| S2 | 53.23 ± 9.13 / 42.97 ± 0.63 | +10.27 ± 9.23 (+1.11 SEM) | ×1.239 [0.962, 1.704] | ×1.257 ± 0.230 | 45 [41, 54] / 44 [42, 45] | 1.20 / 1.03; +0.17 (+1.54 SEM) | 23.6% (−6.12 SEM) | +0.2029 (+12.03 SEM) |
+| S3 | 23.57 ± 0.45 / 23.10 ± 0.20 | +0.47 ± 0.42 (+1.11 SEM) | ×1.020 [0.987, 1.057] | ×1.021 ± 0.018 | 23 [22, 25] / 23 [22, 23] | 1.00 / 1.03; −0.03 (−1.00 SEM) | 7.0% (−4.23 SEM) | +0.0509 (+7.74 SEM) |
+| γ 0.25 | 23.23 ± 0.29 / 23.10 ± 0.20 | +0.13 ± 0.21 (+0.63 SEM) | ×1.006 [0.989, 1.024] | ×1.006 ± 0.009 | 23 [22, 24] / 23 [22, 23] | 1.00 / 1.03; −0.03 (−1.00 SEM) | 3.5% (−5.20 SEM) | +0.0303 (+11.23 SEM) |
+| γ 0.5 | 23.67 ± 0.45 / 23.10 ± 0.20 | +0.57 ± 0.42 (+1.34 SEM) | ×1.025 [0.993, 1.063] | ×1.025 ± 0.018 | 23 [23, 25] / 23 [22, 23] | 1.00 / 1.03; −0.03 (−1.00 SEM) | 6.7% (−5.16 SEM) | +0.0493 (+11.05 SEM) |
+| γ 1 (= S1) | as S1 | | | | | | | |
+| γ 2 | 28.53 ± 1.72 / 23.10 ± 0.20 | +5.43 ± 1.69 (+3.22 SEM) | ×1.235 [1.103, 1.393] | ×1.234 ± 0.072 | 30 [26, 34] / 23 [22, 23] | 1.03 / 1.03; 0.00 | 20.7% (−5.88 SEM) | +0.1318 (+10.25 SEM) |
+| γ 4 | 34.17 ± 3.09 / 23.10 ± 0.20 | +11.07 ± 3.05 (+3.63 SEM) | ×1.479 [1.256, 1.753] | ×1.474 ± 0.129 | 38 [29, 50] / 23 [22, 23] | 1.03 / 1.03; 0.00 | 29.6% (−6.77 SEM) | +0.1692 (+10.72 SEM) |
+
+n = 30/30 defined for every statistic (M3, M1, averaged curve: all runs used). Reference
+marker (A34): Weitz plateau stretch ≥ ×20 (K1 ODE 461/23 = ×20.0; K2 averaged 477/23 = ×20.7;
+both truncated at 600 d, C29). All arm-1 stretch factors are between ×1.006 and ×1.48.
+
+**[Fact] S2's stretch is driven by a few runs, not a shift of the whole distribution.**
+- Per-run S2 M3: median 41 d (control median 42 d). Top five: 47, 65, 79, 83, **311** d
+  (control maximum 52 d).
+- 4/30 runs are stretched > ×1.5. **The median per-seed ratio is ×0.964.**
+- M1 counts 2–3 waves on 4/30 S2 runs, including the 311-day run (3 waves).
+- The averaged S2 curve is lower but not wider (45 vs 44 d) — see `arm1_S2.png`.
+- So S2 is "longer + separate waves" on a few seeds, in A34's terms, while the bulk of runs is
+  lower but not longer.
+- γ 4 also has a tail: median 26 d, maximum 91 d.
+
+**Agreement M3 vs M1:**
+- Spearman across 210 arm runs (7 distinct configs × 30; S1 = γ 1 counted once): **ρ = 0.268**
+  (p = 8×10⁻⁵).
+- Config order by mean M3: γ0.25 < S3 < γ0.5 < S1 < γ2 < γ4 < S2.
+- **Not the same order** by mean M1, but M1's ordering is mostly ties: S1, S3, γ0.25 and γ0.5
+  are all 1.00 waves, γ2 and γ4 are both 1.03, and only S2 (1.20) stands apart. So the "order"
+  among tied configs is arbitrary. Spearman over the 7 config means: 0.896 (with ties).
+- M1 is near-constant: 1 wave on 204/210 arm runs.
+
+**Recorded predictions (planning chat) vs outcome:**
+- "S1 stretch clearly > ×1 and far below ×20 (rough guess ×1.5–3, low confidence)": > ×1
+  (CI [1.018, 1.158] excludes 1) and far below ×20, as predicted. **Below the guessed range:
+  ×1.08.**
+- "S2 the largest stretch of S1/S2/S3, S3 the smallest": **point estimates as predicted**
+  (×1.24 > ×1.08 > ×1.02). But S2's CI includes ×1 [0.96, 1.70] and overlaps S1's, its median
+  per-seed ratio is below 1, and S3's CI also includes ×1.
+- "Stretch rises monotonically with γ_beh": **as predicted in point estimates** (×1.006, 1.025,
+  1.079, 1.235, 1.479). The adjacent CIs overlap below γ=1, and the CIs at γ 0.25 and 0.5
+  include ×1.
+- "M1 and M3 strongly correlated (Spearman > 0.7)": **not as predicted** across runs (ρ = 0.268).
+  The cause is M1's near-zero variance (1 wave on 204/210 runs).
+
+Not decided here: which metric "wins", or what arm 1's score means for the project.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
