@@ -1269,6 +1269,83 @@ config): 13,003 CPU-s = **13.5 min** on 16 workers before EpidemicKabu; scaling 
 ×15 gives 30.4 min. **Both exceed the 10-min limit, so no check was run.** Reported to the
 planning chat.
 
+**C31 results. [Measured facts only.]** Run after commit a1932de (code and pre-registration
+unchanged since). `python experiments/step4_shared_world_checks.py`; `results/step4/checks.{json,log}`.
+680 runs (N=100,000: seeds 0–9; N=3,000: seeds 0–29); simulation wall 6.0 min, total wall
+9.3 min including EpidemicKabu and bootstrap, 16 workers.
+
+*Check 1 — PASS everywhere.* Bit-identical daily S, prevalence, incidence and deaths, AlwaysNormal
+in `run_shared_world` vs `run()`:
+
+| setup | bit-identical | mean final S (run / world) |
+|---|---|---|
+| N=100,000, Test 1 setup (f_D 0.01, 900 d) | 10/10 | 0.05905 / 0.05905 |
+| N=3,000, Test 1 setup | 30/30 | 0.05866 / 0.05866 |
+| N=3,000, S1 foundation control (per-agent f_D, 600 d) | 30/30 | 0.05866 / 0.05866 |
+| N=3,000, S2 foundation control | 30/30 | 0.19964 / 0.19964 |
+
+*Check 2 — final S vs ODE.* Reference = I(0)=10/N; relative error, gap in SEMs.
+
+| case | N (seeds) | mean final S ± SEM | ODE | rel. error | gap | verdict |
+|---|---|---|---|---|---|---|
+| (a) S1, all precautions | 100,000 (10/10) | 0.41496 ± 0.00162 | 0.41708 | 0.507% | −1.31 | **PASS** |
+| (b) S1, 50% home | 100,000 (10/10) | 0.70674 ± 0.00143 | 0.70840 | 0.235% | −1.16 | **PASS** |
+| (b) vs stated β×0.5 | 100,000 (10/10) | 0.70674 | 0.41708 | 69.45% | +202.08 | FAIL, as predicted (D15) |
+| (c) S2, all precautions | 100,000 (10/10) | 0.98999 ± 0.00528 | 0.99062 | 0.064% | −0.12 | report-only |
+| (a) | 3,000 (30/30) | 0.40774 ± 0.00603 | 0.41351 | 1.394% | −0.96 | report-only |
+| (b) | 3,000 (30/30) | 0.70931 ± 0.01071 | 0.70241 | 0.982% | +0.64 | report-only |
+| (b) vs stated β×0.5 | 3,000 (30/30) | 0.70931 | 0.41351 | 71.53% | +27.61 | report-only |
+| (c) | 3,000 (30/30) | 0.95254 ± 0.00978 | 0.92082 | 3.445% | +3.25 | report-only |
+
+(c) attack-rate relative error vs the 10/N reference: 6.8% (N=100,000), 40.1% (N=3,000). With
+Test 1's I(0)=10⁻⁶ reference the (c) final-S errors are 0.990% (−1.87 SEM) and 4.738%. Runs with
+E+I > 0 at the last day: 0 in every Check 2 config; runs with zero incidence: 0 in every config.
+Mean peak I: (a) 4,847.4 / 163.3, (b) 2,433.7 / 89.6, (c) 40.5 / 16.2 (N=100,000 / N=3,000).
+
+*Ceiling numbers, N=3,000, 600 d, 30/30 seeds vs own AlwaysNormal control (same seeds).* M3
+defined on 30/30 runs in every arm and control.
+
+| | (a) S1 all precautions | (b) S1 50% home | (c) S2 all precautions |
+|---|---|---|---|
+| M3 arm / control (d) | 76.9 ± 2.2 / 23.2 ± 0.2 | 74.4 ± 2.9 / 23.2 ± 0.2 | 60.4 ± 7.8 / 42.6 ± 0.6 |
+| stretch, ratio of means [95% CI] | ×3.32 [3.13, 3.52] | ×3.21 [2.96, 3.49] | ×1.42 [1.06, 1.78] |
+| median per-seed ratio | ×3.19 | ×3.20 | ×1.24 |
+| share of runs > ×1.5 | 30/30 | 30/30 | 12/30 |
+| arm M3 median / max (d) | 74 / 110 | 72 / 105 | 55.5 / 200 |
+| peak I arm / control | 163.3 / 681.1 | 89.6 / 681.1 | 16.2 / 358.9 |
+| peak I reduction (paired) | 76.0%, −517.8 ± 8.1 | 86.8%, −591.5 ± 7.6 | 95.5%, −342.7 ± 5.9 |
+| final S arm / control | 0.4077 / 0.0587 | 0.7093 / 0.0587 | 0.9525 / 0.1996 |
+| final S increase (paired) | +0.3491 ± 0.0063 | +0.6507 ± 0.0106 | +0.7529 ± 0.0097 |
+| M1 waves arm / control | 1.10 / 1.00 (1 wave 27, 2 waves 3) | 1.17 / 1.00 (25 / 5) | 1.33 / 1.00 (1: 21, 2: 8, 3: 1) |
+| runs with E+I > 0 at day 600, arm / control (A35) | 0/30 / 0/30 | 0/30 / 0/30 | 0/30 / 0/30 |
+| arm last active day, median / max | 188.5 / 254 | 168 / 237 | 80.5 / 300 |
+
+*Check 3 — PASS.* CBFArm1 in the shared world vs `run_cbf_behaviour`, foundation, 600 d:
+bit-identical daily S, prevalence, incidence and deaths on **30/30 seeds in S1, S2 and S3, for
+the arm and for the β_B=0 control**. Paired differences in final S and peak I: 0 (n=30) in all
+three. Stretch (shared world, ratio of means [95% CI]; median per-seed; share > ×1.5): S1
+×1.079 [1.018, 1.158], ×1.000, 2/30; S2 ×1.239 [0.962, 1.704], ×0.964, 4/30; S3 ×1.020
+[0.987, 1.057], ×0.980, 0/30 — identical to C30. 0/30 runs active at day 600 in every config.
+
+*Agent-days, arm 1 in the shared world, mean per run (n=30):* never_ill (S+E) vs recovered.
+Over 600 d: S1 335,047 vs 1,434,275; S2 823,047 vs 956,174; S3 273,887 vs 1,494,296. Up to the
+last day with E+I > 0: S1 117,535 vs 151,345; S2 279,612 vs 152,521; S3 108,436 vs 156,629.
+
+*Predictions vs outcome:*
+- Check 1 "identical" (Max): as predicted.
+- Check 2 "(a) and (b) pass" (Max): as predicted, (b) against the corrected reference. (b) vs
+  β×0.5 "fails by ~70%" (Claude Code): 69.45% at N=100,000.
+- "(a) at N=3,000 S1: stretch ×2–4, 1 wave, no plateau" (Max) / "×3–4, 1 wave" (Claude Code):
+  ×3.32 [3.13, 3.52]; 1 wave on 27/30 runs, 2 on 3/30. Plateau is not measured by a metric.
+- "(c): very slow, possibly not finished by day 600" (Max) / "mostly small outbreaks ending well
+  before day 600, 0–4 of 30 still active" (Claude Code): 0/30 active at day 600; median last
+  active day 80.5, max 300; (c) is not TRUNCATED under A35.
+- "(c) at N=100,000 passes the 1% final-S mark" (Claude Code; mark later made report-only):
+  0.064%.
+- "(a)/(b) at N=3,000 below their ODE by a few percent" (Claude Code): (a) 1.39% below; **(b)
+  0.98% above — not as predicted.**
+- Check 3 "pass, bit-identical if the RNG order matches" (Max): bit-identical, as predicted.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
