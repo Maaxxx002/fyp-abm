@@ -1516,6 +1516,13 @@ the exposed half meets the full rate and is depleted twice as fast per infection
 Also: in (c) R_eff = 1.0 exactly, so the ODE final S depends on the initial condition (0.99989 at
 I(0)=10⁻⁶, 0.99062 at I(0)=10/N); the ABM's I(0)=10/N is used.
 
+**D16 — Data correction: the combinatorial state-space figure is ~5.2 × 10⁵, not ~4.6 × 10⁵.**
+Design_Spec §5's product of its own bin counts is 10 × 3 × 3 × 3 × 8 × 6 × 10 × 4 = 518,400
+(computed). The "about 4.6 × 10⁵" printed there, and quoted in D4, was wrong. Corrected in
+Design_Spec §5. Nothing depended on it: D4's conclusion (the space is comparable to the
+~5.4 × 10⁵ decision count, so caching may save little) holds either way, and the realised
+state count is measured separately (C15, E3).
+
 ## E. Open items
 
 | # | Item | Blocks |

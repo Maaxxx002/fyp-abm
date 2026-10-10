@@ -188,7 +188,8 @@ saving in arm 2. That figure was not calculated and I should not have quoted it.
 
 The combinatorial state space under reasonable bins — 10 age bands × 3 occupation levels ×
 3 efficacy levels × 3 health states × 8 death-level bins × 6 cumulative bins × 10 norm deciles
-× 4 local-death bins — is about **4.6 × 10⁵**, against roughly **5.4 × 10⁵** decisions across
+× 4 local-death bins — is about **5.2 × 10⁵** (518,400; corrected from 4.6 × 10⁵, register
+D16), against roughly **5.4 × 10⁵** decisions across
 three scenarios. On those numbers caching saves almost nothing.
 
 (Since A43 the vector has no health-state field, so the "× 3 health states" factor no longer
