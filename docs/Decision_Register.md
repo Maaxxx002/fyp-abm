@@ -2047,6 +2047,91 @@ supplementary) and 690 wave counts (arm 3, control, supplementary; arm 1's are i
 Projection: 3.0 + 6.7 = **9.7 min at measured rates; 6.2 + 6.7 = 12.9 min at the upper end**
 (every simulation as slow as the slowest). **Upper end exceeds 10 minutes → stopped before any
 main run; reported to the planning chat.**
+*Approved by Max (10 Oct 2026): run the full batch, including the supplementary and its wave
+counts.*
+
+**C39 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step5_arm3_runs.py
+--sim` then `--score`; `results/step5/arm3_runs.npz`, `arm3_runs_sim.log`, `arm3_scores.{json,log}`.
+**Wall time 8.0 min** (780 simulations 2.3 min, per run 0.6–11.3 s; 690 wave counts 5.7 min).
+**Arm-1 shared-world rerun = stored C27 runs: final S and peak I identical on 30/30 seeds in each
+of S1, S2, S3.** Every run (arm 3, control, arm 1, supplementary) had E + I = 0 by day 600
+(30/30 everywhere), so A35 truncation does not apply. M3 defined on 30/30 for every arm-3 config
+and control. Controls: S1 final S 0.0587, peak I 681.1; S3 identical to S1 (T_H changes only the
+infection-to-death delay, and the no-behaviour control's infection draws do not depend on it);
+S2 final S 0.1996, peak I 358.9. Control M3: S1/S3 23.2 d, S2 42.6 d. n = 30 seeds for every
+statistic unless stated.
+
+*Per rule and scenario.* Stretch = ratio of mean M3s [95% bootstrap CI]; median = median
+per-seed ratio; > ×1.5 = seeds with per-seed ratio > 1.5; peak red = peak-I reduction vs control
+(paired SEMs); final S (paired increase); M1 = mean wave count arm / control, runs with > 1 wave;
+DR = death responsiveness, mean / median of per-run Spearman (n defined); caution = mean realised
+cautious share of deciding agents over active days.
+
+| scen | rule | stretch [95% CI] | median | > ×1.5 | peak red | final S (+ vs ctrl) | M1 arm/ctrl; > 1 wave | DR mean / median (n) | caution |
+|---|---|---|---|---|---|---|---|---|---|
+| S1 | 1 | ×1.475 [1.347, 1.631] | ×1.383 | 11/30 | 39.6% (−18.7 SEM) | 0.298 (+0.239) | 1.03/1.00; 1/30 | +0.922 / +0.935 (30) | 0.483 |
+| S1 | 2 | ×0.986 [0.778, 1.228] | ×0.869 | 3/30 | 97.7% (−113.7 SEM) | 0.983 (+0.924) | 1.03/1.00; 1/30 | +0.691 / +0.716 (8) | 0.860 |
+| S1 | 3 | ×1.699 [1.600, 1.830] | ×1.614 | 18/30 | 47.5% (−34.1 SEM) | 0.292 (+0.233) | 1.07/1.00; 1/30 | +0.928 / +0.931 (30) | 0.476 |
+| S1 | 4 | ×1.085 [1.074, 1.094] | ×1.087 | 0/30 | 6.3% (−19.5 SEM) | 0.075 (+0.017) | 1.10/1.00; 2/30 | +0.262 / +0.280 (30) | 0.054 |
+| S1 | 5 | ×1.180 [1.165, 1.195] | ×1.174 | 0/30 | 15.1% (−25.6 SEM) | 0.092 (+0.033) | 1.03/1.00; 1/30 | +0.171 / +0.140 (30) | 0.126 |
+| S2 | 1 | ×1.888 [1.604, 2.208] | ×1.620 | 18/30 | 59.6% (−21.6 SEM) | 0.578 (+0.378) | 1.43/1.00; 8/30 | +0.866 / +0.869 (30) | 0.418 |
+| S2 | 2 | ×0.414 [0.347, 0.479] | ×0.372 | 0/30 | 97.0% (−59.1 SEM) | 0.991 (+0.792) | 1.00/1.00; 0/30 | +0.711 / +0.720 (3) | 0.835 |
+| S2 | 3 | ×1.942 [1.827, 2.054] | ×1.932 | 27/30 | 62.2% (−33.9 SEM) | 0.522 (+0.322) | 1.20/1.00; 6/30 | +0.901 / +0.906 (30) | 0.380 |
+| S2 | 4 | ×1.046 [1.038, 1.054] | ×1.047 | 0/30 | 5.3% (−8.4 SEM) | 0.216 (+0.017) | 1.00/1.00; 0/30 | +0.481 / +0.489 (30) | 0.032 |
+| S2 | 5 | ×1.200 [1.179, 1.223] | ×1.191 | 0/30 | 19.5% (−18.8 SEM) | 0.254 (+0.055) | 1.00/1.00; 0/30 | +0.380 / +0.367 (30) | 0.115 |
+| S3 | 1 | ×1.364 [1.291, 1.448] | ×1.298 | 7/30 | 32.8% (−18.5 SEM) | 0.243 (+0.185) | 1.07/1.00; 1/30 | +0.915 / +0.932 (30) | 0.463 |
+| S3 | 2 | ×1.003 [0.810, 1.256] | ×0.896 | 3/30 | 97.7% (−113.7 SEM) | 0.982 (+0.924) | 1.03/1.00; 1/30 | +0.621 / +0.679 (5) | 0.858 |
+| S3 | 3 | ×1.574 [1.525, 1.640] | ×1.544 | 19/30 | 44.2% (−33.9 SEM) | 0.263 (+0.204) | 1.03/1.00; 1/30 | +0.933 / +0.942 (30) | 0.471 |
+| S3 | 4 | ×1.075 [1.065, 1.084] | ×1.083 | 0/30 | 6.2% (−20.5 SEM) | 0.074 (+0.015) | 1.03/1.00; 1/30 | −0.005 / +0.008 (30) | 0.051 |
+| S3 | 5 | ×1.180 [1.165, 1.195] | ×1.174 | 0/30 | 14.9% (−23.7 SEM) | 0.090 (+0.031) | 1.00/1.00; 0/30 | −0.053 / −0.094 (30) | 0.125 |
+
+All final-S increases exceed +13 SEM. Rule 2's DR is undefined on most runs because the death
+signal never changes while E + I > 0 (no reported deaths before the epidemic ends) on 22/30
+(S1), 27/30 (S2), 25/30 (S3) runs; its epidemics are small (total infections, median / max: S1
+37 / 112, S2 15 / 50, S3 37 / 112; last active day median 44, 32.5, 44).
+
+*Arm 3 as a whole (mean [min, max] over the 5 rules) next to arm 1 (C30; DR and caution from the
+shared-world rerun):*
+
+| scen | | stretch | median per-seed | peak red | final S | M1 | DR mean | caution |
+|---|---|---|---|---|---|---|---|---|
+| S1 | arm 3 | ×1.285 [0.986, 1.699] | ×1.225 [0.869, 1.614] | 41.2% [6.3, 97.7] | 0.348 [0.075, 0.983] | 1.05 [1.03, 1.10] | +0.595 [+0.171, +0.928] | |
+| S1 | arm 1 | ×1.079 [1.018, 1.158] | ×1.080 (mean) | 12.8% | 0.144 (+0.086) | 1.00 | +0.792 / median +0.799 (30) | 0.580 |
+| S2 | arm 3 | ×1.298 [0.414, 1.942] | ×1.232 [0.372, 1.932] | 48.7% [5.3, 97.0] | 0.512 [0.216, 0.991] | 1.13 [1.00, 1.43] | +0.668 [+0.380, +0.901] | |
+| S2 | arm 1 | ×1.239 [0.962, 1.704] | ×0.964 | 23.6% | 0.408 (+0.203) | 1.20 | +0.647 / +0.659 (30) | 0.554 |
+| S3 | arm 3 | ×1.239 [1.003, 1.574] | ×1.199 [0.896, 1.544] | 39.2% [6.2, 97.7] | 0.331 [0.074, 0.982] | 1.03 [1.00, 1.07] | +0.482 [−0.053, +0.933] | |
+| S3 | arm 1 | ×1.020 [0.987, 1.057] | ×1.021 (mean) | 7.0% | 0.109 (+0.051) | 1.00 | +0.864 / +0.893 (30) | 0.512 |
+
+(Arm 1's "caution" is the S^B share of S + E, E24; arm 3's counts E agents by realised action.)
+
+*Predictions (Max) vs outcome:*
+- Rule 2 strong suppression from early on, large peak reduction — peak I −97.0 to −97.7%, final
+  S 0.98–0.99, epidemics end by a median day 32.5–44. Stretch (low confidence): ×0.986 (S1),
+  ×0.414 (S2), ×1.003 (S3). Resemblance to the constant-caution ceiling case not computed.
+- Rules 4 and 5 mild, stretch below ×1.5 — **as predicted** (×1.046–1.200 in all 6 cases;
+  0/30 runs > ×1.5 in each). Peak reduction 5.3–19.5% (arm 1: 7.0–23.6%).
+- The 5 rules spread widely — stretch ×0.986–1.699 (S1), ×0.414–1.942 (S2), ×1.003–1.574 (S3);
+  peak reduction 5.3–97.7%.
+- Death responsiveness positive for every rule — **not in S3**: rule 4 −0.005, rule 5 −0.053
+  (mean). Positive for every rule in S1 and S2.
+
+*Caveat on rule 2's stretch (planning chat, 10 Oct 2026; an interpretation, not a measurement):* rule 2's M3 is computed on very small epidemics (median 15–37 infections), so its stretch reflects suppression, not flattening, and is a poor guide to stretch in either the main or the supplementary run.
+
+**C40 — Supplementary to C39 (does not replace it): S1 with social_norm = agents acting normal
+/ agents in S, E, I or R not staying home. [Measured facts only.]** Same run as C39 (same seeds,
+same control). Difference from the main S1 result (supplementary − main):
+
+| rule | stretch (main → supp) | median | > ×1.5 | peak red | final S | M1 | DR mean | caution |
+|---|---|---|---|---|---|---|---|---|
+| 1 | ×1.475 → ×1.357 [1.283, 1.438] (−0.118) | ×1.326 | 4/30 | 39.6 → 34.7% (−4.9) | 0.298 → 0.261 (−0.037) | 1.03 → 1.03 | +0.922 → +0.921 | 0.483 → 0.457 |
+| 2 | ×0.986 → ×1.514 [1.249, 1.838] (+0.528) | ×1.311 | 11/30 | 97.7 → 97.5% (−0.2) | 0.983 → 0.976 (−0.006) | 1.03 → 1.03 | +0.691 → +0.705 | 0.860 → 0.845 |
+| 3 | ×1.699 → ×1.433 [1.381, 1.494] (−0.266) | ×1.369 | 8/30 | 47.5 → 36.8% (−10.7) | 0.292 → 0.224 (−0.068) | 1.07 → 1.07 | +0.928 → +0.903 | 0.476 → 0.435 |
+| 4 | ×1.085 → ×1.012 [1.003, 1.019] (−0.073) | ×1.000 | 0/30 | 6.3 → 1.2% (−5.1) | 0.075 → 0.061 (−0.014) | 1.10 → 1.00 | +0.262 → +0.340 | 0.054 → 0.022 |
+| 5 | ×1.180 → ×1.111 [1.095, 1.126] (−0.069) | ×1.108 | 0/30 | 15.1 → 10.1% (−5.0) | 0.092 → 0.079 (−0.013) | 1.03 → 1.03 | +0.171 → +0.293 | 0.126 → 0.103 |
+
+Finished by day 600: 30/30 for every rule. With the supplementary definition, rules 1, 3, 4, 5
+have lower stretch, peak reduction, final S and caution than in the main run; rule 2's stretch
+rises (×0.986 → ×1.514) with peak reduction and final S nearly unchanged.
 
 ## D. Reversals and corrections
 
