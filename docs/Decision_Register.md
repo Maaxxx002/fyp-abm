@@ -1549,6 +1549,102 @@ lower by 0.170 on average.
 × C32's E19 call counts → $153 (control reference) to $198 (arm-1 reference) for 90 runs,
 before retries. The prompt wording was NOT changed.
 
+**C35 — Arm-2 prompt pilot v2: controlled situations, one field changed at a time.
+PRE-REGISTRATION, written before any generation call.** [Design: planning chat (Max), 10 Oct
+2026.] `experiments/step4_pilot_v2.py`; situations `results/step4/pilot_v2_situations.{json,log}`.
+Settings A65 with thinking OFF only; template `prompts/DRAFT_arm2_arm3.md` unchanged (asserted
+equal to the renderer's); reply rule A64, retries A61. 3 repeats per situation. Cost guard: stop
+if spending passes $2; projected worst case (every decision retried twice, every reply at
+`max_tokens` 1024) $0.15; expected about $0.004 (C34's $0.0000427 per call × 90).
+
+*Base situation (constructed, not from a run):* day 60; social_norm 0.85 (renders "85%"); flat
+deaths: deaths_28day_mean_7d_ago = deaths_28day_mean (both = 4-week total / 28, so both
+rendered 4-week totals are equal); deaths_cumulative = 4-week total + 5; current_action normal;
+population 3,000. Agents as in C34: young = age_band 2, vulnerability 0.000309 ("about 3 in
+10,000"); old = age_band 8, vulnerability 0.0428 ("about 4 in 100"); both occupation_flex
+0.4101759 (renders 4) and response_efficacy 0.7954036 (renders 8).
+
+*Situations (each × young and × old = 30 situations, 90 decisions). Rendered death lines: past
+four weeks / four weeks up to a week ago / total; rendered "normally" %:*
+
+| test | id | 4-week total | 4 weeks up to a week ago | total so far | normally |
+|---|---|---|---|---|---|
+| D | D0, D1, D3, D6, D12, D25, D50, D100 | 0, 1, 3, 6, 12, 25, 50, 100 | same as 4-week total | 5, 6, 8, 11, 17, 30, 55, 105 | 85% |
+| T | T4, T12, T25 | 12 | 4, 12, 25 | 17 | 85% |
+| N | N50, N70, N90 | 12 | 12 | 17 | 50%, 70%, 90% |
+| supplementary | T25c | 12 | 25 | **30** | 85% |
+
+Notes, fixed before calling: (1) T12 is the identical prompt to D12 and is called separately
+(so that prompt gets 6 calls); N's base value (85%) is D12. (2) **T25 is an impossible
+combination**: 25 deaths in the four weeks up to a week ago but only 17 in total. It is run as
+specified. T25c is added (not part of Test T, changes two fields relative to T12) with the
+total raised to 25 + 5 = 30, so the falling-trend comparison can be read without the
+contradiction. (3) The renderer prints "1 people" for D1 (template unchanged).
+
+*Reported per situation:* caution c = 1 − P(normal) and P(stay home), mean and SD over the
+valid replies (denominator reported). No pass/fail criteria were set for v2.
+
+*Predictions (Claude Code), [Speculation]:*
+- D: c(D100) > c(D0) by at least 0.10 for both agents (medium confidence). c strictly increasing
+  over all 8 levels: unlikely for either agent (low confidence; C34's repeat SD was up to 0.058
+  and its range only 0.55–0.77). P(stay home) at D100 > at D0 for both (medium).
+- D, low end: c(D0) is not below about 0.5 for either agent — the model is cautious even with
+  no deaths, as C34's day-0 situation was (0.67/0.77) (medium).
+- T: c(T4) > c(T25) for both agents (low confidence, ~55%; C34 showed the opposite direction for
+  rising vs falling, but those situations also differed in total and norm).
+- N: c(N50) > c(N90) for both agents, i.e. fewer people "going about normally" → more caution
+  (low confidence, ~60%).
+- Age: c(old) > c(young) in at least 13/15 matched pairs (medium-high).
+- Validity: 90/90 valid at the first attempt (high).
+
+**C35 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step4_pilot_v2.py
+--run` then `--score`; `results/step4/pilot_v2_replies.json`, `pilot_v2_scores.{json,log}`,
+`pilot_v2_run.log`. Model `claude-haiku-5-5`, thinking OFF. Wall 99 s. **Total cost $0.00383.**
+90/90 decisions valid at the first attempt; 0 retries; 0 fallbacks. Input 358–363 tokens, output
+13 tokens on every call. Prompt wording unchanged.
+
+*Per situation (A/B/C = stay home / precautions / normal; n = 3/3 valid for every situation;
+mean (SD) over the 3 replies):*
+
+| id | young replies | young c | young P(stay) | old replies | old c | old P(stay) |
+|---|---|---|---|---|---|---|
+| D0 | 10/55/35 10/60/30 10/60/30 | 0.683 (0.029) | 0.100 (0.000) | 20/55/25 15/60/25 20/50/30 | 0.733 (0.029) | 0.183 (0.029) |
+| D1 | 10/55/35 10/60/30 10/50/40 | 0.650 (0.050) | 0.100 (0.000) | 20/50/30 20/55/25 20/50/30 | 0.717 (0.029) | 0.200 (0.000) |
+| D3 | 10/60/30 10/50/40 10/60/30 | 0.667 (0.058) | 0.100 (0.000) | 25/55/20 25/50/25 25/50/25 | 0.767 (0.029) | 0.250 (0.000) |
+| D6 | 10/50/40 10/45/45 10/45/45 | 0.567 (0.029) | 0.100 (0.000) | 20/55/25 25/50/25 20/55/25 | 0.750 (0.000) | 0.217 (0.029) |
+| D12 | 10/50/40 10/55/35 10/50/40 | 0.617 (0.029) | 0.100 (0.000) | 20/55/25 25/55/20 20/50/30 | 0.750 (0.050) | 0.217 (0.029) |
+| D25 | 10/60/30 10/50/40 10/55/35 | 0.650 (0.050) | 0.100 (0.000) | 20/55/25 15/55/30 20/50/30 | 0.717 (0.029) | 0.183 (0.029) |
+| D50 | 10/60/30 10/60/30 10/60/30 | 0.700 (0.000) | 0.100 (0.000) | 20/60/20 25/50/25 20/55/25 | 0.767 (0.029) | 0.217 (0.029) |
+| D100 | 10/60/30 10/60/30 15/50/35 | 0.683 (0.029) | 0.117 (0.029) | 25/55/20 20/55/25 25/45/30 | 0.750 (0.050) | 0.233 (0.029) |
+| T4 | 10/60/30 10/45/45 15/45/40 | 0.617 (0.076) | 0.117 (0.029) | 25/55/20 20/60/20 25/55/20 | 0.800 (0.000) | 0.233 (0.029) |
+| T12 | 10/50/40 10/45/45 10/55/35 | 0.600 (0.050) | 0.100 (0.000) | 20/55/25 20/50/30 20/55/25 | 0.733 (0.029) | 0.200 (0.000) |
+| T25 | 10/50/40 10/45/45 12/58/30 | 0.617 (0.076) | 0.107 (0.012) | 30/50/20 25/50/25 25/50/25 | 0.767 (0.029) | 0.267 (0.029) |
+| N50 | 10/45/45 10/55/35 12/48/40 | 0.600 (0.050) | 0.107 (0.012) | 20/55/25 20/55/25 25/50/25 | 0.750 (0.000) | 0.217 (0.029) |
+| N70 | 10/50/40 10/55/35 10/60/30 | 0.650 (0.050) | 0.100 (0.000) | 20/55/25 20/50/30 25/50/25 | 0.733 (0.029) | 0.217 (0.029) |
+| N90 | 15/60/25 15/50/35 15/50/35 | 0.683 (0.058) | 0.150 (0.000) | 25/50/25 25/50/25 25/55/20 | 0.767 (0.029) | 0.250 (0.000) |
+| T25c | 10/45/45 15/50/35 15/55/30 | 0.633 (0.076) | 0.133 (0.029) | 30/50/20 25/50/25 30/50/20 | 0.783 (0.029) | 0.283 (0.029) |
+
+*Summaries (computed from the table):*
+- D (8 levels, 0 → 100 deaths in four weeks): young c 0.567–0.700, old c 0.717–0.767. c(D100) −
+  c(D0): young 0.000, old +0.017. Spearman rank correlation of mean c with the death level:
+  young 0.18, old 0.32 (n = 8 levels each). P(stay home): young 0.100 at every level except D100
+  (0.117); old 0.183–0.250.
+- T (week-ago total 4 / 12 / 25 at a 4-week total of 12): young c 0.617 / 0.600 / 0.617; old
+  0.800 / 0.733 / 0.767. T25c (total 30): young 0.633, old 0.783.
+- N (50% / 70% / 90% "normally"; 85% is D12): young c 0.600 / 0.650 / 0.683 (D12 0.617); old
+  0.750 / 0.733 / 0.767 (D12 0.750). P(stay home) young 0.107 / 0.100 / 0.150; old 0.217 /
+  0.217 / 0.250.
+- D12 and T12 are the same prompt: young 0.617 and 0.600, old 0.750 and 0.733.
+- Age: c(old) > c(young) in 15/15 matched situations; difference +0.050 to +0.183, mean +0.111.
+- Repeat SD of c: 0.000–0.076 (young), 0.000–0.050 (old).
+
+*Predictions vs outcome:* c(D100) − c(D0) ≥ 0.10 for both — **wrong** (0.000, +0.017). c not
+strictly increasing over D — correct (neither agent). P(stay home) D100 > D0 for both — correct
+(0.117 vs 0.100; 0.233 vs 0.183). c(D0) ≥ about 0.5 — correct (0.683, 0.733). c(T4) > c(T25) for
+both — **wrong** for the young agent (0.617 = 0.617), right for the old (0.800 vs 0.767). c(N50) >
+c(N90) for both — **wrong** for both (young 0.600 vs 0.683, old 0.750 vs 0.767). Old > young in
+≥ 13/15 — correct (15/15). 90/90 valid first — correct.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
