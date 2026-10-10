@@ -62,7 +62,8 @@ never stay home) and is bit-identical to `run_cbf_behaviour` (C31).
 | Actions | normal ×1 / precautions ×r=0.5 / stay home ×0, own susceptibility only | register A37, A39, A29 |
 | Who decides | never-ill agents only (not ill, not recovered, not H/D) | register A38, A42 |
 | Re-decision cadence | p = 0.3/day, arms 2–4, **provisional and UNSOURCED**; arm 1 continuous | register A41 |
-| `social_norm` | (S_normal + R)/N, CBF's exact term; LLM wording open | register A44, E22 |
+| `social_norm` | (S_normal + R)/N, CBF's exact term; wording "About X% of people in your town are going about their lives normally." | register A44, A48 |
+| LLM (arms 2, 3) | Claude Haiku 5.5, `claude-haiku-5-5`; $0.10 / $0.50 per M input / output tokens (standard API, prompts ≤ 100k tokens, checked 10 Oct 2026) | register A63 |
 
 ⚠️ **Symbol collision.** Gozzi's `mu` = 1/infectious period, `eps` = 1/latent period. Weitz's
 `μ` = 1/latent, `γ` = 1/infectious. Same letters, opposite meanings. Use explicit names

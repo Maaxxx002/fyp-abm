@@ -1,6 +1,7 @@
 # DRAFT v1 — arm-2 prompt template and arm-3 instruction (NOT FROZEN)
 
-Status: draft, updated to register A55–A62. Not piloted; the pilot (E6, criteria approved in
+Status: draft, updated to register A55–A64. Model: Claude Haiku 5.5, `claude-haiku-5-5` (A63);
+effort / thinking setting not yet fixed. Not piloted; the pilot (E6, criteria approved in
 A62) runs before the prompt is frozen. No LLM has been called. The draft renderer used for
 token counts is `experiments/step4_prompt_tokens.py`.
 
@@ -62,8 +63,9 @@ Actions are described in everyday words only; no effect sizes are stated (A57).
 
 ### Reply handling (A56, A61)
 
-- Parse `A=<a>, B=<b>, C=<c>` (whole numbers ≥ 0). Valid if the three parse and sum to 100;
-  the probabilities are a/100, b/100, c/100 (A → stay_home, B → precautions, C → normal).
+- Parse `A=<a>, B=<b>, C=<c>` (whole numbers ≥ 0). Valid if the three parse and
+  98 ≤ a + b + c ≤ 102; they are then rescaled to sum to 100, i.e. probabilities a/(a+b+c),
+  b/(a+b+c), c/(a+b+c) (A → stay_home, B → precautions, C → normal) (A64).
 - The simulator samples the action from the decision random stream (A52/A56).
 - Invalid reply: retry up to 2 times (same prompt); if still invalid, the agent keeps its
   `current_action`. Every invalid reply and fallback is logged; the invalid-reply rate is

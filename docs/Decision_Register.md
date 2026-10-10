@@ -76,6 +76,8 @@ Last updated: after the shape-metric investigation and the N decision.
 | A60 | **The day line is kept** ("…has been spreading in your town for {day} days") | [Decision, planning chat (Max), Oct 2026] `day` is in the vector, so totality requires it |
 | A61 | **Invalid arm-2 reply:** retry up to 2 times; if still invalid, the agent keeps its `current_action`. Every invalid reply and every fallback is logged, and the invalid-reply rate is reported | [Decision, planning chat (Max), Oct 2026] |
 | A62 | **Pilot criteria (i)–(iv) in E6 APPROVED** | [Decision, planning chat (Max), Oct 2026] |
+| A63 | **LLM for arms 2 and 3 (A50): Claude Haiku 5.5, API model string `claude-haiku-5-5`.** Verified 10 Oct 2026 in Anthropic's official docs (platform.claude.com, "Models overview": Claude API ID and alias both `claude-haiku-5-5`, a pinned snapshot; retirement not sooner than 7 Oct 2027). **Price, standard API, 10 Oct 2026: $0.10 / M input tokens, $0.50 / M output tokens** (official "Pricing" page; this tier applies to prompts up to 100,000 tokens — over 100,000 it is $0.50 / $2.50; Batch API is 50% off). Not called yet | [Decision, planning chat (Max), 10 Oct 2026] **Flagged, not decided:** Haiku 5.5 runs adaptive thinking by default (default effort `medium`), and thinking tokens are billed as output, so the effort / thinking setting must be fixed before the pilot and frozen with the prompt (A54) |
+| A64 | **Reply parsing (amends A56/A61):** a reply "A=a, B=b, C=c" with whole numbers ≥ 0 is valid if 98 ≤ a + b + c ≤ 102; it is then rescaled to sum to 100 (probabilities a/(a+b+c), b/(a+b+c), c/(a+b+c)). Outside 98–102 it is invalid and handled by A61 (retry up to 2 times, then keep `current_action`) | [Decision, planning chat (Max), 10 Oct 2026] Replaces the draft's "must sum to exactly 100" |
 
 ## B. Sources — extraction status
 
@@ -1412,6 +1414,17 @@ tokenizer band around ~260 input tokens (200–330), output 10–15 tokens:
 Not included: retries after invalid replies (A61; each retry repeats a full call), and arm 3
 (one instruction of ~3,290 characters / 544 words, ~720–820 input tokens, per rule; 5 rules
 plus logged regenerations, A51).
+
+*Addendum (10 Oct 2026, after A63).* Anthropic's Models overview states that on the current
+tokenizer (introduced with Claude Opus 4.7) 1M tokens ≈ 2.5M Unicode characters ≈ 555k words,
+i.e. ~2.5 characters or ~0.555 words per token. Applied to the 1,010–1,032-character /
+196–199-word prompt this gives ~400–410 or ~355–360 input tokens per call — higher than the
+~255–265 above. Whether Claude Haiku 5.5 uses that tokenizer is not stated on the pages read.
+**The per-call input count is therefore uncertain between ~255 and ~410 tokens** until it is
+measured with the token-counting endpoint (an API call, not yet made). Thinking tokens (A63
+flag) are not included in any figure. At A63's prices, 90 runs with E19: input $72–$187
+(3.59M–4.63M calls × 200–404 tokens × $0.10/M), output $18–$35 (10–15 tokens × $0.50/M),
+before thinking and retries.
 
 ## D. Reversals and corrections
 
