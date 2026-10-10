@@ -12,9 +12,17 @@ Labels: **[Fact]** verified · **[Speculation]** with confidence · **[Suggestio
 ## 1. Design principles
 
 **P1 — One canonical vector, four consumers.** A single typed numeric structure is produced by
-the simulator each time an agent decides. Arms 1, 3 and 4 read the structure. Arm 2 reads a
-deterministic text rendering of the same structure. Nothing reaches any arm that is not in the
-vector.
+the simulator each time an agent in arms 2–4 decides. Arms 3 and 4 read the structure. Arm 2
+reads a deterministic text rendering of the same structure. Arm 1 (CBF) has no discrete decision
+points: it runs CBF's continuous per-sub-step rates on the same world signals (register A37,
+A41). Nothing reaches any arm that is not in the vector.
+
+**P1a — One shared world (register A37–A39, A42).** All arms act in one world with three
+actions — stay home / precautions / normal — and the same physics. An action changes only the
+agent's own susceptibility (normal ×1, precautions ×r, stay home ×0). Only agents who have never
+been ill decide: currently-ill agents (A38) and recovered agents (A42) do not decide in any arm
+and act normal; H and D agents do not decide. Arm 1 maps CBF's S → normal and S^B → precautions
+and never chooses stay home.
 
 **P2 — Arms differ in the function, not the inputs.** Every arm is offered all fields. Arm 1
 happens to ignore most of them; that is what makes it the rule-based baseline, not a defect.
@@ -33,12 +41,13 @@ any population quantity that is not published in the model.
 @dataclass(frozen=True)
 class Perception:
     # ---- dynamic: recomputed each decision ----
-    own_health:        Literal["never_ill", "currently_ill", "recovered"]
+    # own_health is NOT a field of the main design (register A43) -- see §2a.
     deaths_28day_mean: float   # reported deaths/day, 28-day rolling mean (register A8)
     deaths_cumulative: int     # reported deaths since day 0
     deaths_prev_period:float   # same 28-day mean, lagged 28 days  ⚠️ see note, register E13
     local_deaths_7d:   int     # reported deaths among this agent's contacts, last 7 d
-    social_norm:       float   # [0,1] fraction of population currently taking precautions
+    current_action:    Literal["stay_home", "precautions", "normal"]  # own current action (A40)
+    social_norm:       float   # [0,1] CBF's (S_normal + R) / N (A44); LLM wording open (E22)
 
     # ---- static: fixed at population construction ----
     age_band:          int     # 0..9, index into the IFR table
@@ -55,7 +64,8 @@ class Perception:
 
 | Field | Source | Status |
 |---|---|---|
-| `own_health` | observation model, §2a | **[Unsourced]** — see below |
+| ~~`own_health`~~ | observation model, §2a | **Not in the main design (A43)**: constant `never_ill` for every deciding agent under A38 + A42. Kept in code for variant A (E21) |
+| `current_action` | world state, not a determinant (A40) | **[Unsourced]** — needed so a re-asked agent knows its current choice; arm 1 ignores it |
 
 ⚠️ **E13 — open.** With a 28-day window, `deaths_prev_period` lagged by a further 28 days means
 the trend signal reaches back 56 days. That may be too stale to carry useful direction. The
@@ -65,7 +75,7 @@ asymmetric. Decide explicitly before building the renderer.
 | `deaths_cumulative` | Weitz model C `D_c`; Gozzi EFB long-term term | **sourced** |
 | `deaths_prev_period` | anchoring, §4 | **[Unsourced]** |
 | `local_deaths_7d` | Gozzi CBF *local* mechanism (contact-weighted) | **sourced** |
-| `social_norm` | CBF relaxation term `(S+R)/N` | **sourced** |
+| `social_norm` | CBF relaxation term, exactly `(S_normal + R)/N` (A44): susceptibles acting normal plus recovered, over N; stay home is not normal | **sourced**; ⚠️ it is a share NOT taking precautions — LLM-facing wording open (E22) |
 | `age_band` | Gozzi `pop_data_Nk.csv` (New York) | **sourced** |
 | `vulnerability` | Gozzi `IFR_10age` | **sourced** |
 | `occupation_flex` | PMT response cost (β = −0.074) | **sourced construct, unsourced values** |
@@ -80,13 +90,17 @@ they are exposed.
 
 The mapping used here:
 
-| True compartment | `own_health` |
-|---|---|
-| S | `never_ill` |
-| E | `never_ill` |
-| I | `currently_ill` |
-| R | `recovered` |
-| H, D | agent no longer decides |
+| True compartment | `own_health` | decides? (main design) |
+|---|---|---|
+| S | `never_ill` | yes |
+| E | `never_ill` | yes |
+| I | `currently_ill` | **no** — acts normal in every arm (A38) |
+| R | `recovered` | **no** — acts normal (A42) |
+| H, D | — | no |
+
+**Main design (A43):** since only `never_ill` agents decide, `own_health` is not a field of the
+main-design Perception vector; the world uses this mapping only to decide who decides. The
+field returns in variant A (ill agents may decide, E21).
 
 E collapses into `never_ill` deliberately. This is a modelling choice, not a citation, and it
 should be stated. [Speculation, medium confidence] It also matters more than it looks: it is
@@ -102,6 +116,9 @@ spread and would be silently removed if agents read their true state.
 | Weitz rule (simulator validation, not an arm) | `deaths_7day_mean` | 1 |
 | **Arm 1 — CBF** | `deaths_7day_mean` *or* `local_deaths_7d`; `social_norm` | 2 |
 | Arms 2 / 3 / 4 | all | 10 |
+
+(The 10 decision fields since A40/A43: `own_health` out, `current_action` in. Arm 1 ignores
+`current_action`; CBF keeps its S/S^B state internally.)
 
 **[Suggestion] This ladder is the spine of the December ablation, and it is worth presenting
 that way.** The ablation is not "which of my invented features matter." It is: a published
@@ -150,8 +167,12 @@ Sketch, not final wording:
 > 12 people have died in total. 1 person you know has died in the past week.
 > About 34% of people are currently taking precautions.
 > You are 71 years old. For someone your age this disease is fatal in about 4 cases in 100.
-> You have not been ill. You can work from home if you choose to.
+> You can work from home if you choose to. You are currently going out with precautions.
 > Choose one: stay home / go out with precautions / go out without precautions.
+
+⚠️ Since A43 the sketch has no "You have not been ill." line (it would be identical in every
+prompt), and it gains a `current_action` line (A40). The "taking precautions" line misdescribes
+`social_norm` as defined in A44 (a share NOT taking precautions); its wording is open (E22).
 
 ⚠️ The `vulnerability` rendering is itself a fork. "4 cases in 100" and "your age band is 8"
 and "your risk is high" will not produce the same behaviour from the same model. **[Suggestion]**
@@ -170,6 +191,10 @@ The combinatorial state space under reasonable bins — 10 age bands × 3 occupa
 × 4 local-death bins — is about **4.6 × 10⁵**, against roughly **5.4 × 10⁵** decisions across
 three scenarios. On those numbers caching saves almost nothing.
 
+(Since A43 the vector has no health-state field, so the "× 3 health states" factor no longer
+applies; the figures above are left as originally computed. Since A38/A42 only never-ill agents
+decide, so the decision count above is also an upper bound.)
+
 The realised state space is far smaller, because the dynamic fields are heavily correlated with
 each other and with time: cumulative deaths, the 7-day mean and the social norm all move
 together. But by how much is an empirical question, and **it is answerable for free before any
@@ -177,6 +202,9 @@ money is spent on arm 2**:
 
 > Run arm 1 at N = 3,000 for the full 600 days across all three scenarios, log the discretised
 > perception vector at every decision point, and count distinct states.
+
+(Arm 1 has no discrete decision points under A37/A41; read "decision point" as one per day per
+never-ill agent, the agents who would be asked in arms 2–4.)
 
 That is the measurement that decides whether caching is worth building. Do it before
 committing the arm-2 budget, not after.
@@ -265,7 +293,7 @@ must concede into a number you already measured.
 | 1 | Exact prompt wording | sketch only; needs drafting and a pilot |
 | 2 | Number of bins per dynamic field | provisional; settle with the §5 state-count run |
 | 3 | Persona count | still open — the distributions above may make explicit personas redundant |
-| 4 | Re-decision cadence *p* | sweep in arm 1 (free) before committing arm-2 budget |
+| 4 | Re-decision cadence *p* | p = 0.3/day provisional for arms 2–4, unsourced (A41); sweep p ∈ {0.1, 0.3, 1} with **arm 3** once built, not arm 1 or a stand-in (E2). Arm 1 keeps continuous rates |
 | 5 | Scenario definitions (the three runs) | not yet specified anywhere |
 
 ⚠️ Item 3 deserves attention. Steps 1–4 above already generate heterogeneous agents from a

@@ -73,7 +73,10 @@ referent is the shift relative to that control, not the presence of a shape.
 
 - The 1,000-agent population (quota-drawn, §6 of the design spec) — identical agents everywhere
 - The seed set — so cross-scenario differences are not seed differences
-- N, run length, re-decision cadence, perception vector schema, prompt template
+- N, run length, re-decision cadence (arms 2–4; arm 1 has continuous rates, register A41),
+  perception vector schema, prompt template
+- The shared world (register A37–A39, A42): three actions with the same physics in every arm;
+  ill and recovered agents do not decide
 
 ## 5. Cost
 
@@ -85,8 +88,13 @@ referent is the shift relative to that control, not the presence of a shape.
 (3,000 agents × 600 days × 3 scenarios; p = 0.3/day gives 180 decisions per agent, a weekly
 cadence gives ~86.)
 
+⚠️ This table assumes all 3,000 agents decide every day. Since register A38/A42 only
+never-ill agents decide (ill, recovered, H and D agents do not), and under the proposed E19 no
+calls are made after E+I = 0, so these figures are upper bounds and need recounting.
+
 Arms 1, 3, 4 and all controls are free at any scenario count. **Sweep the re-decision cadence
-in arm 1 before committing** — it is free there, and it decides whether three scenarios are
+with arm 3 before committing** (register A41/E2; not in arm 1, which has continuous rates, and
+not with a stand-in rule) — it is free there, and it decides whether three scenarios are
 affordable.
 
 ## 6. Known limitations

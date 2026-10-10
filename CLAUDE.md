@@ -19,6 +19,12 @@ ABM, measured against an external referent that sits outside all four arms.
 Same population, same seeds, same perception vector, same scenarios. Any change that gives one
 arm information another lacks breaks the entire comparison.
 
+**One shared world (register A37–A45, `src/shared_world.py`).** Every arm acts in the same world
+with three actions — stay home / precautions / normal — that change only the agent's own
+susceptibility (×0 / ×r / ×1). Only never-ill agents decide: currently-ill (A38) and recovered
+(A42) agents act normal in every arm. Arm 1 is CBF unchanged (S → normal, S^B → precautions,
+never stay home) and is bit-identical to `run_cbf_behaviour` (C31).
+
 ## Hard constraints — do not drift from these
 
 1. **Never invent a parameter value.** Every constant traces to `docs/Sourcing_Pack_v3.md`.
@@ -29,8 +35,10 @@ arm information another lacks breaks the entire comparison.
    together. Never implement ablation separately in two places.
 4. **The disease is never named in the arm-2 prompt.** Arm 1's rule has no disease identity;
    naming it in arm 2 is an input asymmetry, not a decision-function difference.
-5. **Agents never read their own latent compartment.** `own_health` is
-   `never_ill` / `currently_ill` / `recovered`; E collapses into `never_ill` deliberately.
+5. **Agents never read their own latent compartment.** The observation model `own_health` is
+   `never_ill` / `currently_ill` / `recovered`; E collapses into `never_ill` deliberately. In
+   the main design only `never_ill` agents decide, so `own_health` is not a Perception field
+   (A43); it returns if ill agents are allowed to decide (variant A, E21).
 6. **The population is drawn once by quota and frozen.** Identical agents across every arm,
    scenario and seed.
 
@@ -51,6 +59,10 @@ arm information another lacks breaks the entire comparison.
 | Age structure | New York `pop_data_Nk.csv`, 10 bands | Gozzi repo |
 | Population-weighted IFR | 0.9718% (vs Weitz's 1.000%) | computed |
 | Scenarios | S1 R₀=3/T_H=14 · S2 R₀=2 · S3 T_H=28 | `docs/Scenario_Spec.md` |
+| Actions | normal ×1 / precautions ×r=0.5 / stay home ×0, own susceptibility only | register A37, A39, A29 |
+| Who decides | never-ill agents only (not ill, not recovered, not H/D) | register A38, A42 |
+| Re-decision cadence | p = 0.3/day, arms 2–4, **provisional and UNSOURCED**; arm 1 continuous | register A41 |
+| `social_norm` | (S_normal + R)/N, CBF's exact term; LLM wording open | register A44, E22 |
 
 ⚠️ **Symbol collision.** Gozzi's `mu` = 1/infectious period, `eps` = 1/latent period. Weitz's
 `μ` = 1/latent, `γ` = 1/infectious. Same letters, opposite meanings. Use explicit names
@@ -62,8 +74,10 @@ arm information another lacks breaks the entire comparison.
 fraction must match the Weitz ODE to three decimals (0.0594 at R₀ = 3). This test caught a
 discretisation bug that inflated R₀ to 3.257 and was invisible in single runs.
 
-**Test 2 — mean-field recovery.** With a per-agent stay-home probability *q* and transmission
-requiring both parties out, the population multiplier is `(1−q)²`. To recover Weitz's
+**Test 2 — mean-field recovery** (Weitz-rule simulator validation only; two-sided stay home per
+A23 — in the arms' shared world stay home is one-sided in effect, A39). With a per-agent
+stay-home probability *q* and transmission requiring both parties out, the population
+multiplier is `(1−q)²`. To recover Weitz's
 `1/(1+(δ/δ_c)^k)`, use `q = 1 − (1 + (δ/δ_c)^k)^(−1/2)`. Verify against the ODE at large N.
 
 **Test 3 — renderer totality.** Every `Perception` field appears in the rendered prompt exactly

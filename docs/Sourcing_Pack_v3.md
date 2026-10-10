@@ -19,7 +19,10 @@ oscillate; C adds a parameter you don't need; D (fatigue) exists to fit mobility
 Ṙ = (1−f_D)·γI     Ḣ = f_D·γI − γ_H·H      Ḋ = γ_H·H
 ```
 
-`g(·)` is the behavioural multiplier — the only thing that changes between arms.
+`g(·)` is the behavioural multiplier — the only thing that changes between arms. (In the
+project's shared world, register A37/A39, `g(·)` is not set per arm: it emerges from the mix of
+actions each arm's decision function produces, with fixed multipliers on the agent's own
+susceptibility — normal ×1, precautions ×r, stay home ×0.)
 
 | Symbol | Meaning | Weitz | Gozzi | Note |
 |---|---|---|---|---|
@@ -259,10 +262,10 @@ note that it says nothing either way about your diversity metric.
 
 | Feature | Type | Source status |
 |---|---|---|
-| health state (S/E/I/R) | dynamic | Weitz **[Extracted]** |
+| health state (S/E/I/R) | dynamic | Weitz **[Extracted]** — used by the world to decide who decides; not a perceived field in the main design (register A43) |
 | 7-day mean reported deaths | dynamic | Weitz Methods; Gozzi `D_rep`; Urmi et al. lag-0 **[Extracted]** |
 | cumulative reported deaths | dynamic | Weitz model C `D_c`; Gozzi EFB long-term term **[Extracted]** |
-| social norm (fraction taking precautions) | dynamic | CBF relaxation `(S+R)/N` **[Extracted]** |
+| social norm = `(S_normal + R)/N` (register A44; a share NOT taking precautions — LLM wording open, E22) | dynamic | CBF relaxation `(S+R)/N` **[Extracted]** |
 | known infected contacts / local deaths | dynamic | CBF **local** mechanism, contact-weighted **[Extracted]** |
 | vulnerability | static | Gozzi age-stratified IFR, exact values **[Extracted]**; PMT β=+0.160 **[Extracted]** |
 | response efficacy | static | ⭐ **NEW** — PMT β=+0.251 **[Extracted]**; maps to CBF `r` |
@@ -278,7 +281,7 @@ note that it says nothing either way about your diversity metric.
 |---|---|---|
 | Number of venues | 1 | One transmission process to parameterise; smallest model carrying the mechanism |
 | Agent count N | 1,000 | **Empirically defended** — measured floor, see Part 5 |
-| Re-decision cadence | p ≈ 0.3/day | Sweep in arm 1 (free); report sensitivity |
+| Re-decision cadence | p ≈ 0.3/day | Provisional for arms 2–4 (register A41); sweep with arm 3 once built, not arm 1 (E2); report sensitivity. Arm 1 keeps CBF's continuous rates |
 | Persona count | TBD | Minimalism plus the diversity metric — report, don't assert |
 
 The general answer remains ablation. Every remaining feature now has a source, so the ablation
@@ -317,6 +320,11 @@ q = 1 − (1 + (δ/δ_c)^k)^(−1/2)
 
 Decide explicitly whether staying home removes contacts (two-sided) or reduces per-contact risk
 (one-sided), write it down, and verify against the ODE at large N.
+
+**Decided.** Two-sided for Weitz-rule simulator validation (register A23, Test 2). In the arms'
+shared world (A37–A39), staying home blocks only the agent's own infection, and no infectious
+agent stays home because ill agents do not decide (A38), so A23's "does not spread" half never
+acts there. Verified against the ODE at N=100,000 (register C31, Check 2).
 
 **Test 4 — minimum N.** [Fact, measured, 20 seeds, well-mixed, Weitz model B, T_H = 14 d]
 
