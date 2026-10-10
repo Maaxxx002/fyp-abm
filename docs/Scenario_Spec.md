@@ -47,8 +47,8 @@ nothing to arrange.
 Everything else identical: **N = 3,000**, 600 days, **28-day awareness window**, **10 initial
 infected**, the frozen population of §4, same seed set.
 
-**Rationale.** The perception vector carries a level (`deaths_7day_mean`, `deaths_cumulative`)
-and a trend (`deaths_prev_week`). S2 stresses the level, S3 stresses the trend. An arm must
+**Rationale.** The perception vector carries a level (`deaths_28day_mean`, `deaths_cumulative`)
+and a trend (`deaths_28day_mean_7d_ago`, A47). S2 stresses the level, S3 stresses the trend. An arm must
 track both to pass, and the two failure modes are distinguishable — an arm with an implicit
 fixed threshold will fail S2 specifically.
 
@@ -71,7 +71,7 @@ referent is the shift relative to that control, not the presence of a shape.
 
 ## 4. Frozen across all scenarios
 
-- The 1,000-agent population (quota-drawn, §6 of the design spec) — identical agents everywhere
+- The 3,000-agent population (quota-drawn, §6 of the design spec) — identical agents everywhere
 - The seed set — so cross-scenario differences are not seed differences
 - N, run length, re-decision cadence (arms 2–4; arm 1 has continuous rates, register A41),
   perception vector schema, prompt template

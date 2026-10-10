@@ -16,10 +16,11 @@ field would be constant. The observation model and its type are kept -- `OwnHeal
 `shared_world.own_health_of` -- because the field returns if ill agents are later allowed to
 decide (register E21, variant A).
 
+local_deaths_7d is NOT a field (register A46): the model is well-mixed, so agents have no
+contacts. deaths_prev_period was replaced by deaths_28day_mean_7d_ago (A47, resolving E13).
+
 This module defines the SHAPE only. Nothing here computes a Perception from a running
-simulation -- that is the (not-yet-built) rendering/arm layer, and two of the fields below
-(`deaths_prev_period`, `local_deaths_7d`) cannot be correctly populated yet because their exact
-definitions are still open (see field notes and the report accompanying this build).
+simulation -- that is the (not-yet-built) rendering/arm layer.
 """
 from dataclasses import dataclass
 from typing import Literal
@@ -50,20 +51,14 @@ class Perception:
 
     deaths_cumulative: int
     # Reported deaths since day 0. Sourced: Weitz model C's D_c, Gozzi EFB's long-term term.
+    # ⚠️ Type mismatch, reported not fixed: under A25 reported deaths = 0.7 x realised, so the
+    # cumulative reported count is generally not an integer.
 
-    deaths_prev_period: float
-    # The same 28-day mean, lagged -- carried so a renderer can express a trend, not just a
-    # level (Design_Spec Sec 4 point 3; Urmi et al.'s lag-0 behavioural tracking of deaths).
-    # ⚠️ UNRESOLVED (Design_Spec register E13): lagging a further 28 days reaches back 56 days
-    # total, which may be too stale to carry useful direction; a shorter trend horizon than the
-    # level horizon is an alternative but asymmetric. NOT decided -- do not populate this field
-    # from a running simulation until E13 is settled.
-
-    local_deaths_7d: int
-    # Reported deaths among this agent's contacts in the last 7 days -- Gozzi CBF's *local*,
-    # contact-weighted mechanism (sourced). Requires a contact-network structure that does not
-    # exist in src/model.py's well-mixed disease model (register A5/C15) -- cannot be correctly
-    # populated until that structure (or an explicit decision to drop this field) exists.
+    deaths_28day_mean_7d_ago: float
+    # The same 28-day mean of reported deaths as it stood 7 days earlier (register A47, resolving
+    # E13). Carried so a renderer can express the direction of change with low noise and a
+    # one-week lag (Design_Spec Sec 4 point 3). The 7-day horizon is UNSOURCED (motivation: S1's
+    # T10-90 is ~23 days, so a 28-day lag is too blunt). No normal-times baseline is added.
 
     current_action: Action
     # The agent's own current action in the shared world (register A37/A40): one of
@@ -101,9 +96,8 @@ class Perception:
     # ---- context: identical for every agent on a given day ----
 
     population: int
-    # N, the frozen population size (register A7/D13: settled at 3,000). The design spec's own
-    # field comment ("# 1000") is a stale leftover from before A7 revised N upward (D3) -- this
-    # field should always carry the actual running N, not that literal value.
+    # N, the frozen population size (register A7/D13: settled at 3,000). Always the actual
+    # running N.
 
     day: int
     # Simulation day, 0-indexed, matching src/model.py's daily loop.

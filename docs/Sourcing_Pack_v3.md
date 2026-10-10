@@ -117,7 +117,7 @@ converge on one functional form; Weitz generalises it with the exponent.
 
 ⚠️ `last_day_deaths` is a raw **count**, not per-capita, so `dc` has units of reported
 deaths/day and does **not** transfer across population sizes. Their sensitivity sweep spans
-dc ∈ {10⁰, 10¹, 10², 10³} deaths/day. You must rescale for N = 1,000.
+dc ∈ {10⁰, 10¹, 10², 10³} deaths/day. You must rescale for N = 3,000 (register A7).
 
 ### 2b. CBF — recommended for arm 1 [Extracted]
 
@@ -151,6 +151,8 @@ nearly tautological.
 by deaths among one's own contacts, weighted by the contact matrix — a published, implemented
 alternative to the global signal, and directly comparable in an ABM where the contact structure
 is explicit. It is also a natural A/B within arm 1: global signal vs local signal, both sourced.
+(Not available in this project: the model is well-mixed, so the local signal is dropped, register
+A46.)
 
 **Strongest case against CBF**, stated because it is real: Gozzi's SI reports EFB and the
 mobility model were *more accurate on peak intensity and timing* than CBF, even though CBF won
@@ -263,10 +265,11 @@ note that it says nothing either way about your diversity metric.
 | Feature | Type | Source status |
 |---|---|---|
 | health state (S/E/I/R) | dynamic | Weitz **[Extracted]** — used by the world to decide who decides; not a perceived field in the main design (register A43) |
-| 7-day mean reported deaths | dynamic | Weitz Methods; Gozzi `D_rep`; Urmi et al. lag-0 **[Extracted]** |
+| 28-day mean reported deaths (`deaths_28day_mean`; the sources smooth over 7 days, the 28-day length is register A8) | dynamic | Weitz Methods; Gozzi `D_rep`; Urmi et al. lag-0 **[Extracted]** |
+| the same 28-day mean 7 days earlier (`deaths_28day_mean_7d_ago`, register A47) | dynamic | **[Unsourced]** horizon |
 | cumulative reported deaths | dynamic | Weitz model C `D_c`; Gozzi EFB long-term term **[Extracted]** |
 | social norm = `(S_normal + R)/N` (register A44; a share NOT taking precautions — LLM wording open, E22) | dynamic | CBF relaxation `(S+R)/N` **[Extracted]** |
-| known infected contacts / local deaths | dynamic | CBF **local** mechanism, contact-weighted **[Extracted]** |
+| ~~known infected contacts / local deaths~~ | dynamic | CBF **local** mechanism, contact-weighted **[Extracted]** — **dropped (register A46)**: well-mixed model, no contacts |
 | vulnerability | static | Gozzi age-stratified IFR, exact values **[Extracted]**; PMT β=+0.160 **[Extracted]** |
 | response efficacy | static | ⭐ **NEW** — PMT β=+0.251 **[Extracted]**; maps to CBF `r` |
 | occupation flexibility | static | PMT response cost, β=−0.074 — ⚠️ weakest construct |
@@ -280,7 +283,7 @@ note that it says nothing either way about your diversity metric.
 | Choice | Value | Defence |
 |---|---|---|
 | Number of venues | 1 | One transmission process to parameterise; smallest model carrying the mechanism |
-| Agent count N | 1,000 | **Empirically defended** — measured floor, see Part 5 |
+| Agent count N | 3,000 (register A7/A30) | **Empirically defended** — measured floor, see Part 5 and register C5/C7/D3 |
 | Re-decision cadence | p ≈ 0.3/day | Provisional for arms 2–4 (register A41); sweep with arm 3 once built, not arm 1 (E2); report sensitivity. Arm 1 keeps CBF's continuous rates |
 | Persona count | TBD | Minimalism plus the diversity metric — report, don't assert |
 

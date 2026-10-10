@@ -59,6 +59,23 @@ Last updated: after the shape-metric investigation and the N decision.
 | A43 | **`own_health` is dropped from the main-design Perception vector, but kept in the code.** Consequence of A38 + A42: every deciding agent is `never_ill`, so the field is constant and carries no information. Kept: the observation model (`shared_world.own_health_of`, used by the world for eligibility) and the `OwnHealth` type in `src/perception.py`, because the field is needed again if ill agents are later allowed to decide (E21). The main-design vector now has 12 fields: 10 decision fields (own_health out, current_action in) + population, day. What this changes in docs/ is listed in C31's report; the specs are NOT yet edited | [Decision, planning chat (Max), 10 Oct 2026] Ablation = removing a field from the dataclass (CLAUDE.md constraint 3), so the field is removed from the dataclass rather than hidden from one arm |
 | A44 | **`social_norm` = CBF's exact relaxation term (S_normal + R) / N.** Denominator N (the dead stay in it); susceptibles acting normal count; staying home does NOT count as normal; recovered count as normal. Arm 1's relaxation rate is μ_B × this same quantity, so arm 1's one social input and the field arms 2–4 see are identical. Implemented in `run_shared_world` (start-of-day value, `social_norm` series) | [Decision, planning chat (Max), 10 Oct 2026] **Flagged, not resolved:** (1) the value is a share of people NOT taking precautions, the opposite of the current wording "fraction taking precautions" (Design_Spec §2, Sourcing_Pack 3e, the §4 sketch "About 34% of people are currently taking precautions"); (2) 1 − value is not "the share taking precautions" either: it also contains E, I, H, D and stay-home agents; (3) it leaves out E and I agents, who mostly act normal (I always, A38), so "X% are going about normally" undercounts by E+I_normal, largest near the peak; (4) it depends on the S/E split, a latent-compartment quantity no real person could observe (allowed by P4's wording, since CBF publishes it, but in tension with the spirit of constraint 5); (5) an accurate one-line LLM wording does not exist yet — the renderer must choose one deliberately (E6) |
 | A45 | **A38 stays the MAIN design** (ill agents do not decide in any arm). **Considered and NOT adopted:** a fixed ill-isolation rule as part of the WORLD (identical in all arms and in the control). Reason: no sourced isolation probability was found; it would change the no-behaviour baseline; and it departs from Gozzi, whose behaviour applies to healthy agents only. The variant where ill agents may decide is a planned measured extension (E21); the limitation is recorded in section F | [Decision, planning discussion (Max), 10 Oct 2026] |
+| A46 | **`local_deaths_7d` dropped from the Perception vector.** The model is well-mixed (A5): agents have no contacts, so "deaths among this agent's contacts" has no meaning. **Cost recorded:** this removes the free global-vs-local A/B inside arm 1 (Design_Spec §3; Gozzi's CBF has both mechanisms) | [Decision, planning chat (Max), Oct 2026] C15 had already omitted it for the same reason |
+| A47 | **E13 resolved: `deaths_prev_period` is replaced by `deaths_28day_mean_7d_ago`** — the same 28-day mean of reported deaths as it stood 7 days earlier. Purpose: show the LLM the direction of change with low noise and a one-week lag. **The 7-day horizon is UNSOURCED**; motivation: S1's T10–90 is about 23 days (C30: control 23.10 d), so a 28-day lag (reaching back 56 days) is too blunt. **No normal-times death-rate baseline is added** | [Decision, planning chat (Max), Oct 2026] |
+| A48 | **E22 resolved: `social_norm` keeps CBF's exact value (A44).** LLM-facing wording: **"About X% of people in your town are going about their lives normally."** **Recorded limitation:** this undercounts — agents who are infected (E, I) and act normally are excluded from CBF's term (S_normal + R)/N, and so are hospitalised and dead agents, who remain in the denominator | [Decision, planning chat (Max), Oct 2026] Option (1) of E22 |
+| A49 | **Arm 3 input:** arm 3 gets the SAME description as arm 2 — the arm-2 prompt template with a placeholder for each Perception field — plus an instruction to write a Python function. No simulation data or results are shown. The disease is not named (A15). Deaths are given as counts | [Decision, planning chat (Max), Oct 2026] Keeps "arms differ only in the decision function": arm 3 sees what arm 2 sees, as a template rather than filled in |
+| A50 | **Arm 3 uses the same LLM model as arm 2.** The model is not chosen yet | [Decision, planning chat (Max), Oct 2026] |
+| A51 | **Arm 3 = K = 5 independently generated rules, all five together.** Report the mean and spread over the five. No rule is selected or discarded on simulation results. A rule is regenerated only if it fails a mechanical check (A53), and every regeneration is logged | [Decision, planning chat (Max), Oct 2026] K = 5 is a design choice, not sourced |
+| A52 | **Each arm-3 rule returns probabilities for the three actions;** the simulator draws the action from the decision random stream (`run_shared_world`'s separate stream, seeded (seed, 1)) | [Decision, planning chat (Max), Oct 2026] |
+| A53 | **Mechanical checks before an arm-3 rule is used:** (1) runs without error; (2) returns valid probabilities (non-negative, summing to 1) on a grid of extreme and typical inputs; (3) reads only Perception fields — no imports beyond `math`, no I/O, no internal randomness; (4) deterministic for a given input | [Decision, planning chat (Max), Oct 2026] |
+| A54 | **Freeze each arm-3 rule before any simulation run:** code, exact prompt, model name and version, date. A rule is never edited afterwards | [Decision, planning chat (Max), Oct 2026] |
+| A55 | **E19 adopted: arm 2 stops LLM calls once E + I = 0** for the rest of the run (no further infection is possible, so later decisions cannot change any outcome) | [Decision, planning chat (Max), Oct 2026] Call counts with and without it: C32 |
+| A56 | **Arm 2 also returns probabilities** for A/B/C (stay home / precautions / normal); the simulator samples the action from the decision random stream, as for arm 3 (A52). Template answer format: three whole-number percentages, "A=<n>, B=<n>, C=<n>" | [Decision, planning chat (Max), Oct 2026] Makes arms 2 and 3 the same kind of policy |
+| A57 | **The prompt does not state action effects** (×0.5, ×0). Actions are described in everyday words only | [Decision, planning chat (Max), Oct 2026] CBF's adoption rate does not depend on r, so arm 1's choice does not use the effect size either; `response_efficacy` stays a belief, not a stated fact |
+| A58 | **Early-day rendering:** before day 28 the recent-deaths sentence says "since the outbreak began" instead of "in the past four weeks" (the 28-day mean covers only the days so far, A8/C17); `deaths_28day_mean_7d_ago` = 0 before day 7 | [Decision, planning chat (Max), Oct 2026] |
+| A59 | **Deaths are rendered as whole-number 4-week TOTALS, not per-day averages:** "In the past four weeks, {n} people in your town died of it. In the four weeks up to a week ago, {m} died." n = window length × `deaths_28day_mean`, m = window length × `deaths_28day_mean_7d_ago`; cumulative deaths are rounded to a whole number. **Rounding (recorded):** reported deaths are 0.7 × realised (A25), so all three totals are generally fractional; each is rounded half-up to a whole number (floor(x + 0.5)) at render time only. The Perception values themselves are not rounded | [Decision, planning chat (Max), Oct 2026] Window length = min(28, day) for n and min(28, day − 7) for m, matching the world's shrinking window exactly |
+| A60 | **The day line is kept** ("…has been spreading in your town for {day} days") | [Decision, planning chat (Max), Oct 2026] `day` is in the vector, so totality requires it |
+| A61 | **Invalid arm-2 reply:** retry up to 2 times; if still invalid, the agent keeps its `current_action`. Every invalid reply and every fallback is logged, and the invalid-reply rate is reported | [Decision, planning chat (Max), Oct 2026] |
+| A62 | **Pilot criteria (i)–(iv) in E6 APPROVED** | [Decision, planning chat (Max), Oct 2026] |
 
 ## B. Sources — extraction status
 
@@ -1346,6 +1363,56 @@ last day with E+I > 0: S1 117,535 vs 151,345; S2 279,612 vs 152,521; S3 108,436 
   0.98% above — not as predicted.**
 - Check 3 "pass, bit-identical if the RNG order matches" (Max): bit-identical, as predicted.
 
+**C32 — Arm-2 call count under A38/A42 (only never-ill, alive agents decide), p = 0.3/day.
+[Measured facts only.]** `experiments/step4_arm2_call_count.py`, `results/step4/arm2_call_count.{json,log}`.
+N=3,000, 600 d, foundation, seeds 0–29, S1/S2/S3; 180/180 runs; wall 25 s. Arm 2's own epidemic
+is not known yet, so two reference epidemics are used: the no-behaviour control (AlwaysNormal)
+and arm 1 (CBFArm1), both in `run_shared_world`. Deciders on day t = S + E at the start of day t.
+Expected calls = 0.3 × deciding agent-days. "With E19" counts day t only while E + I > 0 at the
+start of day t. Upper bound if all 3,000 agents decided every day: 540,000 calls per run.
+
+| reference | scenario | calls per run, no E19: mean (SD, min–max) | calls per run, with E19: mean (SD, min–max) | days counted with E19, mean (min–max) |
+|---|---|---|---|---|
+| control | S1 | 56,510 (3,711; 49,746–64,094) | 29,868 (1,876; 26,476–33,130) | 95.3 (81–134) |
+| control | S2 | 142,666 (8,023; 120,932–157,171) | 59,895 (4,903; 51,308–72,912) | 139.3 (113–171) |
+| control | S3 | 56,510 (3,711; 49,746–64,094) | 29,868 (1,876; 26,476–33,130) | 95.3 (81–134) |
+| arm 1 | S1 | 101,281 (26,630; 60,394–165,146) | 36,157 (6,667; 27,886–53,150) | 96.3 (77–132) |
+| arm 1 | S2 | 247,444 (50,683; 183,820–383,873) | 84,781 (41,636; 57,032–277,131) | 149.2 (107–402) |
+| arm 1 | S3 | 82,965 (19,882; 54,542–135,085) | 33,428 (4,428; 27,347–42,578) | 95.3 (82–127) |
+
+n = 30 per row. S1 and S3 controls are identical (same infections on the same seeds, as in C27).
+
+Totals:
+
+| reference | S1+S2+S3, one run each (sum of means), no E19 / with E19 | S1+S2+S3, 30 seeds each (90 runs), no E19 / with E19 |
+|---|---|---|
+| control | 255,685 / 119,632 | 7,670,550 / 3,588,962 |
+| arm 1 | 431,690 / 154,366 | 12,950,705 / 4,630,971 |
+
+For comparison, E1's 1.62M (3,000 agents × 600 d × 3 scenarios × 0.3) is the all-agents count
+for ONE run per scenario.
+
+**C33 — Arm-2 prompt size and token ESTIMATE per call (draft v1 template). [Measured facts;
+token counts are estimates, not tokenizer output.]** `experiments/step4_prompt_tokens.py`,
+`results/step4/prompt_tokens.{json,log}`, template `prompts/DRAFT_arm2_arm3.md`. No LLM was
+called and no model is chosen, so no model tokenizer was used (none is installed). Rendered
+from a real run (arm 1, S1, seed 0) for one agent aged 60–69 at days 0, 5, 20, 45, 100, 300:
+1,010–1,032 characters, 196–199 words per prompt (6/6 renders). Estimates: characters / 4 →
+252–258 tokens; words × 1.33 → 261–265 tokens. Reply "A=20, B=60, C=20" is 16 characters;
+10–15 output tokens is assumed (the two rules of thumb undercount short digit strings).
+
+Totals for 90 runs (S1+S2+S3 × 30 seeds) with E19 (A55), using C32's call counts and a ±25%
+tokenizer band around ~260 input tokens (200–330), output 10–15 tokens:
+
+| reference epidemic (C32) | calls | input tokens (200 / 260 / 330 per call) | output tokens (10 / 15 per call) |
+|---|---|---|---|
+| no-behaviour control | 3,588,962 | 718M / 933M / 1,184M | 35.9M / 53.8M |
+| arm 1 | 4,630,971 | 926M / 1,204M / 1,528M | 46.3M / 69.5M |
+
+Not included: retries after invalid replies (A61; each retry repeats a full call), and arm 3
+(one instruction of ~3,290 characters / 544 words, ~720–820 input tokens, per rule; 5 rules
+plus logged regenerations, A51).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -1534,20 +1601,20 @@ state count is measured separately (C15, E3).
 | E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
 | E11 | `experiments/abm.py` uses a single daily step with raw-rate transitions, contradicting A20 | correctness of the delay kernel |
 | E12 | **DISCONFIRMED** — see D9/G3. Switching to 12 sub-steps did not change the T_H → wave-count direction under either definition | closed as a candidate cause; D6 itself remains open |
-| E13 | Trend field horizon under a 28-day window — see Design Spec §2 | perception vector |
+| E13 | **RESOLVED → A47** (`deaths_28day_mean_7d_ago`, 7-day horizon, unsourced) | closed |
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
 | E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13); N=30,000 tested for the real CBF mechanism and found NOT safe except at weak-behaviour settings when using Gozzi's literal yesterday-count signal (C16) — but IS statistically clean at both N=10,000 and N=30,000 (gap <2 SEMs) once the project's own actual 28-day-mean signal is used instead, at Gozzi's own unmodified γ_beh (C17). N=3,000 itself still untested under C17's configuration. **D12: C16/C17 both used a `direct-g` simplification now confirmed NOT a valid stand-in for CBF's real 5-compartment, memory-laden mechanism — their results stand only as tests of that simplified formula, not of arm 1's actual planned dynamics; the N=3,000 test was withheld pending this** |
-| E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run | arm 2 |
+| E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run. **Pilot plan (planning chat, Oct 2026):** about 10 sample situations — before the epidemic, rising, peak, falling; young and old — run BEFORE the prompt is frozen. **Pass criteria — APPROVED (A62):** (i) more caution at peak deaths than before the epidemic; (ii) older or more vulnerable agents are at least as cautious, all else equal; (iii) at the same death level, rising deaths give at least as much caution as falling; (iv) valid output every time. **The pilot is never judged on epidemic outcomes** (flattening, stretch). Draft template: `prompts/DRAFT_arm2_arm3.md` (not frozen) | arm 2; arm 3 (A49) |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
 | E17 | **BUILT, TESTED, AND CLOSED — see C18/C19/C20.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). The ~4-6% relative-error gap against a sanity-checked DDE reference (N=3,000/10,000/30,000, 30 then 90 seeds) is confirmed real, N-independent, not a small-S^B-count artifact, and not a coding bug — adopted as a documented, accepted limitation (C20) rather than pursued further | closed |
-| E19 | **PROPOSED, not decided:** arm 2 stops calling the LLM once E+I = 0 for the rest of the run. No further infections are then possible, so later decisions cannot change any outcome | arm-2 budget (E1) |
+| E19 | **ADOPTED → A55** (arm 2 stops LLM calls once E + I = 0) | closed |
 | E20 | **RESOLVED → A42** (recovered agents do not decide; act normal). Consequence A43 (own_health dropped from the main-design vector) | closed |
 | E21 | **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
-| E22 | **Open: `social_norm`'s LLM-facing wording.** Under A44 the value is CBF's exact (S_normal + R)/N, a share NOT taking precautions that leaves out E and I agents and depends on the S/E split (A44 flags). Options: **(1)** keep Gozzi's exact value for every arm and render it with approximate wording; **(2)** give arms 2–4 an observable quantity instead (e.g. the share of people out and about who are taking precautions), with arm 1 keeping CBF's internal term. Option (2) changes what arms 2–4 perceive relative to arm 1's input, so it must be weighed against the "differ only in the decision function" rule. **Decide when the renderer is built** | arm-2 renderer; Test 3; arms 2–4 |
+| E22 | **RESOLVED → A48** (CBF's exact value; wording "About X% of people in your town are going about their lives normally."; undercounts) | closed |
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 

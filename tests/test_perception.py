@@ -3,8 +3,9 @@ Perception dataclass shape tests (Design_Spec_Perception_and_Population.md Sec 2
 
 No renderer exists yet (out of scope for this build), so there is nothing to test for
 totality/coverage here -- that test (CLAUDE.md Test 3) belongs with the renderer. This file
-only checks the vector's SHAPE: exactly the twelve main-design fields (the original twelve,
-+ current_action (register A40), - own_health (A43)), frozen, and that `current_action`
+only checks the vector's SHAPE: exactly the eleven main-design fields (the original twelve,
++ current_action (A40), - own_health (A43), - local_deaths_7d (A46), deaths_prev_period
+-> deaths_28day_mean_7d_ago (A47)), frozen, and that `current_action`
 accepts each of its three actions.
 """
 import dataclasses
@@ -15,8 +16,8 @@ from perception import Perception
 
 EXPECTED_FIELDS = {
     # dynamic
-    "deaths_28day_mean", "deaths_cumulative", "deaths_prev_period",
-    "local_deaths_7d", "current_action", "social_norm",
+    "deaths_28day_mean", "deaths_cumulative", "deaths_28day_mean_7d_ago",
+    "current_action", "social_norm",
     # static
     "age_band", "vulnerability", "occupation_flex", "response_efficacy",
     # context
@@ -28,8 +29,7 @@ def _sample_perception(**overrides):
     defaults = dict(
         deaths_28day_mean=0.5,
         deaths_cumulative=12,
-        deaths_prev_period=0.3,
-        local_deaths_7d=1,
+        deaths_28day_mean_7d_ago=0.3,
         current_action="normal",
         social_norm=0.66,
         age_band=7,

@@ -44,10 +44,10 @@ class Perception:
     # own_health is NOT a field of the main design (register A43) -- see §2a.
     deaths_28day_mean: float   # reported deaths/day, 28-day rolling mean (register A8)
     deaths_cumulative: int     # reported deaths since day 0
-    deaths_prev_period:float   # same 28-day mean, lagged 28 days  ⚠️ see note, register E13
-    local_deaths_7d:   int     # reported deaths among this agent's contacts, last 7 d
+    deaths_28day_mean_7d_ago: float  # the same 28-day mean as it stood 7 days earlier (A47)
+    # local_deaths_7d is NOT a field (A46): well-mixed model, agents have no contacts.
     current_action:    Literal["stay_home", "precautions", "normal"]  # own current action (A40)
-    social_norm:       float   # [0,1] CBF's (S_normal + R) / N (A44); LLM wording open (E22)
+    social_norm:       float   # [0,1] CBF's (S_normal + R) / N (A44); wording A48
 
     # ---- static: fixed at population construction ----
     age_band:          int     # 0..9, index into the IFR table
@@ -56,7 +56,7 @@ class Perception:
     response_efficacy: float   # [0,1] belief that precautions work
 
     # ---- context: identical for all agents ----
-    population:        int     # 1000
+    population:        int     # 3000 (A7)
     day:               int
 ```
 
@@ -67,15 +67,11 @@ class Perception:
 | ~~`own_health`~~ | observation model, §2a | **Not in the main design (A43)**: constant `never_ill` for every deciding agent under A38 + A42. Kept in code for variant A (E21) |
 | `current_action` | world state, not a determinant (A40) | **[Unsourced]** — needed so a re-asked agent knows its current choice; arm 1 ignores it |
 
-⚠️ **E13 — open.** With a 28-day window, `deaths_prev_period` lagged by a further 28 days means
-the trend signal reaches back 56 days. That may be too stale to carry useful direction. The
-alternative is a shorter trend horizon than the level horizon, which is defensible but
-asymmetric. Decide explicitly before building the renderer.
 | `deaths_28day_mean` | smoothing sourced (Weitz Methods, Gozzi `D_rep`, Urmi lag-0); **28-day length is a finite-population correction, not sourced** | partly sourced |
 | `deaths_cumulative` | Weitz model C `D_c`; Gozzi EFB long-term term | **sourced** |
-| `deaths_prev_period` | anchoring, §4 | **[Unsourced]** |
-| `local_deaths_7d` | Gozzi CBF *local* mechanism (contact-weighted) | **sourced** |
-| `social_norm` | CBF relaxation term, exactly `(S_normal + R)/N` (A44): susceptibles acting normal plus recovered, over N; stay home is not normal | **sourced**; ⚠️ it is a share NOT taking precautions — LLM-facing wording open (E22) |
+| `deaths_28day_mean_7d_ago` | trend for anchoring, §4; replaces `deaths_prev_period` (28-day mean lagged 28 days, reaching back 56 days) — E13 resolved by A47 | **[Unsourced]** 7-day horizon (motivation: S1's T10–90 ≈ 23 d, so a 28-day lag is too blunt); no normal-times baseline |
+| ~~`local_deaths_7d`~~ | Gozzi CBF *local* mechanism (contact-weighted) | **Dropped (A46)**: well-mixed model, agents have no contacts |
+| `social_norm` | CBF relaxation term, exactly `(S_normal + R)/N` (A44): susceptibles acting normal plus recovered, over N; stay home is not normal | **sourced**; rendered as "About X% of people in your town are going about their lives normally." (A48) — undercounts: infected agents acting normally are excluded |
 | `age_band` | Gozzi `pop_data_Nk.csv` (New York) | **sourced** |
 | `vulnerability` | Gozzi `IFR_10age` | **sourced** |
 | `occupation_flex` | PMT response cost (β = −0.074) | **sourced construct, unsourced values** |
@@ -111,23 +107,25 @@ spread and would be silently removed if agents read their true state.
 
 ## 3. What each arm consumes — the nested ladder
 
-| Arm / model | fields used | of 10 |
+| Arm / model | fields used | of 9 |
 |---|---|---|
 | Weitz rule (simulator validation, not an arm) | `deaths_7day_mean` | 1 |
-| **Arm 1 — CBF** | `deaths_7day_mean` *or* `local_deaths_7d`; `social_norm` | 2 |
-| Arms 2 / 3 / 4 | all | 10 |
+| **Arm 1 — CBF** | `deaths_28day_mean`; `social_norm` | 2 |
+| Arms 2 / 3 / 4 | all | 9 |
 
-(The 10 decision fields since A40/A43: `own_health` out, `current_action` in. Arm 1 ignores
+(The 9 decision fields since A40/A43/A46/A47: `own_health` and `local_deaths_7d` out,
+`current_action` in, `deaths_prev_period` → `deaths_28day_mean_7d_ago`. Arm 1 ignores
 `current_action`; CBF keeps its S/S^B state internally.)
 
 **[Suggestion] This ladder is the spine of the December ablation, and it is worth presenting
 that way.** The ablation is not "which of my invented features matter." It is: a published
-rule uses one input; a better published rule uses two; do the remaining eight, all drawn from
+rule uses one input; a better published rule uses two; do the remaining seven, all drawn from
 published determinants of protective behaviour, buy anything a two-input rule cannot? That
 question has a clean answer either way and does not depend on any feature being *your* idea.
 
-**Free A/B inside arm 1, no extra cost:** CBF's global mechanism (`deaths_7day_mean`) versus
-its local mechanism (`local_deaths_7d`). Both published, both implemented in Gozzi's code.
+~~**Free A/B inside arm 1, no extra cost:** CBF's global mechanism versus its local mechanism
+(`local_deaths_7d`).~~ **Lost (A46):** the model is well-mixed, so the local mechanism has no
+contacts to act on and `local_deaths_7d` is dropped.
 
 ---
 
@@ -135,7 +133,7 @@ its local mechanism (`local_deaths_7d`). Both published, both implemented in Goz
 
 **[Unsourced, and the highest-risk choice in the design.]** Arm 1 divides the death signal by
 `δ_c`, a calibration constant. Arm 2 has no such constant. An LLM shown
-`deaths_7day_mean = 0.8` cannot know whether that is catastrophic or trivial. Whatever anchor
+`deaths_28day_mean = 0.8` cannot know whether that is catastrophic or trivial. Whatever anchor
 the prompt supplies is doing δ_c's job without δ_c's provenance.
 
 **Decisions:**
@@ -146,12 +144,12 @@ the prompt supplies is doing δ_c's job without δ_c's provenance.
    contamination — an LLM will pattern-match R₀ ≈ 3 with a 1% fatality rate to COVID whether or
    not the word appears. It removes the explicit cue only. See §7.
 
-2. **Counts, never per-capita rates.** "12 of the 1,000 people in your community have died"
+2. **Counts, never per-capita rates.** "12 of the 3,000 people in your community have died"
    anchors scale concretely. "80 deaths per 100,000 per day" is both harder to reason about and
    the strongest available contamination cue, since it is the unit COVID reporting used.
 
-3. **Trend, not just level.** `deaths_prev_week` is carried purely so the prompt can express
-   direction. Urmi et al. find the oscillatory component of behaviour tracks deaths at lag 0,
+3. **Trend, not just level.** `deaths_28day_mean_7d_ago` (A47) is carried purely so the
+   prompt can express direction. Urmi et al. find the oscillatory component of behaviour tracks deaths at lag 0,
    so change is behaviourally load-bearing, and a level alone forces an absolute-scale
    judgement the model cannot make.
 
@@ -162,17 +160,18 @@ the prompt supplies is doing δ_c's job without δ_c's provenance.
 
 Sketch, not final wording:
 
-> You live in a community of 1,000 people. An infectious disease is spreading.
-> Over the past week an average of 0.8 people have died each day; the week before it was 0.3.
-> 12 people have died in total. 1 person you know has died in the past week.
-> About 34% of people are currently taking precautions.
+> You live in a town of 3,000 people. An infectious disease is spreading.
+> Over the past four weeks an average of 0.8 people have died each day; a week ago that
+> four-week average was 0.3. 12 people have died in total.
+> About X% of people in your town are going about their lives normally.
 > You are 71 years old. For someone your age this disease is fatal in about 4 cases in 100.
 > You can work from home if you choose to. You are currently going out with precautions.
 > Choose one: stay home / go out with precautions / go out without precautions.
 
 ⚠️ Since A43 the sketch has no "You have not been ill." line (it would be identical in every
-prompt), and it gains a `current_action` line (A40). The "taking precautions" line misdescribes
-`social_norm` as defined in A44 (a share NOT taking precautions); its wording is open (E22).
+prompt); since A46 it has no "person you know has died" line; it gains a `current_action` line
+(A40); the trend line uses `deaths_28day_mean_7d_ago` (A47); the social-norm line is A48's
+wording, which undercounts (infected agents acting normally are excluded from CBF's term).
 
 ⚠️ The `vulnerability` rendering is itself a fork. "4 cases in 100" and "your age band is 8"
 and "your risk is high" will not produce the same behaviour from the same model. **[Suggestion]**
@@ -192,12 +191,12 @@ The combinatorial state space under reasonable bins — 10 age bands × 3 occupa
 D16), against roughly **5.4 × 10⁵** decisions across
 three scenarios. On those numbers caching saves almost nothing.
 
-(Since A43 the vector has no health-state field, so the "× 3 health states" factor no longer
-applies; the figures above are left as originally computed. Since A38/A42 only never-ill agents
+(Since A43 the vector has no health-state field and since A46 no local-death field, so the
+"× 3 health states" and "× 4 local-death bins" factors no longer apply; the figures above are left as originally computed. Since A38/A42 only never-ill agents
 decide, so the decision count above is also an upper bound.)
 
 The realised state space is far smaller, because the dynamic fields are heavily correlated with
-each other and with time: cumulative deaths, the 7-day mean and the social norm all move
+each other and with time: cumulative deaths, the 28-day mean and the social norm all move
 together. But by how much is an empirical question, and **it is answerable for free before any
 money is spent on arm 2**:
 
