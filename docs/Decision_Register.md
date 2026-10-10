@@ -2260,6 +2260,108 @@ addendum. Control M1 1.00. n = 30 seeds.
 - Death responsiveness (not predicted): at p = 0.1, rules 4 and 5 rise to +0.627 / +0.680 (from
   +0.262 / +0.171); at p = 1.0 they fall to +0.110 / −0.033.
 
+**C42 — E23 plateau-reachability check. A CAPABILITY TEST, NOT AN ARM. PRE-REGISTRATION,
+written before any step is run.** [Design: planning chat (Max), 10 Oct 2026.] No API calls; no
+arm, rule or prompt changed. `experiments/step6_plateau_check.py`; outputs `results/step6/`.
+Purpose: whether a Weitz-style plateau can occur in the shared world (A37–A39) when healthy
+agents stay home in response to deaths.
+
+*Test rule (test case only):* Weitz's g = 1/(1 + (δ/δ_c)^k), k = 2 (figseir_Hlong_k2D.m). Stay
+home is one-sided (A39) and ill agents do not decide (A38), so each never-ill agent (S or E)
+stays home with probability q = 1 − g; precautions unused. δ and δ_c in deaths per day in the
+whole town (Weitz's N·δ_c; `model.run_weitz_behaviour`'s convention). **δ_c is CHOSEN to obtain
+a plateau — allowed here because this is a reachability test, not a model of behaviour.**
+
+*Choice rule for δ_c (fixed before Step A):* first candidate = Weitz's own per-capita value
+Dcrit = 0.5×10⁻⁵ per day (figseir_Hdel_k2.m; K1/K2, C29) scaled to N = 3,000: **N·δ_c = 0.015
+deaths/day**. It is used if Step A shows a plateau with it (A's criterion below). Otherwise the
+largest value on the grid {0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5} that does. The whole grid is
+reported for context. The same δ_c is used in B, C and C2.
+
+- **A (equations):** Weitz model B ODE with this g; N = 3,000; S1 (R0 3, latent 2 d, infectious
+  6 d, T_H 14); f_D = the frozen population's mean IFR 0.009718 (B–C2 use per-agent f_D, whose
+  population mean this is; Weitz's 0.01 would differ from the ABM); I(0) = 10/N, as the ABM;
+  δ = γ_H·N·H. Control: the same ODE without behaviour. **A's plateau criterion:** T10–90 stretch
+  ≥ ×10 against the no-behaviour ODE, or E + I ≥ 1 person at day 600 ("still active").
+- **B (ideal):** shared world, N = 3,000, S1, seeds 0–29; δ = n_H/T_H (Weitz's own, zero lag);
+  q recomputed and every never-ill agent's action redrawn each sub-step (new test-only mode
+  `"substep"` in `run_shared_world`; never used by an arm; all 72 fast tests still pass).
+- **C (arms' real constraints):** same δ_c; δ = the perceived signal, the 28-day mean of 70%-
+  reported deaths (A24/A25); decisions once per day at the start of the day, p = 1.0 (everyone);
+  A55 stop.
+- **C2:** as C with p = 0.3.
+Controls for B, C, C2: `AlwaysNormal` in the same world, same seeds (= C39's S1 control).
+
+*Reported for A, B, C, C2:* δ_c; stretch (ratio of mean T10–90 [95% CI, 1,000 paired bootstrap
+resamples, seed 20261005], median per-seed ratio, share > ×1.5); peak-I reduction; final S;
+attack size (1 − final S); M1 wave count (EpidemicKabu, kernel 18); runs still active at day 600
+(E + I > 0). For runs still active, T10–90 is computed on cumulative incidence up to day 600 and
+is a lower bound (A35: truncated). One example curve per step against its control: **seed 0**
+(fixed here, not chosen after looking), daily incidence on a log-type axis.
+
+*Pass mark for "plateau reachable" (Max):* Step B stretch ≥ ×10, OR a majority of runs (> 15/30)
+still active at day 600 with peak reduction ≥ 80%.
+
+*Predictions (planning chat, Max), [Speculation]:* B reproduces a plateau close to A (low-medium
+confidence; small-count noise may break it at N = 3,000). C is much weaker than B because of the
+delayed signal (medium confidence).
+
+*Time gate:* stop if the upper-end projection exceeds 10 minutes (timing recorded below before
+the main run).
+*Step A done before timing (it decides δ_c; `results/step6/plateau_ode.{json,log}`):* N·δ_c =
+0.015 meets A's criterion (see results), so **δ_c = 0.015 deaths/day** for B, C, C2. *Timing*
+(each step × 4 runs, 16 workers, `plateau_timing.log`): per run control 1.0–1.1 s, B 1.6–1.9 s,
+C 1.0–1.1 s, C2 0.9–1.1 s. Work: 120 simulations + 122 wave counts (0.58 s/run effective, C39).
+Upper end (every simulation at twice the slowest, 3.8 s): 0.5 + 1.2 = **1.7 min** → run.
+
+**C42 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step6_plateau_check.py
+--ode`, `--sim`, `--score`, `--plot`; `results/step6/plateau_ode.{json,log}`, `plateau_runs.npz`,
+`plateau_sim.log`, `plateau_scores.{json,log}`, `plateau_examples.png`. Wall: simulations 0.2
+min, wave counts 1.0 min. δ_c = **0.015 deaths/day** (N·δ_c; Weitz's per-capita Dcrit at N =
+3,000), chosen by the pre-registered rule: it meets Step A's criterion.
+
+*Step A grid (ODE, N = 3,000, S1; control T10–90 23 d, final S 0.0593, peak I 668.2):*
+
+| N·δ_c | T10–90 (d) | stretch | peak-I red | final S | E + I at day 600 (persons) |
+|---|---|---|---|---|---|
+| 0.005 | 496 | ×21.57 | 97.6% | 0.855 | 5.14 (active) |
+| **0.015** | **502** | **×21.83** | **94.7%** | **0.626** | **11.50 (active)** |
+| 0.05 | 387 | ×16.83 | 84.8% | 0.307 | 3.27 (active) |
+| 0.15 | 142 | ×6.17 | 62.1% | 0.266 | 0.00 |
+| 0.5 | 33 | ×1.43 | 23.8% | 0.203 | 0.00 |
+| 1.5 | 24 | ×1.04 | 4.2% | 0.084 | 0.00 |
+| 5 | 23 | ×1.00 | 0.4% | 0.062 | 0.00 |
+
+(Stretch for active rows is truncated at day 600, A35: a lower bound.)
+
+*Results at δ_c = 0.015 (B, C, C2: n = 30 seeds; control = shared-world AlwaysNormal, T10–90
+23.2 d, peak I 681.1, final S 0.0587, 0/30 active at 600, waves 1.00):*
+
+| step | stretch [95% CI] | median | > ×1.5 | ≥ ×10 | peak-I red | final S | attack | waves (> 1) | active at 600 |
+|---|---|---|---|---|---|---|---|---|---|
+| A (ODE) | ×21.83 (truncated) | — | — | — | 94.7% | 0.626 | 0.374 | 4 (control 1) | yes (11.5 persons) |
+| B | ×1.827 [1.198, 2.510] | ×0.764 | 11/30 | 0/30 | 71.8% (−26.2 SEM) | 0.767 ± 0.031 | 0.233 | 1.63 (12/30) | **0/30** |
+| C | ×1.370 [0.760, 2.194] | ×0.652 | 5/30 | 0/30 | 53.6% (−13.3 SEM) | 0.662 ± 0.033 | 0.338 | 1.27 (5/30) | 0/30 |
+| C2 | ×0.827 [0.664, 1.127] | ×0.659 | 1/30 | 0/30 | 48.3% (−12.0 SEM) | 0.630 ± 0.031 | 0.370 | 1.03 (1/30) | 0/30 |
+
+Last day with E + I > 0, median (max): B 75.5 (220), C 69 (245), C2 67 (166); control 92.
+Mean stay-home share of S while E + I > 0: B 0.616, C 0.623, C2 0.629.
+
+**Pass mark: NOT MET.** B stretch ×1.83 < ×10, and 0/30 runs are active at day 600 (peak
+reduction 71.8% < 80%).
+
+*Arithmetic of the signal at N = 3,000 (computed):* in B one hospitalised agent gives δ = 1/14 =
+0.071 deaths/day = 4.8 δ_c, so q = 0.958 (two agents: 0.989); with none, q = 0. In C one reported
+death in the 28-day window gives a signal of 0.7/28 = 0.025, q = 0.735. The ODE plateau runs at
+about 1.5–2 new infections per day (Step A curve), i.e. under one hospitalisation at a time.
+The seed-0 example curves (`plateau_examples.png`) show B alternating between bursts and zero
+incidence and ending by about day 85; C and C2 end by about day 70.
+
+*Predictions (Max) vs outcome:* "B reproduces a plateau close to A" — **not as predicted** (A
+×21.8 and active at 600; B ×1.83, 0/30 active). "C much weaker than B" — C is weaker than B on
+every measure (stretch ×1.37 vs ×1.83, peak reduction 53.6 vs 71.8%, final S 0.662 vs 0.767);
+C2 weaker again.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a

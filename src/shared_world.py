@@ -33,6 +33,9 @@ Two kinds of decision function:
     probability `redecide_prob` (A41: p = 0.3/day PROVISIONAL and UNSOURCED, so it is
     deliberately not defaulted here).
 
+A third mode, "substep", exists only for the E23 plateau-reachability test (register C42; not an
+arm): the function's substep_actions() redraws every never-ill agent's action each sub-step.
+
 Random numbers. The disease stream (`np.random.default_rng(seed)`) is consumed exactly as in
 model.run() for discrete functions and exactly as in model.run_cbf_behaviour() for the hazard
 function, so: always-normal == run() and arm 1 == run_cbf_behaviour(), bit for bit, on the same
@@ -239,6 +242,14 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
             else:
                 n_infectious = np.count_nonzero(state == I)
             foi = transmission_rate * n_infectious / N
+
+            if decision.mode == "substep":
+                # E23 plateau-reachability test only (C42), never an arm: every never-ill
+                # agent's action is redrawn each sub-step from the decision stream.
+                elig = (state == S) | (state == E)
+                action[elig] = decision.substep_actions(
+                    dict(N=N, n_H=np.count_nonzero(state == H),
+                         death_delay_rate=death_delay_rate), int(elig.sum()), drng)
 
             if decision.mode == "hazard":
                 # Competing hazards per action, in the decision function's order (CBF:
