@@ -21,7 +21,7 @@ class Recorder(arm3.Arm3Rule):
     """Arm3Rule with the rule replaced by a recorder returning fixed probabilities."""
 
     def __init__(self):
-        self.pop, self.k, self.seen = POP, 0, []
+        self.pop, self.k, self.seen, self.merge_stay_home = POP, 0, [], False
 
         def rule(p):
             self.seen.append(p)
@@ -94,3 +94,43 @@ def test_alt_social_norm_definition():
 def test_E_by_action_counts_exposed():
     o = run_shared_world(seed=0, decision=AlwaysNormal(), **KW)
     assert np.array_equal(o["E_by_action"].sum(1), o["exposed"])
+
+
+def test_merge_stay_home_never_draws_stay_home():
+    rec = Recorder()
+    rec.merge_stay_home = True
+    view = dict(reported_deaths=np.zeros(10), awareness_signal=0.0, social_norm=1.0, N=3000,
+                action=np.zeros(3000, dtype=np.int8))
+    a = rec.decide(10, np.arange(3000), view, np.random.default_rng(0))
+    share = np.bincount(a, minlength=3) / len(a)          # normal, precautions, stay_home
+    assert share[2] == 0 and share[1] == pytest.approx(0.3, abs=0.03)
+
+
+class AllHome(arm3.Arm3Rule):
+    """Everyone asked stays home."""
+
+    def __init__(self):
+        self.pop, self.k, self.merge_stay_home = POP, 0, False
+        self.rule = lambda p: {"stay_home": 1.0, "precautions": 0.0, "normal": 0.0}
+
+
+def test_ill_decide_default_off_is_unchanged():
+    o1 = run_shared_world(seed=0, decision=AllHome(), redecide_prob=0.3, **KW)
+    o2 = run_shared_world(seed=0, decision=AllHome(), redecide_prob=0.3, ill_decide=False, **KW)
+    assert np.array_equal(o1["S"], o2["S"])
+
+
+def test_ill_decide_home_stops_spreading():
+    # everyone re-asked every day stays home -> ill agents are home from day 1, so with
+    # ill_decide the epidemic is (nearly) stopped; without it ill agents keep spreading
+    on = run_shared_world(seed=0, decision=AllHome(), redecide_prob=1.0, ill_decide=True, **KW)
+    off = run_shared_world(seed=0, decision=AllHome(), redecide_prob=1.0, **KW)
+    assert on["total_infected"] <= off["total_infected"]
+    assert on["total_infected"] <= 12
+
+
+def test_ill_decide_recovered_act_normal():
+    o = run_shared_world(seed=0, decision=AllHome(), redecide_prob=0.3, ill_decide=True,
+                         **dict(KW, days=120))
+    # recovered agents never decide and are reset to normal: social_norm counts them
+    assert o["social_norm"][-1] >= o["recovered"][-1] / 3000

@@ -136,7 +136,7 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
                      window=28, detection_rate=0.7,
                      precaution_multiplier=PRECAUTION_MULTIPLIER,
                      redecide_prob=None, stop_deciding_when_no_infection=False,
-                     social_norm_def="cbf"):
+                     social_norm_def="cbf", ill_decide=False):
     """Run one epidemic in the shared world with `decision` setting every agent's action.
 
     Disease, integration and death signal are those of run_cbf_behaviour (Weitz model B,
@@ -151,6 +151,12 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
     (C39 supplementary only) = agents acting normal / agents in S, E, I or R who are not
     staying home. Only what decision functions are shown changes; arm 1's relaxation rate
     uses its own counts and is unaffected.
+    ill_decide ("variant A-physical", E21; C41 side test T2 only): if True, currently-ill
+    agents (I) are also re-asked, with the same decision function (which cannot see illness);
+    an I agent staying home does not infect anyone (it leaves the force of infection), while
+    precautions do not reduce infectiousness (A39/A57); a newly ill agent keeps its last action
+    until re-asked (no reset to normal at E -> I); agents leaving I (to R or H) are reset to
+    normal, as recovered agents act normal and do not decide (A42).
     """
     if social_norm_def not in ("cbf", "alive_not_home_not_H"):
         raise ValueError(f"unknown social_norm_def {social_norm_def!r}")
@@ -207,6 +213,8 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
                          and np.count_nonzero((state == E) | (state == I)) == 0)):
             oh = own_health_of(state)
             eligible = oh == NEVER_ILL                   # A38 (not ill), A42 (not recovered)
+            if ill_decide:                               # variant A-physical (E21, C41 T2)
+                eligible |= oh == CURRENTLY_ILL
             agents = np.flatnonzero(eligible & (drng.random(N) < redecide_prob))
             if len(agents):
                 # World-side data a Perception is built from. own_health is included only so
@@ -226,7 +234,10 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
         day_new_e = 0
         day_new_d = 0
         for _ in range(n_substeps):
-            n_infectious = np.count_nonzero(state == I)
+            if ill_decide:                               # staying home stops spreading
+                n_infectious = np.count_nonzero((state == I) & (action != STAY_HOME))
+            else:
+                n_infectious = np.count_nonzero(state == I)
             foi = transmission_rate * n_infectious / N
 
             if decision.mode == "hazard":
@@ -268,7 +279,10 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
             state[to_r] = R
             state[new_i] = I
             state[new_e] = E
-            action[new_i] = NORMAL                       # A38: ill agents act normal
+            if ill_decide:
+                action[to_r | to_h] = NORMAL             # A42: recovered act normal
+            else:
+                action[new_i] = NORMAL                   # A38: ill agents act normal
             if decision.mode == "hazard":
                 for _, switched, to_a in moves:
                     action[switched] = to_a

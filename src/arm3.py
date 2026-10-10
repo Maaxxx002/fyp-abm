@@ -20,6 +20,9 @@ The rule returns probabilities; the action is drawn from the decision stream (A5
 u per re-asked agent, in agent-index order; stay_home if u < P(stay_home), precautions if
 u < P(stay_home) + P(precautions), otherwise normal. Day-0 actions are all normal (the
 DecisionFunction default, as CBF's S^B starts empty); rules act from day 0 through re-asking.
+
+merge_stay_home (C41 side test T3 only; a choice, UNSOURCED): the rule's P(stay_home) is added
+to P(precautions) and stay_home is never drawn ("intention kept, option removed").
 """
 import hashlib
 import json
@@ -64,8 +67,9 @@ class Arm3Rule(DecisionFunction):
     mode = "discrete"
     redecides = True
 
-    def __init__(self, k, population):
+    def __init__(self, k, population, merge_stay_home=False):
         self.k = k
+        self.merge_stay_home = merge_stay_home
         self.rule = load_rule(k)
         self.pop = population
 
@@ -86,7 +90,8 @@ class Arm3Rule(DecisionFunction):
                 vulnerability=float(pop.vulnerability[i]),
                 occupation_flex=float(pop.occupation_flex[i]),
                 response_efficacy=float(pop.response_efficacy[i]), **common))
-            probs[j] = (o["stay_home"], o["stay_home"] + o["precautions"])
+            probs[j] = (0.0 if self.merge_stay_home else o["stay_home"],
+                        o["stay_home"] + o["precautions"])
         u = rng.random(len(agents))
         return np.where(u < probs[:, 0], STAY_HOME,
                         np.where(u < probs[:, 1], PRECAUTIONS, NORMAL)).astype(np.int8)

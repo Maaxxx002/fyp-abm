@@ -248,9 +248,60 @@ def score():
               indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
 
 
+def aligned_m3(inc, seeds_idx=None, frac=0.01):
+    """A33's averaged-curve M3: per-capita curves aligned at the first day cumulative incidence
+    >= frac*N, averaged over the common window (step3_shape_metrics.align_average), T10-90 of
+    the mean. Runs that never reach frac*N are left out (n used reported). `seeds_idx` selects
+    rows (with repeats, for the bootstrap)."""
+    import step3_shape_metrics as sm
+    rows = range(len(inc)) if seeds_idx is None else seeds_idx
+    starts, kept = [], []
+    for i in rows:
+        hit = np.nonzero(np.cumsum(inc[i]) >= frac * N)[0]
+        if len(hit):
+            starts.append(int(hit[0])); kept.append(inc[i] / N)
+    if not kept:
+        return np.nan, 0
+    L = DAYS - max(starts)
+    return sm.duration(np.mean([y[s:s + L] for y, s in zip(kept, starts)], axis=0)), len(kept)
+
+
+def aligned(cfg_names=None, cache=CACHE, label="C39"):
+    """Averaged-curve M3 per configuration (never across rules), with 1,000 paired bootstrap
+    resamples of seeds (seed 20261005), next to the per-run stretch."""
+    a = dict(np.load(cache))
+    rng = np.random.default_rng(BOOT_SEED)
+    boot_idx = rng.integers(0, len(SEEDS), size=(N_BOOT, len(SEEDS)))
+    cfgs = cfg_names or [n for n in configs() if not n.startswith(("arm1", "ctrl"))]
+    out = {}
+    print(f"{label}: averaged-curve M3 (1% alignment) arm / control [95% CI], n used; "
+          f"averaged-curve stretch [95% CI]")
+    for n in cfgs:
+        sc = n.split("|")[1]
+        inc, incc = a[f"{n}#incidence"], a[f"ctrl|{sc}#incidence"]
+        m, nu = aligned_m3(inc)
+        mc, nuc = aligned_m3(incc)
+        bm, bc, br = [], [], []
+        for idx in boot_idx:
+            x, _ = aligned_m3(inc, idx)
+            y, _ = aligned_m3(incc, idx)
+            bm.append(x); bc.append(y); br.append(x / y)
+        ci = lambda v: tuple(np.nanpercentile(v, [2.5, 97.5]))   # noqa: E731
+        out[n] = dict(arm=m, arm_ci=ci(bm), n_used=nu, ctrl=mc, ctrl_ci=ci(bc), n_used_ctrl=nuc,
+                      stretch=m / mc, stretch_ci=ci(br),
+                      boot_defined=int(np.isfinite(br).sum()))
+        r = out[n]
+        print(f"  {n:16s} {m:5.0f} [{r['arm_ci'][0]:.0f}, {r['arm_ci'][1]:.0f}] (n {nu}/30) / "
+              f"{mc:4.0f} [{r['ctrl_ci'][0]:.0f}, {r['ctrl_ci'][1]:.0f}] (n {nuc}/30); "
+              f"x{r['stretch']:.3f} [{r['stretch_ci'][0]:.3f}, {r['stretch_ci'][1]:.3f}]")
+    return out
+
+
 if __name__ == "__main__":
     mp.freeze_support()
     if "--sim" in sys.argv:
         simulate()
     if "--score" in sys.argv:
         score()
+    if "--aligned" in sys.argv:
+        json.dump(aligned(), open(os.path.join(OUT, "arm3_aligned.json"), "w"), indent=1)

@@ -2117,6 +2117,40 @@ shared-world rerun):*
 
 *Caveat on rule 2's stretch (planning chat, 10 Oct 2026; an interpretation, not a measurement):* rule 2's M3 is computed on very small epidemics (median 15–37 infections), so its stretch reflects suppression, not flattening, and is a poor guide to stretch in either the main or the supplementary run.
 
+**C39 addendum — averaged-curve M3 (A33), added 10 Oct 2026. [Measured facts only.]** C39 as
+first reported computed T10–90 per run only. Now also on the 1%-aligned averaged curve (A33,
+`step3_shape_metrics.align_average`'s method; checked equal on the S1 control: 23.0 d), **per rule
+and scenario only, never across rules**; 1,000 paired bootstrap resamples of seeds (seed
+20261005); runs that never reach 1% cumulative incidence (30 infections) are left out (n used).
+`python experiments/step5_arm3_runs.py --aligned`; `results/step5/arm3_aligned.{json,log}`.
+Aligned M3 is a whole number of days; control S1/S3 23 [22, 24] d, S2 42 [41, 44] d (30/30).
+
+| config | aligned M3 arm [95% CI] (n used) | aligned stretch [95% CI] | per-run stretch (C39) |
+|---|---|---|---|
+| rule 1 S1 | 33 [31, 36] (30) | ×1.435 [1.333, 1.566] | ×1.475 |
+| rule 2 S1 | 47 [17, 77] (**23/30**) | ×2.043 [0.739, 3.348] | ×0.986 |
+| rule 3 S1 | 39 [37, 42] (30) | ×1.696 [1.583, 1.826] | ×1.699 |
+| rule 4 S1 | 25 [24, 25] (30) | ×1.087 [1.042, 1.091] | ×1.085 |
+| rule 5 S1 | 28 [26, 28] (30) | ×1.217 [1.125, 1.227] | ×1.180 |
+| rule 1 S2 | 76 [65, 93] (30) | ×1.810 [1.537, 2.186] | ×1.888 |
+| rule 2 S2 | 19 [0, 19] (**2/30**) | ×0.452 [0.000, 0.463] | ×0.414 |
+| rule 3 S2 | 83 [78, 89] (30) | ×1.976 [1.833, 2.095] | ×1.942 |
+| rule 4 S2 | 45 [43, 46] (30) | ×1.071 [1.023, 1.073] | ×1.046 |
+| rule 5 S2 | 51 [50, 53] (30) | ×1.214 [1.163, 1.244] | ×1.200 |
+| rule 1 S3 | 31 [29, 33] (30) | ×1.348 [1.250, 1.435] | ×1.364 |
+| rule 2 S3 | 47 [19, 76] (**23/30**) | ×2.043 [0.792, 3.305] | ×1.003 |
+| rule 3 S3 | 37 [35, 39] (30) | ×1.609 [1.500, 1.696] | ×1.574 |
+| rule 4 S3 | 25 [24, 25] (30) | ×1.087 [1.000, 1.091] | ×1.075 |
+| rule 5 S3 | 28 [26, 28] (30) | ×1.217 [1.125, 1.227] | ×1.180 |
+| supp. rule 1 S1 | 31 [29, 33] (30) | ×1.348 [1.250, 1.435] | ×1.357 |
+| supp. rule 2 S1 | 42 [31, 53] (28/30) | ×1.826 [1.363, 2.304] | ×1.514 |
+| supp. rule 3 S1 | 33 [32, 35] (30) | ×1.435 [1.375, 1.545] | ×1.433 |
+| supp. rule 4 S1 | 23 [23, 24] (30) | ×1.000 [0.958, 1.045] | ×1.012 |
+| supp. rule 5 S1 | 26 [25, 26] (30) | ×1.130 [1.083, 1.182] | ×1.111 |
+
+For rules 1, 3, 4, 5 the aligned and per-run stretch differ by at most 0.08. For rule 2 they
+differ widely, and the aligned value rests on 23/30 (S1, S3) or 2/30 (S2) runs.
+
 **C40 — Supplementary to C39 (does not replace it): S1 with social_norm = agents acting normal
 / agents in S, E, I or R not staying home. [Measured facts only.]** Same run as C39 (same seeds,
 same control). Difference from the main S1 result (supplementary − main):
@@ -2132,6 +2166,99 @@ same control). Difference from the main S1 result (supplementary − main):
 Finished by day 600: 30/30 for every rule. With the supplementary definition, rules 1, 3, 4, 5
 have lower stretch, peak reduction, final S and caution than in the main run; rule 2's stretch
 rises (×0.986 → ×1.514) with peak reduction and final S nearly unchanged.
+
+**C41 — Arm 3 side tests T1–T3 (S1 only). PRE-REGISTRATION, written before any side-test run
+(timing runs only).** [Design: planning chat (Max), 10 Oct 2026.] No API calls; no rule or
+prompt changed. `experiments/step5_arm3_side.py`. Rules 1–5 × seeds 0–29, S1, everything else as
+C39 (Perception, sampling, A55 stop, N 3,000, 600 days). Baseline = C39 S1 (p = 0.3). Control =
+C39's S1 `AlwaysNormal` runs (no decisions are made in a control, so it is the same for every
+test; reused from `results/step5/arm3_runs.npz`).
+
+- **T1 — re-decide rate (E2):** p = 0.1 and p = 1.0 per agent per day.
+- **T2 — "variant A-physical" (E21):** currently-ill agents (I) keep deciding with the SAME rule,
+  which cannot see illness (`run_shared_world(ill_decide=True)`). Choices (Max): staying home now
+  also stops an ill agent spreading (an I agent at home leaves the force of infection);
+  precautions do NOT reduce an ill agent's infectiousness (consistent with A39/A57); a newly ill
+  agent keeps its last action until re-asked. Implementation choice (Claude Code, following A42):
+  agents leaving I (to R or H) are reset to normal. The LLM-judgement version (new instruction
+  with own_health) is deferred until after the supervisor meeting.
+- **T3 — no stay-home button:** P(stay_home) is added to P(precautions) (intention kept, option
+  removed). **A choice, UNSOURCED** (`Arm3Rule(merge_stay_home=True)`).
+
+*Reported per rule and test, next to the C39 S1 baseline:* stretch (ratio of mean M3s [95% CI],
+median per-seed ratio, share > ×1.5) and the aligned averaged-curve stretch (A33, per rule);
+peak-I reduction; final S; **attack size = 1 − final S** (fraction of the population ever
+infected, including the 10 initial cases); M1 wave count; death responsiveness (E24 as filled:
+caution among S + E — in T2 too, although I agents also decide there); runs finished by day 600.
+
+*Code and tests:* `run_shared_world(ill_decide=...)` and `Arm3Rule(merge_stay_home=...)`, both
+off by default. `tests/test_arm3.py` adds 4 tests (merge never draws stay_home; default
+unchanged; with everyone home and p = 1.0 the ill-decide world stops the epidemic at ≤ 12
+infections; recovered agents act normal). 72 fast tests pass.
+
+*Predictions (planning chat, Max), [Speculation]:*
+- T1: p = 0.1 gives milder effects (slower reactions); p = 1.0 gives somewhat stronger effects;
+  low confidence.
+- T2: stronger suppression for every rule, largest for rules 1–3.
+- T3: milder effects; rule 2's suppression weakens most.
+
+*Time gate (stop if the upper-end projection exceeds 15 minutes):* timing runs (each test × each
+rule × seeds 0–1, 40 runs, 16 workers): 0.26 s/run effective; per-run maximum 6.5 s (T1 p = 1.0).
+Work: 600 simulations + 600 wave counts (0.58 s/run effective, C39). Projection: 2.6 + 5.8 =
+**8.4 min at measured rates; 7.1 + 5.8 = 12.9 min at the upper end** (every simulation as slow
+as C39's slowest single run, 11.3 s). Under 15 minutes → run.
+
+**C41 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step5_arm3_side.py
+--sim` then `--score`; `results/step5/arm3_side_runs.npz`, `arm3_side_sim.log`,
+`arm3_side_scores.{json,log}`. **Wall 6.6 min** (600 simulations 1.7 min, per run 0.5–7.1 s; 600
+wave counts 4.9 min). Every run finished by day 600 (30/30 in every test). M3 defined on 30/30
+everywhere. The C39 baseline rows below are recomputed from the C39 runs and equal C39 and its
+addendum. Control M1 1.00. n = 30 seeds.
+
+| rule | test | stretch [95% CI] | median | > ×1.5 | aligned stretch (n used) | peak red (SEM) | final S (paired +) | attack size | M1; > 1 wave | DR mean / median (n) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | C39 p 0.3 | ×1.475 [1.347, 1.631] | ×1.383 | 11/30 | ×1.435 (30) | 39.6% (−18.7) | 0.298 (+0.239) | 0.702 | 1.03; 1/30 | +0.922 / +0.935 (30) |
+| 1 | T1 p 0.1 | ×1.196 [1.159, 1.236] | ×1.191 | 1/30 | ×1.217 (30) | 29.8% (−23.6) | 0.263 (+0.205) | 0.737 | 1.07; 2/30 | +0.887 / +0.902 (30) |
+| 1 | T1 p 1.0 | ×1.646 [1.542, 1.770] | ×1.609 | 21/30 | ×1.696 (30) | 47.9% (−22.8) | 0.321 (+0.263) | 0.679 | 1.17; 5/30 | +0.912 / +0.924 (30) |
+| 1 | T2 ill decide | ×1.712 [1.513, 1.916] | ×1.544 | 17/30 | ×1.565 (30) | 53.9% (−21.7) | 0.456 (+0.397) | 0.544 | 1.17; 4/30 | +0.907 / +0.914 (30) |
+| 1 | T3 no home | ×1.289 [1.250, 1.335] | ×1.255 | 1/30 | ×1.304 (30) | 25.1% (−20.2) | 0.153 (+0.094) | 0.847 | 1.07; 1/30 | +0.913 / +0.927 (30) |
+| 2 | C39 p 0.3 | ×0.986 [0.778, 1.228] | ×0.869 | 3/30 | ×2.043 (23) | 97.7% (−113.7) | 0.983 (+0.924) | 0.018 | 1.03; 1/30 | +0.691 / +0.716 (8) |
+| 2 | T1 p 0.1 | ×1.263 [1.176, 1.356] | ×1.182 | 6/30 | ×1.174 (30) | 93.3% (−91.1) | 0.929 (+0.870) | 0.071 | 1.00; 0/30 | +0.420 / +0.438 (23) |
+| 2 | T1 p 1.0 | ×0.863 [0.678, 1.069] | ×0.842 | 1/30 | ×0.783 (4) | 98.5% (−116.0) | 0.992 (+0.933) | 0.008 | 1.03; 1/30 | +0.772 / +0.772 (1) |
+| 2 | T2 ill decide | ×0.443 [0.354, 0.556] | ×0.383 | 1/30 | ×0.391 (3) | 98.2% (−114.3) | 0.991 (+0.932) | 0.009 | 1.00; 0/30 | +0.777 / +0.787 (3) |
+| 2 | T3 no home | **×2.849 [2.740, 2.967]** | ×2.828 | **30/30** | ×2.826 (30) | 71.4% (−56.2) | 0.383 (+0.324) | 0.617 | 1.03; 1/30 | +0.801 / +0.824 (30) |
+| 3 | C39 p 0.3 | ×1.699 [1.600, 1.830] | ×1.614 | 18/30 | ×1.696 (30) | 47.5% (−34.1) | 0.292 (+0.233) | 0.708 | 1.07; 1/30 | +0.928 / +0.931 (30) |
+| 3 | T1 p 0.1 | ×1.367 [1.329, 1.408] | ×1.326 | 4/30 | ×1.348 (30) | 37.8% (−36.7) | 0.271 (+0.212) | 0.729 | 1.03; 1/30 | +0.891 / +0.904 (30) |
+| 3 | T1 p 1.0 | ×1.781 [1.677, 1.897] | ×1.689 | 24/30 | ×1.783 (30) | 48.5% (−30.0) | 0.274 (+0.216) | 0.726 | 1.07; 2/30 | +0.952 / +0.954 (30) |
+| 3 | T2 ill decide | ×1.958 [1.815, 2.108] | ×1.833 | 26/30 | ×1.957 (30) | 57.4% (−36.6) | 0.368 (+0.310) | 0.632 | 1.10; 3/30 | +0.923 / +0.934 (30) |
+| 3 | T3 no home | ×1.364 [1.330, 1.398] | ×1.375 | 2/30 | ×1.348 (30) | 28.3% (−27.8) | 0.150 (+0.091) | 0.850 | 1.00; 0/30 | +0.892 / +0.896 (30) |
+| 4 | C39 p 0.3 | ×1.085 [1.074, 1.094] | ×1.087 | 0/30 | ×1.087 (30) | 6.3% (−19.5) | 0.075 (+0.017) | 0.925 | 1.10; 2/30 | +0.262 / +0.280 (30) |
+| 4 | T1 p 0.1 | ×1.043 [1.031, 1.054] | ×1.043 | 0/30 | ×1.043 (30) | 4.3% (−18.1) | 0.076 (+0.018) | 0.924 | 1.00; 0/30 | +0.627 / +0.653 (30) |
+| 4 | T1 p 1.0 | ×1.095 [1.083, 1.106] | ×1.087 | 0/30 | ×1.087 (30) | 8.0% (−22.1) | 0.074 (+0.015) | 0.926 | 1.03; 1/30 | +0.110 / +0.094 (30) |
+| 4 | T2 ill decide | ×1.102 [1.090, 1.114] | ×1.091 | 0/30 | ×1.087 (30) | 8.1% (−20.3) | 0.081 (+0.022) | 0.919 | 1.03; 1/30 | +0.252 / +0.228 (30) |
+| 4 | T3 no home | ×1.053 [1.044, 1.061] | ×1.043 | 0/30 | ×1.043 (30) | 4.6% (−19.9) | 0.071 (+0.012) | 0.929 | 1.00; 0/30 | +0.243 / +0.251 (30) |
+| 5 | C39 p 0.3 | ×1.180 [1.165, 1.195] | ×1.174 | 0/30 | ×1.217 (30) | 15.1% (−25.6) | 0.092 (+0.033) | 0.908 | 1.03; 1/30 | +0.171 / +0.140 (30) |
+| 5 | T1 p 0.1 | ×1.151 [1.136, 1.166] | ×1.136 | 0/30 | ×1.174 (30) | 13.2% (−29.8) | 0.099 (+0.040) | 0.901 | 1.00; 0/30 | +0.680 / +0.732 (30) |
+| 5 | T1 p 1.0 | ×1.167 [1.152, 1.181] | ×1.174 | 0/30 | ×1.174 (30) | 14.4% (−19.9) | 0.086 (+0.028) | 0.914 | 1.00; 0/30 | −0.033 / −0.040 (30) |
+| 5 | T2 ill decide | ×1.252 [1.234, 1.269] | ×1.250 | 0/30 | ×1.261 (30) | 20.4% (−26.0) | 0.108 (+0.049) | 0.893 | 1.03; 1/30 | +0.225 / +0.252 (30) |
+| 5 | T3 no home | ×1.108 [1.096, 1.120] | ×1.108 | 0/30 | ×1.130 (30) | 9.6% (−19.9) | 0.077 (+0.019) | 0.923 | 1.00; 0/30 | +0.091 / +0.091 (30) |
+
+*Predictions (Max) vs outcome (facts against each; no verdict beyond the stated direction):*
+- T1 p = 0.1 milder: peak reduction lower than baseline for 5/5 rules; final S lower for rules
+  1–3, slightly higher for rules 4 (0.076 vs 0.075) and 5 (0.099 vs 0.092); stretch lower for
+  rules 1, 3, 4, 5, higher for rule 2 (×1.263 vs ×0.986, larger epidemics: attack 0.071 vs 0.018).
+- T1 p = 1.0 somewhat stronger: peak reduction higher for rules 1–4, lower for rule 5 (14.4 vs
+  15.1%); final S higher for rules 1–2, lower for rules 3–5; stretch higher for rules 1, 3, 4,
+  lower for rules 2 and 5.
+- T2 stronger suppression for every rule: **peak reduction and final S higher for 5/5 rules.**
+  Gain in final S: rule 1 +0.158, rule 3 +0.077, rule 5 +0.016, rule 2 +0.009, rule 4 +0.006;
+  gain in peak reduction (points): 1 +14.3, 3 +9.9, 5 +5.3, 4 +1.8, 2 +0.5 (rule 2 starts at
+  97.7%). So the largest gains are rules 1 and 3, not rule 2.
+- T3 milder: **peak reduction and final S lower for 5/5 rules.** Rule 2 changes most (peak
+  reduction 97.7 → 71.4%, final S 0.983 → 0.383), and its stretch becomes the largest measured
+  in this project (×2.849, 30/30 runs > ×1.5).
+- Death responsiveness (not predicted): at p = 0.1, rules 4 and 5 rise to +0.627 / +0.680 (from
+  +0.262 / +0.171); at p = 1.0 they fall to +0.110 / −0.033.
 
 ## D. Reversals and corrections
 
