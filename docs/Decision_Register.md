@@ -78,6 +78,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A62 | **Pilot criteria (i)–(iv) in E6 APPROVED** | [Decision, planning chat (Max), Oct 2026] |
 | A63 | **LLM for arms 2 and 3 (A50): Claude Haiku 5.5, API model string `claude-haiku-5-5`.** Verified 10 Oct 2026 in Anthropic's official docs (platform.claude.com, "Models overview": Claude API ID and alias both `claude-haiku-5-5`, a pinned snapshot; retirement not sooner than 7 Oct 2027). **Price, standard API, 10 Oct 2026: $0.10 / M input tokens, $0.50 / M output tokens** (official "Pricing" page; this tier applies to prompts up to 100,000 tokens — over 100,000 it is $0.50 / $2.50; Batch API is 50% off). Not called yet | [Decision, planning chat (Max), 10 Oct 2026] **Flagged, not decided:** Haiku 5.5 runs adaptive thinking by default (default effort `medium`), and thinking tokens are billed as output, so the effort / thinking setting must be fixed before the pilot and frozen with the prompt (A54) |
 | A64 | **Reply parsing (amends A56/A61):** a reply "A=a, B=b, C=c" with whole numbers ≥ 0 is valid if 98 ≤ a + b + c ≤ 102; it is then rescaled to sum to 100 (probabilities a/(a+b+c), b/(a+b+c), c/(a+b+c)). Outside 98–102 it is invalid and handled by A61 (retry up to 2 times, then keep `current_action`) | [Decision, planning chat (Max), 10 Oct 2026] Replaces the draft's "must sum to exactly 100" |
+| A65 | **LLM request settings for arms 2 and 3 (identical in both):** model `claude-haiku-5-5` (A63); **thinking OFF via the Messages API parameter `thinking: {"type": "disabled"}`** (docs: accepted on Claude Haiku 5.5 at effort `low`, `medium`, `high`; returns 400 at `xhigh`/`max`); `output_config.effort` NOT sent, so the API default applies (`medium` on Claude Haiku 5.5, docs); **`temperature`, `top_p`, `top_k` NOT sent, so the API default applies: temperature = 1** (docs: on Claude Haiku 5.5 any non-default sampling value returns 400 — temperature must be 1, top_p 0.99). No system prompt; the rendered prompt is the single user message. Arm-2 calls use `max_tokens` = 1024 (implementation cap so a reply cannot be cut off; arm 3's cap is set when arm 3 is built, since it returns code). **Pilot comparison only (not a production setting):** thinking ON = `thinking: {"type": "adaptive"}`, effort default, `max_tokens` 16000 | [Decision, planning chat (Max), 10 Oct 2026] Reasoning tokens are billed as output and could multiply arm 2's cost; the same setting must apply to arms 2 and 3. Noted from the docs, not acted on: the migration guide recommends lowering effort rather than disabling thinking on Claude Haiku 5.5 |
 
 ## B. Sources — extraction status
 
@@ -1425,6 +1426,128 @@ measured with the token-counting endpoint (an API call, not yet made). Thinking 
 flag) are not included in any figure. At A63's prices, 90 runs with E19: input $72–$187
 (3.59M–4.63M calls × 200–404 tokens × $0.10/M), output $18–$35 (10–15 tokens × $0.50/M),
 before thinking and retries.
+
+*Measured (10 Oct 2026, token-counting endpoint `messages.count_tokens`, model
+`claude-haiku-5-5`, `thinking: {"type": "disabled"}`; no generation; `results/step4/pilot_token_counts.{json,log}`).*
+The 10 C34 pilot prompts (1,013–1,032 characters, 198–202 words): **356–366 input tokens each
+(10/10)**; the typical case (rising deaths, aged 70–79) is **361**. The estimates above were
+low: characters / 4 and words × 1.33 gave ~255–265; the docs' ~2.5 characters per token gave
+~400–410. At 361 tokens and A63's price, input for 90 runs with E19 is $129.6 (control
+reference, 3,588,962 calls) to $167.2 (arm-1 reference, 4,630,971 calls); output per call is
+measured in C34.
+
+**C34 — Arm-2 prompt pilot (E6; criteria A62; settings A65). PRE-REGISTRATION, written before
+any generation call.** `experiments/step4_pilot.py`; situations
+`results/step4/pilot_situations.{json,log}`. Template: `prompts/DRAFT_arm2_arm3.md` section 1,
+read verbatim by the script and asserted equal to the renderer's.
+
+*Situations (10), all from ONE run:* arm 1 (`CBFArm1`) in `run_shared_world`, S1, seed 0,
+foundation (N=3,000, per-agent f_D, window 28, detection 0.7). Death signal values are the run's
+`awareness_signal` (28-day mean of reported deaths), `deaths_28day_mean_7d_ago` = the signal 7
+days earlier (0 before day 7), `deaths_cumulative` = reported deaths before the day,
+`social_norm` = the run's start-of-day value. Day rules (fixed before looking at any reply):
+before = day 0; early rising = first day the signal reaches 25% of its peak; peak = first day
+of the maximum (signal rounded to 6 decimals); rising/falling = first day on each side of the
+peak at the matched level, chosen among levels taken on both sides as the one nearest 50% of
+the peak (ties → lower). Peak signal 0.35; matched level 0.15.
+
+| id | day | deaths_28day_mean | …_7d_ago | deaths_cumulative | social_norm | rendered deaths (past 4 wk / up to a week ago / total) | rendered "normally" |
+|---|---|---|---|---|---|---|---|
+| before | 0 | 0.0000 | 0.0000 | 0.0 | 0.9967 | 0 / 0 / 0 | 100% |
+| early_rising | 30 | 0.1000 | 0.0304 | 2.8 | 0.5767 | 3 / 1 / 3 | 58% |
+| rising | 34 | 0.1500 | 0.0519 | 4.2 | 0.5817 | 4 / 1 / 4 | 58% |
+| peak | 53 | 0.3500 | 0.2250 | 11.2 | 0.8057 | 10 / 6 / 11 | 81% |
+| falling | 89 | 0.1500 | 0.2000 | 17.5 | 0.8637 | 4 / 6 / 18 | 86% |
+
+Each row is asked for a **young** agent (age_band 2, 20–24; vulnerability 0.000309 → "about 3 in
+10,000") and an **old** agent (age_band 8, 70–79; vulnerability 0.0428 → "about 4 in 100").
+Identical in all 10 situations: occupation_flex 0.4101759 (renders 4), response_efficacy
+0.7954036 (renders 8) — both are the real values of the first band-2 agent of the frozen
+population (index 667); **for the old agent this occupation_flex departs from band 8's fixed
+1.0**, because no band-2 agent has occupation_flex ≥ 0.95 and the pair must be identical;
+current_action "normal" (kept constant so phases differ only in the death/social fields);
+population 3,000. Note, measured: social_norm is LOWER while deaths are rising (58%) than at
+the peak or falling (81–86%), because CBF's (S_normal + R)/N excludes the many E and I agents
+mid-epidemic.
+
+*Calls:* each situation 3× with thinking OFF (A65) and 1× with thinking ON (`{"type":
+"adaptive"}`, comparison only). Reply rule A64; retries A61 (up to 2). Cost guard: stop if
+spending passes $2. Projected worst case (every decision retried twice; every reply at
+`max_tokens`): $0.29; expected well under $0.01.
+
+*Scoring (fixed before calling).* Caution c = P(stay_home) + P(precautions) = 1 − P(normal), per
+valid reply; per situation the mean over its valid thinking-OFF replies (denominator reported;
+fallback replies have no probabilities and are excluded). Strict comparisons of means, no
+tolerance; "at least as" passes on ties.
+- (i) PASS if c(peak) > c(before) for both the young and the old agent.
+- (ii) PASS if c(old) ≥ c(young) in all 5 phases.
+- (iii) PASS if c(rising) ≥ c(falling) for both agents (same 4-week death total, 4).
+- (iv) PASS if all 30 thinking-OFF replies are valid at the first attempt.
+Also reported, not scored: P(stay_home) for the same comparisons; the spread (SD) of the 3
+repeats; thinking ON vs OFF.
+
+*Predictions (Claude Code), [Speculation]:* (i) PASS, high confidence. (ii) PASS, medium — the
+"before" pair may tie or reverse by noise. (iii) uncertain (~60% PASS, low confidence): the
+rising situation has the rising trend (4 vs 1) and fewer people "going about normally" (58% vs
+86%), but the falling one has more total deaths (18 vs 4). (iv) PASS, high confidence. Thinking
+ON: more output tokens per call (tens to hundreds of thinking tokens), similar probabilities.
+
+**C34 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step4_pilot.py
+--run` then `--score`; `results/step4/pilot_replies.json`, `pilot_scores.{json,log}`,
+`pilot_run.log`. Served model `claude-haiku-5-5` on all 40 calls (service tier standard,
+inference_geo global). Wall 55 s. **Total cost $0.00278** (thinking OFF $0.00128, ON $0.00150).
+
+*Validity:* 40/40 decisions valid at the first attempt (30/30 OFF, 10/10 ON); 0 retries; 0
+fallbacks; every stop_reason `end_turn`; every reply summed to exactly 100.
+
+*Tokens per call:* OFF: input 356–366 (equal to the C33 counts for the same prompt), output 13
+(`output_tokens_details.thinking_tokens` = 0), no thinking block. ON: input 358–368 (+2), output
+175–286, of which thinking 162–273 (sum 2,140 over 10 calls) and answer 13; one thinking block
+per reply. Cost per call: OFF $0.0000427 (mean), ON $0.000150 (mean), 3.5×.
+
+*Replies, thinking OFF (A=stay home, B=precautions, C=normal), three repeats; caution c = 1 −
+P(normal):*
+
+| situation | repeat 1 | repeat 2 | repeat 3 | mean c (SD) | mean P(stay home) | thinking ON (1 reply) | ON c |
+|---|---|---|---|---|---|---|---|
+| before, young | 10/60/30 | 10/50/40 | 10/60/30 | 0.667 (0.058) | 0.100 | 5/30/65 | 0.350 |
+| before, old | 20/60/20 | 15/60/25 | 20/55/25 | 0.767 (0.029) | 0.183 | 12/44/44 | 0.560 |
+| early rising, young | 10/45/45 | 10/45/45 | 10/45/45 | 0.550 (0.000) | 0.100 | 15/45/40 | 0.600 |
+| early rising, old | 15/50/35 | 20/50/30 | 20/50/30 | 0.683 (0.029) | 0.183 | 8/50/42 | 0.580 |
+| rising, young | 10/50/40 | 10/45/45 | 10/45/45 | 0.567 (0.029) | 0.100 | 5/30/65 | 0.350 |
+| rising, old | 18/52/30 | 12/48/40 | 18/52/30 | 0.667 (0.058) | 0.160 | 12/38/50 | 0.500 |
+| peak, young | 10/60/30 | 10/55/35 | 12/50/38 | 0.657 (0.040) | 0.107 | 12/38/50 | 0.500 |
+| peak, old | 20/55/25 | 20/55/25 | 20/55/25 | 0.750 (0.000) | 0.200 | 8/44/48 | 0.520 |
+| falling, young | 10/50/40 | 10/50/40 | 10/50/40 | 0.600 (0.000) | 0.100 | 10/45/45 | 0.550 |
+| falling, old | 25/50/25 | 25/50/25 | 20/55/25 | 0.750 (0.000) | 0.233 | 10/35/55 | 0.450 |
+
+n = 3/3 valid OFF replies per situation; n = 1/1 ON.
+
+*Criteria (thinking OFF, pre-registered scoring):*
+- **(i) FAIL.** c(peak) < c(before) for both agents: young 0.657 vs 0.667; old 0.750 vs 0.767.
+- **(ii) PASS.** c(old) > c(young) in 5/5 phases (differences +0.100, +0.133, +0.100, +0.093,
+  +0.150). P(stay home) old ≥ young in 5/5 as well.
+- **(iii) FAIL.** c(rising) < c(falling) for both agents: young 0.567 vs 0.600; old 0.667 vs
+  0.750.
+- **(iv) PASS.** 30/30 OFF replies valid at the first attempt.
+
+Range of mean c over the 10 OFF situations: 0.550–0.767; the young agent's is 0.550–0.667, the
+old agent's 0.667–0.767. Repeat-to-repeat SD of c: 0.000–0.058.
+
+*Thinking ON vs OFF (information only, 1 ON reply per situation):* ON c is lower than OFF mean
+c in 9/10 situations (early rising, young: 0.600 vs 0.550 is the exception); mean ON − OFF
+difference −0.170. Applying the same criteria to the single ON replies: (i) peak > before for
+the young agent (0.500 vs 0.350), not for the old (0.520 vs 0.560); (ii) old ≥ young in 3/5
+phases; (iii) rising ≥ falling for the old agent (0.500 vs 0.450), not the young (0.350 vs 0.550).
+
+*Predictions vs outcome:* (i) "PASS, high confidence" — **FAIL**. (ii) "PASS, medium" — PASS.
+(iii) "uncertain, ~60% PASS" — FAIL. (iv) "PASS, high confidence" — PASS. Thinking ON "more
+output tokens (tens to hundreds), similar probabilities" — 162–273 thinking tokens; caution
+lower by 0.170 on average.
+
+*Cost at measured per-call figures (computed):* arm 2 with thinking OFF at $0.0000427 per call
+× C32's E19 call counts → $153 (control reference) to $198 (arm-1 reference) for 90 runs,
+before retries. The prompt wording was NOT changed.
 
 ## D. Reversals and corrections
 
