@@ -1645,6 +1645,111 @@ both — **wrong** for the young agent (0.617 = 0.617), right for the old (0.800
 c(N90) for both — **wrong** for both (young 0.600 vs 0.683, old 0.750 vs 0.767). Old > young in
 ≥ 13/15 — correct (15/15). 90/90 valid first — correct.
 
+**C36 — Arm-2 prompt pilot v3: format and model DIAGNOSTIC. PRE-REGISTRATION, written before
+any generation call.** [Design: planning chat (Max), 10 Oct 2026.] Diagnostic only: the frozen
+template (`prompts/DRAFT_arm2_arm3.md`), the model decision (A63) and A65 are NOT changed.
+`experiments/step4_pilot_v3.py`; situations `results/step4/pilot_v3_situations.{json,log}`.
+
+*Situations (10):* C35's base situation (day 60; social_norm 0.85; flat deaths; deaths_cumulative
+= 4-week total + 5; current_action normal; population 3,000) at Test D levels **0, 3, 12, 50,
+100** deaths in four weeks (C35's D0, D3, D12, D50, D100), each for the young (band 2) and old
+(band 8) agent of C34/C35 (occupation_flex 0.4101759, response_efficacy 0.7954036). The
+percentage prompts are byte-identical to C35's.
+
+*Versions:*
+| version | model | answer format | calls per situation | decisions |
+|---|---|---|---|---|
+| V1 | `claude-haiku-5-5` | one letter | 10 | 100 |
+| V2 | `claude-sonnet-5-5` | percentages (frozen template) | 3 | 30 |
+| V3 | `claude-sonnet-5-5` | one letter | 10 | 100 |
+
+*Letter prompt — exact wording:* the rendered percentage prompt with only its last two lines
+("Give the probability, in percent, that you choose each option. Use whole numbers that add up
+to 100. Reply in exactly this form and nothing else:" / "A=<number>, B=<number>, C=<number>")
+replaced by the single line **"Answer with a single letter: A, B or C."** Everything above it is
+unchanged. Letter reply rule (fixed before calling): valid if the reply, stripped, is one of A,
+B, C, optionally followed by "." or ")" (regex `^\s*([ABC])\s*[.)]?\s*$`); otherwise invalid
+and retried as A61 (up to 2). Percentage replies: A64 as before.
+
+*Model check (10 Oct 2026, official docs, platform.claude.com "Models overview", "Claude Sonnet
+5.5", "Pricing", "What's new in Claude Sonnet 5.5"):* Claude Sonnet 5.5, Claude API ID and alias
+`claude-sonnet-5-5` (pinned snapshot; released 28 Sep 2026; retirement not sooner than 28 Sep
+2027). Price $2 / M input, $10 / M output tokens (Batch 50% off). Default effort `high` (Haiku
+5.5: `medium`). Non-default temperature / top_p / top_k return 400. **On Claude Sonnet 5.5
+`thinking: {"type": "disabled"}` returns 400; its thinking-off setting is `thinking: {"type":
+"between_tools"}`** ("the lowest thinking setting on this model"; accepted at low/medium/high
+effort; "If your requests don't use tools, the response contains only text, as with `disabled`
+on Claude Sonnet 5").
+
+*Request settings:* Haiku as A65 (`thinking: {"type": "disabled"}`). Sonnet: `thinking:
+{"type": "between_tools"}`. Both: effort, temperature, top_p, top_k NOT sent (API defaults, as
+A65), so **the two models also differ in default effort (Haiku medium, Sonnet high)** — a
+recorded confound of this diagnostic. max_tokens 1024. No system prompt.
+
+*Tokens (count_tokens endpoint, no generation; `results/step4/pilot_v3_token_counts.log`):*
+percentage prompts 358–363, letter prompts 309–314, identical on both models.
+*Cost:* projected about $0.09 (V1 ~$0.003, V2 ~$0.026, V3 ~$0.065). Guard: stop if spending
+passes $2.
+
+*Reported:* per version and situation, caution = share of replies not choosing C (letter) or
+mean 1 − P(normal) (percentages), and stay-home share (letter: share choosing A; percentages:
+mean P(stay home)); counts of A/B/C; SD for percentages; validity, retries, tokens, cost. No
+pass/fail criteria.
+
+*Predictions (Claude Code), [Speculation]:*
+- V1 (Haiku, letter): B is the most frequent letter in every situation; C (normal) is chosen in
+  ≤ 10% of the 100 replies, so letter caution is ≥ 0.9 nearly everywhere and shows no death
+  trend (medium). A is chosen more by the old agent than the young (medium-low).
+- V2 (Sonnet, percentages): more sensitive to deaths than Haiku: c(D100) − c(D0) ≥ 0.10 for both
+  agents (low confidence, ~55%). Young agent's c at D0 lower than Haiku's 0.683 (low).
+- V3 (Sonnet, letter): the young agent picks C in at least half of the D0 replies (low, ~50%);
+  the old agent picks C in fewer than 3/10 at every level (medium).
+- Validity: V1 100/100 valid first (medium-high); V2 30/30 (high); V3 ≥ 95/100 (medium).
+
+**C36 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step4_pilot_v3.py
+--run` then `--score`; `results/step4/pilot_v3_replies.json`, `pilot_v3_scores.{json,log}`,
+`pilot_v3_run.log`. 230/230 decisions completed; wall 255 s. Served models as requested on every
+call; every stop_reason `end_turn`; 0 thinking blocks in any reply. **Cost: V1 $0.00327, V2
+$0.02913, V3 $0.06982; total $0.10221.**
+
+*V1 — Haiku, one letter (10 per situation):* **B in 100/100 replies** (all 10 situations
+A/B/C = 0/10/0). Caution share 1.000 and stay-home share 0.000 in every situation. 100/100 valid
+first; 0 retries; output 3 tokens per call; input 309–314.
+
+*V3 — Sonnet, one letter (10 per situation):* **B in 100/100 final replies** (all 10
+situations 0/10/0). Caution share 1.000, stay-home share 0.000 everywhere. 98/100 valid at the
+first attempt; 2 retries (both D100_young; both invalid replies were a paragraph of reasoning
+ending in "B" — one says "the data are somewhat inconsistent (100 deaths in the past four weeks
+but 105 total…)"); 0 fallbacks. Output 3 tokens on valid replies, up to 165 on the invalid ones.
+
+*V2 — Sonnet, percentages (3 per situation; A/B/C; n = 3/3 valid final replies each):*
+
+| level | young replies | young c (SD) | young P(stay) | old replies | old c (SD) | old P(stay) |
+|---|---|---|---|---|---|---|
+| D0 | 5/40/55 5/40/55 5/35/60 | 0.433 (0.029) | 0.050 | 10/55/35 ×3 | 0.650 (0.000) | 0.100 |
+| D3 | 5/40/55 5/35/60 5/35/60 | 0.417 (0.029) | 0.050 | 12/58/30 10/60/30 15/60/25 | 0.717 (0.029) | 0.123 |
+| D12 | 10/45/45 10/40/50 10/40/50 | 0.517 (0.029) | 0.100 | 20/55/25 15/55/30 20/55/25 | 0.733 (0.029) | 0.183 |
+| D50 | 10/45/45 10/40/50 10/45/45 | 0.533 (0.029) | 0.100 | 15/60/25 20/60/20 20/60/20 | 0.783 (0.029) | 0.183 |
+| D100 | 10/40/50 10/45/45 10/35/55 | 0.500 (0.050) | 0.100 | 25/50/25 20/55/25 20/50/30 | 0.733 (0.029) | 0.217 |
+
+29/30 valid at the first attempt; 1 retry (D50_old: a paragraph of reasoning, which says the
+death figures "are inconsistent", ending in "A=20, B=65, C=15"; the retry was valid); 0
+fallbacks. Output 13 tokens on valid replies (288 on the invalid one); input 358–363.
+c(D100) − c(D0): young +0.067, old +0.083. Range of c: young 0.417–0.533, old 0.650–0.783.
+P(stay home) does not decrease from one level to the next for either agent (young 0.050 →
+0.100; old 0.100 → 0.217).
+
+*Same prompts on Haiku (C35, percentages, 3 repeats), for comparison:* young c 0.683 / 0.667 /
+0.617 / 0.700 / 0.683 at D0 / D3 / D12 / D50 / D100; old 0.733 / 0.767 / 0.750 / 0.767 / 0.750.
+c(D100) − c(D0): young 0.000, old +0.017.
+
+*Predictions vs outcome:* V1 B most frequent everywhere — correct (100/100). V1 C ≤ 10% —
+correct (0/100). V1 A more for old than young — **wrong** (0 and 0). V2 c(D100) − c(D0) ≥ 0.10
+for both — **wrong** (+0.067, +0.083). V2 young D0 c below Haiku's 0.683 — correct (0.433). V3
+young picks C in ≥ half of D0 replies — **wrong** (0/10). V3 old picks C < 3/10 at every level —
+correct (0/10 each). Validity: V1 100/100 — correct; V2 30/30 — **wrong** (29/30); V3 ≥ 95/100 —
+correct (98/100).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
