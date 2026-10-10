@@ -8,8 +8,13 @@ yet -- the renderer is explicitly out of scope for this module, Design_Spec Sec 
 P2: arms differ in which fields their decision FUNCTION uses, never in which fields they are
 shown (CLAUDE.md hard constraint 2/3).
 P4: agents never read their own latent compartment or any unpublished population quantity
-(CLAUDE.md hard constraint 5) -- `own_health` is the published observation, not the true SEIR
-state.
+(CLAUDE.md hard constraint 5).
+
+own_health is NOT a field of the main-design vector (register A43): ill agents do not decide
+(A38) and recovered agents do not decide (A42), so every deciding agent is never_ill and the
+field would be constant. The observation model and its type are kept -- `OwnHealth` below and
+`shared_world.own_health_of` -- because the field returns if ill agents are later allowed to
+decide (register E21, variant A).
 
 This module defines the SHAPE only. Nothing here computes a Perception from a running
 simulation -- that is the (not-yet-built) rendering/arm layer, and two of the fields below
@@ -19,7 +24,11 @@ definitions are still open (see field notes and the report accompanying this bui
 from dataclasses import dataclass
 from typing import Literal
 
+# Kept for variant A (E21); not a field of the main-design Perception (A43). Observation model
+# (Design_Spec Sec 2a): true S or E -> "never_ill" (E collapses deliberately), I ->
+# "currently_ill", R -> "recovered".
 OwnHealth = Literal["never_ill", "currently_ill", "recovered"]
+Action = Literal["stay_home", "precautions", "normal"]
 
 
 @dataclass(frozen=True)
@@ -28,16 +37,11 @@ class Perception:
 
     Every field is sourced or explicitly flagged where it is not (Design_Spec Sec 2's
     field-justification table). An agent in H or D does not decide, so no Perception is ever
-    constructed for that state (Design_Spec Sec 2a).
+    constructed for that state (Design_Spec Sec 2a). Since register A38/A42, agents in I
+    ("currently_ill") and R ("recovered") do not decide either, in any arm.
     """
 
     # ---- dynamic: recomputed each decision ----
-
-    own_health: OwnHealth
-    # Observation model (Design_Spec Sec 2a, [Unsourced] but fully specified, not a free
-    # parameter): true S or E -> "never_ill" (E collapses into "never_ill" deliberately --
-    # CLAUDE.md hard constraint 5, since a not-yet-infectious agent has no symptoms to notice);
-    # true I -> "currently_ill"; true R -> "recovered".
 
     deaths_28day_mean: float
     # Reported deaths/day, 28-day rolling mean, raw count (not per-capita). Smoothing sourced
@@ -61,9 +65,17 @@ class Perception:
     # exist in src/model.py's well-mixed disease model (register A5/C15) -- cannot be correctly
     # populated until that structure (or an explicit decision to drop this field) exists.
 
+    current_action: Action
+    # The agent's own current action in the shared world (register A37/A40): one of
+    # "stay_home" / "precautions" / "normal". Offered to every arm; arm 1 (CBF) ignores it
+    # because CBF keeps its S/S^B state internally. Without it a re-asked LLM has no memory of
+    # its current choice. Not sourced from either paper -- it is world state, not a determinant.
+
     social_norm: float
-    # [0,1] fraction of the population currently taking precautions. Sourced: CBF's relaxation
-    # term (S+R)/N.
+    # [0,1] CBF's exact relaxation term (S_normal + R) / N (register A44): susceptibles acting
+    # normal plus all recovered agents, over N (the dead stay in N). Staying home does not count
+    # as normal; recovered count as normal. It is NOT "the fraction taking precautions" -- see
+    # A44 for what this means for the arm-2 wording.
 
     # ---- static: fixed once at population construction, frozen for the agent's lifetime ----
 

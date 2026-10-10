@@ -36,7 +36,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A20 | Integration: **48 sub-steps per day** (revised from 12 — see C9) | Gozzi's own default (`daily_steps=12` — verified in their source: `compartment_model_age_deaths.py`, `function_model_age_deaths.py`, `mobility_model_age.py`, all `dt=1/12`) is insufficient for this model's precision; see C9 |
 | A21 | Initial infected: **10 agents** (0.33% at N=3,000) | D8 — a 1% seed removes the exponential growth phase entirely |
 | A22 | Repo `fyp-abm` is the build artefact; `docs/` holds the four specs and is authoritative | Claude Code sessions read `CLAUDE.md` + `docs/` |
-| A23 | "Stay home" is **two-sided**: an agent who stays home neither catches nor spreads that day, so the population multiplier is (1−q)² | Formalises the assumption already baked into `q = 1 − (1+(δ/δ_c)^k)^(−1/2)` (CLAUDE.md Test 2 / Sourcing_Pack_v3.md's "Test 3" open point) — recorded as decided, not just assumed |
+| A23 | "Stay home" is **two-sided**: an agent who stays home neither catches nor spreads that day, so the population multiplier is (1−q)² | Formalises the assumption already baked into `q = 1 − (1+(δ/δ_c)^k)^(−1/2)` (CLAUDE.md Test 2 / Sourcing_Pack_v3.md's "Test 3" open point) — recorded as decided, not just assumed. **Scope note (A39):** in the shared world (A37) its "does not spread" half never acts, because ill agents do not decide (A38); A23 still governs Weitz-rule validation (Test 2) |
 | A24 | Awareness signal **stays the 28-day rolling mean** (A8 reaffirmed). Gozzi's literal one-day (yesterday's deaths) signal is **rejected** | [Decision, planning chat (Max), C23] With the real CBF mechanism at N=3,000 the one-day signal fails mean-field agreement: 17.07% relative error, −9.13 SEM (90 seeds). Supersedes C16's `direct-g`-based evidence for the same question |
 | A25 | Death reporting: **detection_rate = 0.7 applied as a plain multiplier on realised deaths, NO integer truncation** | [Decision, planning chat (Max), C23] Deliberate deviation from Gozzi's code (`compartment_model_age_deaths.py:152`, `.astype(int)` per age group per day). At N=3,000 the truncation leaves agents seeing 6.7% of realised deaths instead of 70%, peak S^B falls from ~567 to 89, and behaviour fails pass mark (a). Treated as a city-scale bookkeeping artefact, not mechanism. Sourcing Pack v3 (observation-model section) records the formula as detection_rate x Binomial(...) without truncation; this has not been checked against the paper's text. Detection affects only what agents perceive, never recorded deaths. No Δ delay added (H/T_H already supplies it) |
 | A26 | Mortality: **per-agent f_D = IFR_10age[age_band]** (population mean 0.009718), replacing A2's flat 0.01 for the model runs | [Decision, planning chat (Max), C23] Gozzi's age-based IFR adopted; the DDE reference uses the population-weighted mean, exact in expectation while r is shared (C23) |
@@ -50,6 +50,15 @@ Last updated: after the shape-metric investigation and the N decision.
 | A34 | **Reporting scale: STRETCH FACTOR** = arm duration ÷ own-control duration (same scenario, same seeds). ×1 = no flattening. Weitz's plateau (K1/K2) is a reference marker of **≥ ×20** (a lower bound, truncated at 600 days), NOT the top of the scale. Always reported alongside peak reduction: longer + lower = flattening; longer + same peak = likely separate waves. **No pass/fail threshold** | [Decision, planning chat (Max), C29] K1 ODE T10–90 23 → 461 d; K2 averaged 23 → 477 d, both truncated at day 600 |
 | A35 | **Truncation rule:** M3 is valid for a config only if every run has E+I = 0 by day 600. Otherwise the config is flagged **TRUNCATED** and its M3 is not reported as a duration | [Decision, planning chat (Max), C29] C29's behaviour cases were all still active at day 600, so M3 there partly measures the window |
 | A36 | **Stretch-factor reporting rule:** the stretch factor (A34) is always reported with its **median per-seed ratio** and the **share of runs with stretch > ×1.5**, alongside the mean | [Decision, planning chat (Max), C30] C30's S2 mean (×1.24) was driven by 4/30 runs (one at 311 d vs a control maximum of 52 d); its median per-seed ratio was ×0.964 |
+| A37 | **One shared world for all arms (B1, option 2).** Three actions — stay home / precautions / normal — with the same physics for every arm. Arm 1 = CBF unchanged: S^B = "precautions", S = "normal"; arm 1 never chooses "stay home" | [Decision, planning chat (Max), 7 Oct 2026] In CBF's own two-state world the lowest transmission multiplier is r = 0.5, so at R₀ = 3 no decision rule can hold effective R near 1 while most people are susceptible (3 × 0.5 = 1.5): the Weitz signature would be unreachable in S1/S3 for every arm. Implemented as `src/shared_world.py` `run_shared_world` (C31) |
+| A38 | **Who decides (variant "B"):** agents with own_health = `currently_ill` do NOT decide in ANY arm; they act "normal", as in Gozzi (infected agents have no behavioural state). H and D agents do not decide (Design_Spec §2a, unchanged). The only remaining difference between arm 1 and arms 2–4 in what is available: stay home exists and arm 1 never uses it. **Planned measured extension (not now):** arm 3 run with and without ill agents deciding | [Decision, planning chat (Max), 7 Oct 2026] Whether **recovered** agents decide is NOT decided here (reported, E20) |
+| A39 | **Action physics (B2).** "Precautions" = CBF's S^B effect: one-sided (reduces the agent's own infection risk only), flat r = 0.5, consistent with A29. "Stay home" = the agent cannot be infected while staying home. Susceptible hazard per sub-step = β·(I/N)·m, m = 1 / 0.5 / 0 for normal / precautions / stay home. **Relationship to A23 (not overwritten):** A23 defines stay home as two-sided (neither catches nor spreads). Because ill agents do not decide (A38), no infectious agent ever stays home in the shared world, so A23's "does not spread" half never acts there; in practice stay home is one-sided for every agent who can choose it. A23 continues to govern Weitz-rule simulator validation (`run_weitz_behaviour`, Test 2), where every agent draws stay-home. If the A38 extension lets ill agents decide, whether their stay-home blocks transmission (A23) must be decided then | [Decision, planning chat (Max), 7 Oct 2026] r = 0.5: Gozzi demo value (C13), flat per A29 |
+| A40 | **New Perception field `current_action`** (the agent's current action: stay_home / precautions / normal), offered to all arms. Arm 1 ignores it (CBF keeps its S/S^B state internally) | [Decision, planning chat (Max), 7 Oct 2026] Without it a re-asked LLM has no memory of its current choice. Added to `src/perception.py` (shape only; no renderer yet) |
+| A41 | **Re-decision cadence (B3): p = 0.3/day kept PROVISIONALLY for arms 2–4, still UNSOURCED** (Sourcing_Pack_v3 Part 4 lists it as unsourced). Arm 1 keeps CBF's continuous per-sub-step rates. The cadence sweep (E2) will use **arm 3** once built, not a stand-in rule | [Decision, planning chat (Max), 7 Oct 2026] Stand-in rules misled this project three times (δ(t) definition, CBF lag, direct-g vs real S/S^B; CLAUDE.md) |
+| A42 | **Recovered agents do not decide; they act "normal"** (E20 resolved, option (i)). Together with A38, only agents whose own_health is `never_ill` (true S or E) ever decide | [Decision, planning chat (Max), 10 Oct 2026] Matches CBF, whose relaxation term μ_B·(S+R)/N counts R as normal. A recovered agent's action has no physical effect (immune, not infectious) and would cost arm-2 calls |
+| A43 | **`own_health` is dropped from the main-design Perception vector, but kept in the code.** Consequence of A38 + A42: every deciding agent is `never_ill`, so the field is constant and carries no information. Kept: the observation model (`shared_world.own_health_of`, used by the world for eligibility) and the `OwnHealth` type in `src/perception.py`, because the field is needed again if ill agents are later allowed to decide (E21). The main-design vector now has 12 fields: 10 decision fields (own_health out, current_action in) + population, day. What this changes in docs/ is listed in C31's report; the specs are NOT yet edited | [Decision, planning chat (Max), 10 Oct 2026] Ablation = removing a field from the dataclass (CLAUDE.md constraint 3), so the field is removed from the dataclass rather than hidden from one arm |
+| A44 | **`social_norm` = CBF's exact relaxation term (S_normal + R) / N.** Denominator N (the dead stay in it); susceptibles acting normal count; staying home does NOT count as normal; recovered count as normal. Arm 1's relaxation rate is μ_B × this same quantity, so arm 1's one social input and the field arms 2–4 see are identical. Implemented in `run_shared_world` (start-of-day value, `social_norm` series) | [Decision, planning chat (Max), 10 Oct 2026] **Flagged, not resolved:** (1) the value is a share of people NOT taking precautions, the opposite of the current wording "fraction taking precautions" (Design_Spec §2, Sourcing_Pack 3e, the §4 sketch "About 34% of people are currently taking precautions"); (2) 1 − value is not "the share taking precautions" either: it also contains E, I, H, D and stay-home agents; (3) it leaves out E and I agents, who mostly act normal (I always, A38), so "X% are going about normally" undercounts by E+I_normal, largest near the peak; (4) it depends on the S/E split, a latent-compartment quantity no real person could observe (allowed by P4's wording, since CBF publishes it, but in tension with the spirit of constraint 5); (5) an accurate one-line LLM wording does not exist yet — the renderer must choose one deliberately (E6) |
+| A45 | **A38 stays the MAIN design** (ill agents do not decide in any arm). **Considered and NOT adopted:** a fixed ill-isolation rule as part of the WORLD (identical in all arms and in the control). Reason: no sourced isolation probability was found; it would change the no-behaviour baseline; and it departs from Gozzi, whose behaviour applies to healthy agents only. The variant where ill agents may decide is a planned measured extension (E21); the limitation is recorded in section F | [Decision, planning discussion (Max), 10 Oct 2026] |
 
 ## B. Sources — extraction status
 
@@ -1186,6 +1195,80 @@ both truncated at 600 d, C29). All arm-1 stretch factors are between ×1.006 and
 
 Not decided here: which metric "wins", or what arm 1's score means for the project.
 
+**C31 — Step 4: shared-world checks (A37–A45). PRE-REGISTRATION, written before any timing or
+check run; amended 10 Oct 2026 before running (see "Amendments" below).** Code: `src/shared_world.py` (`run_shared_world`, `CBFArm1`, `AlwaysNormal`,
+`ForcedPrecautions`, `ForcedStayHomeFraction`), `experiments/step4_shared_world_checks.py`, output
+`results/step4/checks.{json,log}`. Prior evidence, stated so it is not mistaken for a prediction:
+`tests/test_shared_world.py` already passed bit-identity on small cases before this entry was
+written (AlwaysNormal vs `run()`, N=2,000, 3 seeds × 200 days; CBFArm1 vs `run_cbf_behaviour`,
+N=3,000, 2 seeds × 150 days).
+
+*Check 1 — no behaviour.* AlwaysNormal vs `run()`, Test 1's setup (N=100,000, seeds 0–29, 900 d,
+R₀=3, f_D=0.01). **Pass** = bit-identical daily S, prevalence, incidence, deaths on 30/30 seeds
+(fallback: mean final S within 1 SEM, with an explanation). **Prediction (Max):** identical.
+
+*Check 2 — known-answer physics.* N=100,000, seeds 0–29, 900 d (A32's mean-field convention),
+f_D=0.01. ODE = Weitz model B (Test 1's equations) with the ABM's own initial condition,
+I(0)=10/N (Test 1's I(0)=10⁻⁶ also reported; it matters only for (c), see D15). **Pass** = mean
+final S within 1% relative error of the reference (Test 1's tolerance).
+- (a) S1, every never_ill agent in precautions from day 0 → ODE β×0.5: **0.41708**.
+- (b) S1, a fixed random 50% of never_ill agents (49,995 of 99,990) stay home all run →
+  **reference corrected (D15): ODE with that fraction held non-infectable, 0.70840.** The
+  originally stated reference, ODE β×0.5 (0.41708), is also reported; it is predicted to FAIL by
+  ~70% because the two are not equivalent in final size (D15).
+- (c) S2, as (a) → ODE β×0.5 (R_eff = 1.0, critical): **0.99062**. ~~Pass = final S within 1%~~
+  **→ REPORT-ONLY, no pass/fail (amended 10 Oct 2026, BEFORE running; planning chat):** the
+  case is critical and its attack rate is ~0.9%, so a 1% relative tolerance on final S is
+  meaningless. Final S and attack-rate relative error are reported.
+- N=3,000 ceiling, (a) S1 and (c) S2 vs own AlwaysNormal control, 600 d, foundation population
+  (per-agent f_D), 30 seeds: stretch (ratio of means [95% CI], median per-seed ratio, share
+  > ×1.5, A36), peak reduction, final S, M1 waves, runs finished by day 600 (A35).
+- **Predictions (Max):** (a) and (b) pass; (a) at N=3,000 S1: stretch roughly ×2–4, 1 wave, no
+  plateau (low confidence); (c): very slow epidemic, possibly not finished by day 600 (duration
+  then invalid per A35).
+- **Predictions (Claude Code), [Speculation]:** (b) passes against the corrected reference and
+  fails against β×0.5 (computed, high confidence). (a) at N=3,000: stretch ×3–4 (growth rate
+  0.058/d vs 0.194/d at R₀=3 gives ~×3.4; medium confidence), 1 wave. (c) at N=3,000: a critical
+  branching process from 10 seeds — mostly small outbreaks that end well before day 600, with a
+  minority (0–4 of 30) still active at day 600, which would flag (c) TRUNCATED (medium
+  confidence). (c) at N=100,000 passes the 1% final-S mark.
+
+*Check 3 — arm 1 inside the shared world.* CBFArm1 vs `run_cbf_behaviour`, S1/S2/S3, N=3,000,
+seeds 0–29, 600 d, foundation (r=0.5, β_B=0.5, μ_B=0.01, γ_beh=1, window 28, detection 0.7,
+per-agent f_D). Controls: β_B=0 in both engines. **Pass** = bit-identical; or, if the random
+streams differ, paired difference in mean final S and in mean peak I each within 2 SEM AND
+stretch within C30's 95% CI. **Prediction (Max):** pass (bit-identical if the RNG order matches).
+
+*Timing rule:* 2 seeds per config first; if the upper-end projection exceeds 10 min, stop and
+report before running.
+
+*Amendments (planning chat, Max, 10 Oct 2026), all made BEFORE any check was run:*
+- **Seed counts (option (b)).** N=3,000: Checks 1, 2 and 3 at **30 seeds (0–29)**. N=100,000:
+  Checks 1 and 2 at **10 seeds (0–9)**, not 30. Check 1's and Check 2(a)/(b)'s pass marks are
+  applied to the N=100,000 runs at 10 seeds.
+- Check 2(c) → report-only (above).
+- D15 accepted: (b)'s pass mark uses the corrected reference; β×0.5 stays the predicted-fail
+  comparison.
+- Added by Claude Code to fill option (b), stated here so it is not mistaken for a result:
+  Check 1 at N=3,000 = Test 1's setup with N=3,000 (f_D 0.01, 900 d) **plus** the two N=3,000
+  600-day foundation controls (S1, S2, per-agent f_D) against `run()`; pass = bit-identical,
+  as at N=100,000. Check 2 at N=3,000 = (a), (b), (c) at 600 d, foundation population, compared
+  with ODEs at I(0)=10/3,000 and 600 d: (a) 0.41351, (b) 0.70241 (β×0.5: 0.41351), (c) 0.92082
+  — **reported, no pass mark**, because the 1% tolerance is Test 1's large-N tolerance and the
+  no-behaviour N=3,000 final S already sits 1.7% below the ODE (C25: 0.0585 vs 0.05952, n=30).
+  Ceiling numbers are also computed for (b), not only (a) and (c).
+- **Prediction added (Claude Code), [Speculation, medium]:** Check 2(a)/(b) at N=3,000 sit
+  below their ODE by a few percent in final S, the same direction as the no-behaviour finite-N
+  offset in C25.
+
+*Timing, measured (`--timing`, seeds 0–1 of every config, 42 runs on 16 workers, wall 121.7 s;
+`results/step4/timing.log`).* Per run, under parallel load: Check 1 `run()` 29.6–30.6 s,
+shared world 49.7–51.1 s; Check 2 N=100,000 (a) 95.5–107.9 s, (b) 74.5–83.8 s, (c) 27.9–119.3 s;
+every N=3,000 config 0.5–4.2 s. Upper-end projection for 30 seeds (slowest timed run × 30 per
+config): 13,003 CPU-s = **13.5 min** on 16 workers before EpidemicKabu; scaling the timing wall
+×15 gives 30.4 min. **Both exceed the 10-min limit, so no check was run.** Reported to the
+planning chat.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -1344,12 +1427,24 @@ made while planning C29:** "Weitz-LOESS is undefined on control incidence" was m
 incidence). On K1 as specified it is defined (1.321). That is itself evidence of how sensitive
 this metric is to inputs that should be immaterial.
 
+**D15 — Check 2(b)'s stated reference was not equivalent; corrected before running (C31).
+ACCEPTED (planning chat, Max, 10 Oct 2026).** The
+check as first specified said "a fixed 50% of susceptibles forced to stay home = ODE with β×0.5".
+[Fact, computed from the ODE] Both start with the same growth rate (R_eff = 1.5), but they are
+different systems: with β×0.5 every susceptible is exposed at half the rate; with 50% held home,
+the exposed half meets the full rate and is depleted twice as fast per infection. Final S: β×0.5
+0.41708; 50% home 0.70840. The final-size equation for the exposed half is the same as for β×0.5
+(s = exp(−1.5(1 − s))), so the exposed half ends at 0.417 of its size and total S = 0.5 + 0.5 ×
+0.417. Fourth instance of the CLAUDE.md "simplified stand-in" pattern, caught here before a run.
+Also: in (c) R_eff = 1.0 exactly, so the ODE final S depends on the initial condition (0.99989 at
+I(0)=10⁻⁶, 0.99062 at I(0)=10/N); the ABM's I(0)=10/N is used.
+
 ## E. Open items
 
 | # | Item | Blocks |
 |---|---|---|
 | E1 | Arm-2 budget at N=3,000 — 1.62M calls at p=0.3, 810k weekly, 540k weekly with 2 scenarios | arm 2 |
-| E2 | Re-decision cadence sweep in arm 1 (free) | E1 |
+| E2 | Re-decision cadence sweep, p ∈ {0.1, 0.3, 1}/day. **Updated by A41:** run with **arm 3** once built, NOT in arm 1 and NOT with a stand-in rule (arm 1 keeps CBF's continuous rates and has no cadence) | E1 |
 | E3 | Realised state count from arm 1 logs. **First read with a stand-in rule (C15, not real CBF): 3,040-3,364 distinct states out of millions of decisions (ratio ~0.0002-0.0006, ~1,768-5,869x compression) at N=10,000/30,000** — one seed, hand-picked bins, not yet with the real CBF rule or at N=3,000. **The option to build caching exists and looks promising on this first read, but whether to build it is Max's call, not a Claude Code decision — noted here, not acted on** | caching decision (Max's) |
 | E4 | Re-measure C3 scenario separation with CBF at N=3,000 | scenario spec |
 | E5 | **ANSWERED — yes.** See C7. N=3,000 + 28-day window adopted | closed |
@@ -1366,6 +1461,8 @@ this metric is to inputs that should be immaterial.
 | E10 | Contamination experiment: named vs unnamed disease, decision-level agreement | arm 2 writeup |
 | E17 | **BUILT, TESTED, AND CLOSED — see C18/C19/C20.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). The ~4-6% relative-error gap against a sanity-checked DDE reference (N=3,000/10,000/30,000, 30 then 90 seeds) is confirmed real, N-independent, not a small-S^B-count artifact, and not a coding bug — adopted as a documented, accepted limitation (C20) rather than pursued further | closed |
 | E19 | **PROPOSED, not decided:** arm 2 stops calling the LLM once E+I = 0 for the rest of the run. No further infections are then possible, so later decisions cannot change any outcome | arm-2 budget (E1) |
+| E20 | **RESOLVED → A42** (recovered agents do not decide; act normal). Consequence A43 (own_health dropped from the main-design vector) | closed |
+| E21 | **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above
@@ -1377,6 +1474,11 @@ this metric is to inputs that should be immaterial.
   originally justified with it (C5/C7); A30 re-checks N only with the 28-day window.
 - E9 remains unresolved: the ABM does not reproduce the ODE's T_H → oscillation relationship,
   and it is not yet known whether this is a metric problem or a simulator defect.
+- **Ill agents' isolation is omitted from the main design (A38/A45).** It is probably the most
+  important real-world protective behaviour, so the main design likely UNDERSTATES how much
+  behaviour can flatten an epidemic. The two source models omit it too: Gozzi's CBF acts on
+  healthy (susceptible) agents only, and Weitz's model is population-level with no individuals.
+  E21 measures the size of the omission for arm 3.
 
 ---
 
