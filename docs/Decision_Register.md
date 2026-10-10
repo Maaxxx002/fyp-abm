@@ -1750,6 +1750,135 @@ young picks C in ≥ half of D0 replies — **wrong** (0/10). V3 old picks C < 3
 correct (0/10 each). Validity: V1 100/100 — correct; V2 30/30 — **wrong** (29/30); V3 ≥ 95/100 —
 correct (98/100).
 
+**C37 — Arm-2 prompt pilot v4: three wordings on internally consistent situations; last prompt
+round before the supervisor meeting. PRE-REGISTRATION, written before any generation call.**
+[Design: planning chat (Max), 10 Oct 2026.] `experiments/step4_pilot_v4.py`; situations
+`results/step4/pilot_v4_situations.{json,log}`. Model `claude-haiku-5-5`, settings A65 (thinking
+`{"type": "disabled"}`; effort, temperature, top_p, top_k not sent; max_tokens 1024). 3 repeats per
+situation and wording. Retries A61. The frozen template is NOT edited: W2 and W3 are built by
+modifying the rendered W1 prompt at fixed anchors (asserted in code).
+
+*Death-history construction rule (Claude Code's implementation of "internally consistent"):* day
+60; deaths occur only in days 25–60 (none before day 25), in three segments with a constant
+daily rate inside each: a = days 25–31, b = days 32–52, c = days 53–59. Then 4-week total now =
+b + c, 4-week total up to a week ago = a + b, cumulative = a + b + c, so cumulative ≥ both
+totals by construction.
+- D (flat): constant rate X/28 per day from day 25 → a = c = X/4, b = 3X/4, cumulative 1.25X.
+- T rising: a/b/c = 1/3/9 (daily rate 0.14, 0.14, 1.29; non-decreasing).
+- T falling: a/b/c = 15/10/2 (daily rate 2.14, 0.48, 0.29; decreasing).
+
+| id | a/b/c | 4 weeks now | 4 weeks up to a week ago | cumulative (rendered) |
+|---|---|---|---|---|
+| D0 | 0/0/0 | 0 | 0 | 0 |
+| D3 | 0.75/2.25/0.75 | 3 | 3 | 3.75 (4) |
+| D12 | 3/9/3 | 12 | 12 | 15 |
+| D50 | 12.5/37.5/12.5 | 50 | 50 | 62.5 (63) |
+| D100 | 25/75/25 | 100 | 100 | 125 |
+| Trise | 1/3/9 | 12 | 4 | 13 |
+| Tfall | 15/10/2 | 12 | 25 | 27 |
+
+Each × young (band 2, "about 3 in 10,000") and old (band 8, "about 4 in 100"); both
+occupation_flex 0.4101759 (renders 4), response_efficacy 0.7954036 (renders 8); social_norm 0.85;
+current_action normal; population 3,000. 14 situations × 3 wordings × 3 = 126 decisions. Note:
+Trise and Tfall necessarily differ in cumulative deaths (13 vs 27) as well as trend; D0 now says
+0 deaths in total (C35's D0 said 5).
+
+*Wordings (exact):*
+- **W1:** the frozen template, unchanged.
+- **W2:** W1 plus, on its own new line directly after the deaths paragraph (i.e. after "In total,
+  … so far."), **"That is about 1 in every {k} people in your town in the past four weeks."**, k =
+  3,000 / 4-week total rounded half-up, formatted with a thousands comma (D3 1,000; D12 / Trise /
+  Tfall 250; D50 60; D100 30). Omitted when the 4-week total is 0 (D0 is then identical to W1).
+  Placement is Claude Code's reading of "one line after the 4-week totals".
+- **W3:** W1 with its last two lines (the answer instructions) replaced by **"On how many of the
+  next 10 days will you A) stay at home, B) go out but take precautions, C) go out as normal? Give
+  three whole numbers that add up to 10."** The option list above it is unchanged. Probabilities
+  = numbers / 10. W3 reply rule (fixed before calling): three whole numbers, each optionally
+  preceded by its letter and "=", ":" or ")", separated by commas, semicolons, slashes or spaces,
+  nothing else (regex in `W3_RE`), summing to exactly 10; otherwise invalid and retried (A61).
+
+*Tokens (count_tokens, no generation; `results/step4/pilot_v4_token_counts.log`):* W1 358–363,
+W2 358–389, W3 346–351. Expected cost about $0.006; guard: stop if spending passes $2.
+
+*Criteria — A62 (i)–(iii) as operationalised on these series (Claude Code; scoring as C34:
+caution c = 1 − P(normal), mean over valid replies, strict comparison of means, "at least" passes
+on ties):*
+- (i) more caution at peak deaths than before: c(D100) > c(D0) for both agents.
+- (ii) old at least as cautious as young: c(old) ≥ c(young) in all 7 D and T situations.
+- (iii) rising at least as cautious as falling at the same 4-week total: c(Trise) ≥ c(Tfall) for
+  both agents.
+Validity (iv) is reported, not used in selection.
+
+*Selection rule (Max, recorded before calling):* the wording passing the most of (i)–(iii) on the
+D and T series wins; ties go to W1, then W2. **If no wording passes (i), report and STOP; no
+further wordings are tried.**
+
+*Predictions (Claude Code), [Speculation]:*
+- W1: (i) FAIL (~60%; C35 gave young 0.683 vs 0.683), (ii) PASS (high), (iii) uncertain (~50%).
+- W2: (i) PASS (~55%; the "1 in every 30 people" line makes the high-death level salient), (ii)
+  PASS (high), (iii) ~50%.
+- W3: (i) ~50%, (ii) PASS (medium-high), (iii) ~50%. Validity lower than W1/W2 because W3 does not
+  say "and nothing else": at least one invalid first attempt in 42 (medium).
+- W1 and W2: 42/42 valid at the first attempt (high).
+- Winner: W2 (low confidence). Probability that no wording passes (i): ~35%.
+
+**C37 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step4_pilot_v4.py
+--run` then `--score`; `results/step4/pilot_v4_replies.json`, `pilot_v4_scores.{json,log}`,
+`pilot_v4_run.log`. Model `claude-haiku-5-5` on every call; wall 384 s. **Cost: W1 $0.00179, W2
+$0.00187, W3 $0.02067; total $0.02433.**
+
+*Per situation (A/B/C replies; caution c = 1 − P(normal) and P(stay home), mean (SD) over the
+valid replies; n = 3/3 valid for every W1 and W2 situation):*
+
+| id | W1 replies | W1 c | W1 P(stay) | W2 replies | W2 c | W2 P(stay) |
+|---|---|---|---|---|---|---|
+| D0 young | 10/60/30 10/60/30 10/50/40 | 0.667 (0.058) | 0.100 | 10/60/30 10/60/30 10/55/35 | 0.683 (0.029) | 0.100 |
+| D3 young | 10/55/35 10/60/30 10/50/40 | 0.650 (0.050) | 0.100 | 12/58/30 10/60/30 10/60/30 | 0.700 (0.000) | 0.107 |
+| D12 young | 10/60/30 10/50/40 10/60/30 | 0.667 (0.058) | 0.100 | 10/60/30 ×3 | 0.700 (0.000) | 0.100 |
+| D50 young | 15/55/30 15/50/35 15/50/35 | 0.667 (0.029) | 0.150 | 10/60/30 ×3 | 0.700 (0.000) | 0.100 |
+| D100 young | 15/55/30 15/60/25 10/60/30 | 0.717 (0.029) | 0.133 | 15/60/25 15/60/25 15/55/30 | 0.733 (0.029) | 0.150 |
+| Trise young | 10/45/45 ×3 | 0.550 (0.000) | 0.100 | 10/55/35 10/60/30 10/55/35 | 0.667 (0.029) | 0.100 |
+| Tfall young | 10/55/35 10/45/45 10/45/45 | 0.583 (0.058) | 0.100 | 15/50/35 15/55/30 10/60/30 | 0.683 (0.029) | 0.133 |
+| D0 old | 20/60/20 20/55/25 20/55/25 | 0.767 (0.029) | 0.200 | 20/55/25 20/50/30 15/60/25 | 0.733 (0.029) | 0.183 |
+| D3 old | 20/55/25 ×3 | 0.750 (0.000) | 0.200 | 25/50/25 25/55/20 20/55/25 | 0.767 (0.029) | 0.233 |
+| D12 old | 25/50/25 20/55/25 20/55/25 | 0.750 (0.000) | 0.217 | 25/55/20 ×3 | 0.800 (0.000) | 0.250 |
+| D50 old | 25/50/25 30/50/20 25/55/20 | 0.783 (0.029) | 0.267 | 25/55/20 ×3 | 0.800 (0.000) | 0.250 |
+| D100 old | 35/45/20 30/50/20 25/55/20 | 0.800 (0.000) | 0.300 | 25/55/20 25/60/15 25/55/20 | 0.817 (0.029) | 0.250 |
+| Trise old | 20/55/25 20/55/25 20/60/20 | 0.767 (0.029) | 0.200 | 30/50/20 25/55/20 25/50/25 | 0.783 (0.029) | 0.267 |
+| Tfall old | 25/45/30 25/45/30 25/50/25 | 0.717 (0.029) | 0.250 | 35/45/20 25/55/20 25/50/25 | 0.783 (0.029) | 0.283 |
+
+*Validity:* W1 42/42 valid at the first attempt, 0 retries, output 13 tokens; W2 42/42, 0
+retries, output 13 tokens. **W3 0/42 valid at the first attempt and 0/126 attempts valid under
+the pre-registered W3 rule: all 42 decisions are fallbacks** (2 retries each). Every W3 reply was
+prose (109–402 output tokens) — reasoning plus the three numbers, e.g. "A) Stay at home: 2 /
+B) Go out, but take precautions: 6 / C) Go out and carry on as normal: 2" with explanation.
+W3 therefore has no caution values under the rule.
+
+*Criteria (pre-registered operationalisation):*
+| wording | (i) c(D100) > c(D0), both | (ii) old ≥ young, 7/7 | (iii) c(Trise) ≥ c(Tfall), both | passes |
+|---|---|---|---|---|
+| W1 | **PASS** (young 0.717 vs 0.667; old 0.800 vs 0.767) | **PASS** (7/7) | FAIL (young 0.550 vs 0.583; old 0.767 vs 0.717 passes) | 2/3 |
+| W2 | **PASS** (young 0.733 vs 0.683; old 0.817 vs 0.733) | **PASS** (7/7) | FAIL (young 0.667 vs 0.683; old 0.783 = 0.783 passes) | 2/3 |
+| W3 | FAIL (no valid replies) | FAIL | FAIL | 0/3 |
+
+**Selection rule outcome: W1 and W2 tie at 2/3; the tie goes to W1. Winner: W1** (the frozen
+template, unchanged). At least one wording passed (i), so the stop condition did not trigger.
+
+*Supplementary, NOT pre-registered and NOT used in selection:* a post-hoc extraction of the last
+number after "A)", "B)", "C)" in each W3 reply (`results/step4/pilot_v4_w3_posthoc.log`), counting
+only extractions summing to 10, recovers 119 of 126 attempts. Caution: young 0.767–0.789, old
+0.800–0.844; c(D100) − c(D0) = −0.011 for both agents; c(Trise) − c(Tfall) young −0.021, old
++0.011; old ≥ young 7/7.
+
+*Predictions vs outcome:* W1 (i) FAIL — **wrong** (PASS); W1 (ii) PASS — correct; W2 (i) PASS —
+correct; W2 (ii) PASS — correct; W3 at least one invalid first attempt — correct (42/42 invalid);
+W3 (ii) PASS — **wrong** (no valid replies); W1 and W2 42/42 valid — correct; winner W2 — **wrong**
+(W1, by the tie rule). (iii) and W3 (i) were given as ~50% and are not scored.
+
+*Note, measured:* the (i) margins are small relative to the repeat SD (0.000–0.058): W1 young
++0.050, old +0.033; W2 young +0.050, old +0.083. In C35, whose histories had cumulative = 4-week total + 5 (D0: 5, D100: 105; here 0 and 125),
+W1's young agent gave c(D100) = c(D0) = 0.683.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
