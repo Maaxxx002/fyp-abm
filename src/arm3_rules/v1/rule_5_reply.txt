@@ -1,0 +1,79 @@
+```python
+import math
+
+def decide(p):
+    # Normalise the inputs to [0, 1] scales used by the model.
+    pop = max(p.population, 1)
+
+    # Recent and earlier death rates as proportions of the population per day.
+    recent_rate = p.deaths_28day_mean / pop
+    earlier_rate = p.deaths_28day_mean_7d_ago / pop
+    # Trend: positive when deaths are rising, negative when falling.
+    trend = recent_rate - earlier_rate
+    # Scale the death-rate signal so typical values produce a meaningful effect.
+    fear = 1.0 - math.exp(-200.0 * recent_rate)
+    rising = math.tanh(200.0 * trend)
+
+    # Cumulative toll adds to perceived danger, saturating smoothly.
+    cumulative_frac = p.deaths_cumulative / pop
+    cumulative_fear = 1.0 - math.exp(-50.0 * cumulative_frac)
+
+    # Personal risk: vulnerability by age.
+    personal_risk = p.vulnerability
+
+    # Perceived danger combines personal risk, collective fear and trend.
+    danger = (
+        0.35 * fear
+        + 0.15 * cumulative_fear
+        + 0.15 * max(rising, 0.0)
+        + 0.35 * min(1.0, personal_risk * 5.0)
+    )
+    danger = min(max(danger, 0.0), 1.0)
+
+    # Social norm: people following the crowd are more likely to act normally.
+    conformity = p.social_norm
+
+    # Ability and belief in precautions push toward staying home or precautions.
+    flex = p.occupation_flex
+    efficacy = p.response_efficacy
+
+    # Utility-style scores for each option.
+    score_home = (
+        2.0 * danger
+        + 1.0 * flex
+        - 0.5 * conformity
+    )
+    score_precautions = (
+        1.5 * danger * efficacy
+        + 0.8 * efficacy
+        + 0.3 * flex
+        - 0.3 * conformity
+    )
+    score_normal = (
+        1.5 * (1.0 - danger)
+        + 1.5 * conformity
+        - 1.0 * efficacy * danger
+    )
+
+    # Inertia: a small bonus for continuing the current action.
+    bonus = 0.4
+    if p.current_action == "stay_home":
+        score_home += bonus
+    elif p.current_action == "precautions":
+        score_precautions += bonus
+    else:
+        score_normal += bonus
+
+    # Softmax to probabilities.
+    scores = [score_home, score_precautions, score_normal]
+    m = max(scores)
+    exps = [math.exp(s - m) for s in scores]
+    total = sum(exps)
+    probs = [e / total for e in exps]
+
+    return {
+        "stay_home": probs[0],
+        "precautions": probs[1],
+        "normal": probs[2],
+    }
+```

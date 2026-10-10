@@ -1,0 +1,62 @@
+Below is a description that is shown to people living in a town where an infectious disease
+is spreading. Each person reads it with the parts in curly brackets filled in for their own
+situation, and replies with the probability that they choose each option.
+
+--- DESCRIPTION (template) ---
+You live in a town of {population} people. An infectious disease has been spreading in your town for {day} days.
+
+{deaths_recent} {deaths_earlier} In total, {deaths_cumulative} people in your town have died of it so far.
+
+About {social_norm} of people in your town are going about their lives normally.
+
+You are {age_band}. For someone your age, this disease is fatal in {vulnerability} cases.
+
+How easily you could stay at home if you chose to: {occupation_flex} on a scale from 0 (not at all) to 10 (completely).
+How much you believe that taking precautions protects you: {response_efficacy} on a scale from 0 (not at all) to 10 (completely).
+
+Lately you have been {current_action}.
+
+What will you do from today? The options are:
+A) Stay at home.
+B) Go out, but take precautions.
+C) Go out and carry on as normal.
+
+Give the probability, in percent, that you choose each option. Use whole numbers that add up to 100. Reply in exactly this form and nothing else:
+A=<number>, B=<number>, C=<number>
+--- END ---
+
+Write a Python function that, for any one person, gives the probability that they choose each
+option.
+
+def decide(p):
+    ...
+    return {"stay_home": ..., "precautions": ..., "normal": ...}
+
+"stay_home" is option A, "precautions" is option B, "normal" is option C.
+
+`p` has these attributes (raw values, before they are written into the description):
+- p.population (int): number of people in the town; {population}.
+- p.day (int, >= 0): days the disease has been spreading; {day}.
+- p.deaths_28day_mean (float, >= 0): deaths per day, averaged over the past 28 days (over the
+  days so far, if fewer than 28). {deaths_recent} shows this as a whole-number total: the
+  average times min(28, day), rounded.
+- p.deaths_28day_mean_7d_ago (float, >= 0): the same average as it was 7 days ago (0 before
+  day 7). {deaths_earlier} shows this as a whole-number total: the average times
+  min(28, day - 7), rounded.
+- p.deaths_cumulative (float, >= 0): total deaths so far; {deaths_cumulative}, rounded.
+- p.social_norm (float, 0 to 1): {social_norm} is 100 * p.social_norm, rounded, then "%".
+- p.age_band (int, 0 to 9): 0 = under 10, 1 = 10-19, 2 = 20-24, 3 = 25-29, 4 = 30s, 5 = 40s,
+  6 = 50s, 7 = 60s, 8 = 70s, 9 = 80 or over; {age_band}.
+- p.vulnerability (float, 0 to 1): the chance the disease is fatal for someone this age;
+  {vulnerability} writes it as "about k in M".
+- p.occupation_flex (float, 0 to 1): {occupation_flex} is 10 * p.occupation_flex, rounded.
+- p.response_efficacy (float, 0 to 1): {response_efficacy} is 10 * p.response_efficacy, rounded.
+- p.current_action (str): "stay_home", "precautions" or "normal"; {current_action}.
+
+Rules for the function:
+- The three probabilities must be non-negative and sum to 1, for every valid input.
+- Use only the attributes of `p` listed above. You may import `math`; no other imports.
+- No randomness, no reading or writing files, no network, no printing.
+- The same input must always give the same output.
+
+Return only the code.

@@ -1,0 +1,48 @@
+import math
+
+def decide(p):
+    # Perceived risk: rises with recent deaths, with deaths trend, with cumulative toll
+    recent_total = round(p.deaths_28day_mean * min(28, p.day))
+    earlier_total = round(p.deaths_28day_mean_7d_ago * min(28, max(p.day - 7, 0)))
+    trend = p.deaths_28day_mean - p.deaths_28day_mean_7d_ago
+    pop = max(p.population, 1)
+    death_rate = p.deaths_28day_mean / pop * 1e5  # deaths per 100k per day
+
+    # Latent fear signal
+    risk = (
+        0.9 * math.log1p(death_rate)
+        + 0.5 * math.tanh(trend / max(1.0, p.deaths_28day_mean_7d_ago + 1.0))
+        + 0.6 * math.log1p(p.deaths_cumulative / pop * 1e4)
+        + 2.5 * p.vulnerability
+        + 0.02 * (p.age_band - 4.5)
+    )
+
+    # Efficacy of precautions and ability to stay home
+    efficacy = p.response_efficacy
+    flex = p.occupation_flex
+
+    # Social conformity: people drift toward the prevailing behaviour
+    normal_share = p.social_norm
+    conform = 1.2 * (normal_share - 0.5)
+
+    # Inertia toward current behaviour
+    inertia = {"stay_home": 1.0, "precautions": 0.6, "normal": 0.0}[p.current_action]
+
+    # Utilities for each option
+    u_stay = 0.8 * risk + 1.5 * flex - 0.6 * conform + 0.4 * inertia * (p.current_action == "stay_home") * 2
+    u_prec = 0.6 * risk * (1 - 0.5 * efficacy) + 0.6 * efficacy - 0.2 * flex * 0 \
+             + 0.4 * inertia * (p.current_action == "precautions") * 2 + 0.2 * conform
+    u_norm = -1.0 * risk * (1 - 0.3 * efficacy) + 0.8 * conform + 0.4 * inertia * (p.current_action == "normal") * 2 \
+             - 0.3 * (1 - efficacy)
+
+    # Softmax to probabilities
+    m = max(u_stay, u_prec, u_norm)
+    e_s = math.exp(u_stay - m)
+    e_p = math.exp(u_prec - m)
+    e_n = math.exp(u_norm - m)
+    total = e_s + e_p + e_n
+    return {
+        "stay_home": e_s / total,
+        "precautions": e_p / total,
+        "normal": e_n / total,
+    }

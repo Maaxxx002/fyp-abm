@@ -1,4 +1,4 @@
-# DRAFT v1 — arm-2 prompt template and arm-3 instruction (NOT FROZEN)
+# DRAFT v1 — arm-2 prompt template and arm-3 instruction (FROZEN as v1 on 10 Oct 2026: see prompts/frozen_v1/ and register A66; this draft is kept as the source and is not edited further)
 
 Status: draft, updated to register A55–A64. Model: Claude Haiku 5.5, `claude-haiku-5-5` (A63);
 effort / thinking setting not yet fixed. Not piloted; the pilot (E6, criteria approved in

@@ -79,6 +79,7 @@ Last updated: after the shape-metric investigation and the N decision.
 | A63 | **LLM for arms 2 and 3 (A50): Claude Haiku 5.5, API model string `claude-haiku-5-5`.** Verified 10 Oct 2026 in Anthropic's official docs (platform.claude.com, "Models overview": Claude API ID and alias both `claude-haiku-5-5`, a pinned snapshot; retirement not sooner than 7 Oct 2027). **Price, standard API, 10 Oct 2026: $0.10 / M input tokens, $0.50 / M output tokens** (official "Pricing" page; this tier applies to prompts up to 100,000 tokens — over 100,000 it is $0.50 / $2.50; Batch API is 50% off). Not called yet | [Decision, planning chat (Max), 10 Oct 2026] **Flagged, not decided:** Haiku 5.5 runs adaptive thinking by default (default effort `medium`), and thinking tokens are billed as output, so the effort / thinking setting must be fixed before the pilot and frozen with the prompt (A54) |
 | A64 | **Reply parsing (amends A56/A61):** a reply "A=a, B=b, C=c" with whole numbers ≥ 0 is valid if 98 ≤ a + b + c ≤ 102; it is then rescaled to sum to 100 (probabilities a/(a+b+c), b/(a+b+c), c/(a+b+c)). Outside 98–102 it is invalid and handled by A61 (retry up to 2 times, then keep `current_action`) | [Decision, planning chat (Max), 10 Oct 2026] Replaces the draft's "must sum to exactly 100" |
 | A65 | **LLM request settings for arms 2 and 3 (identical in both):** model `claude-haiku-5-5` (A63); **thinking OFF via the Messages API parameter `thinking: {"type": "disabled"}`** (docs: accepted on Claude Haiku 5.5 at effort `low`, `medium`, `high`; returns 400 at `xhigh`/`max`); `output_config.effort` NOT sent, so the API default applies (`medium` on Claude Haiku 5.5, docs); **`temperature`, `top_p`, `top_k` NOT sent, so the API default applies: temperature = 1** (docs: on Claude Haiku 5.5 any non-default sampling value returns 400 — temperature must be 1, top_p 0.99). No system prompt; the rendered prompt is the single user message. Arm-2 calls use `max_tokens` = 1024 (implementation cap so a reply cannot be cut off; arm 3's cap is set when arm 3 is built, since it returns code). **Pilot comparison only (not a production setting):** thinking ON = `thinking: {"type": "adaptive"}`, effort default, `max_tokens` 16000 | [Decision, planning chat (Max), 10 Oct 2026] Reasoning tokens are billed as output and could multiply arm 2's cost; the same setting must apply to arms 2 and 3. Noted from the docs, not acted on: the migration guide recommends lowering effort rather than disabling thinking on Claude Haiku 5.5 |
+| A66 | **Prompt pilot CLOSED (E6); prompt template FROZEN as v1. Prompt rounds are closed.** **Pilot conclusion:** under Claude Haiku 5.5 the arm-2 prompt is age-sensitive and only weakly death-sensitive; the criterion (i) pass in C37 is fragile (margins within repeat noise). The wording W1 (the draft template, unchanged) is selected by the pre-registered rule (C37). **Frozen texts** (`prompts/frozen_v1/`, UTF-8, LF line endings, no trailing newline; written by `experiments/step5_freeze_prompts.py` from `prompts/DRAFT_arm2_arm3.md`, which it asserts equal to the renderer's TEMPLATE; `.gitattributes` marks the folder `-text` so the bytes never change): **arm-2 template `arm2_template_v1.txt`, 997 characters, SHA-256 `fc75ff228eec760454b2a63f98a09a7be756791a50d6b54395f5029152533259`**; **arm-3 instruction `arm3_instruction_v1.txt` (draft section 2 with the template inserted verbatim at its slot, A49), 3,286 characters, SHA-256 `fb28ae6f11f7468a25269c4d789995fb1d5ca5a6242723ec9cc843e7ebfb058f`**. Rendering rules and reply handling as in the draft (A56–A61, A64); request settings A65 | [Decision, planning chat (Max), 10 Oct 2026] Evidence C34–C37 |
 
 ## B. Sources — extraction status
 
@@ -1879,6 +1880,114 @@ W3 (ii) PASS — **wrong** (no valid replies); W1 and W2 42/42 valid — correct
 +0.050, old +0.033; W2 young +0.050, old +0.083. In C35, whose histories had cumulative = 4-week total + 5 (D0: 5, D100: 105; here 0 and 125),
 W1's young agent gave c(D100) = c(D0) = 0.683.
 
+**C38 — Arm 3, step 1: generation and mechanical checks of K = 5 rules. PRE-REGISTRATION,
+written before any generation call.** [Design: planning chat (Max), 10 Oct 2026.]
+`experiments/step5_arm3_generate.py`. No epidemic simulation is run.
+
+*Generation:* the frozen arm-3 instruction v1 (A66; the script asserts its SHA-256) as the single
+user message; model `claude-haiku-5-5`; A65 settings (thinking `{"type": "disabled"}`; effort,
+temperature, top_p, top_k not sent; no system prompt). `max_tokens` 8192 (implementation cap,
+A65 left arm 3's cap open; a reply stopping at the cap fails check 1). Each rule is an
+independent fresh call. Code = the first fenced code block in the reply if there is one,
+otherwise the whole reply. Regeneration only on a mechanical failure (A51), every attempt
+logged; implementation safety stop: 5 attempts for one rule → stop and report. Cost guard $1
+(expected about $0.005).
+
+*A53 checks as implemented* (static check first, so code is executed only if it passes):
+(3, static) parses; only `math` imported; none of open, exec, eval, compile, `__import__`, input,
+print, globals, locals, vars, getattr, setattr, delattr, breakpoint, help, exit, quit, memoryview,
+id, hash, dir, type, object, random, time, os, sys; no dunder attributes; one top-level
+`decide(p)` with one parameter; every attribute read on `p` is one of the 11 Perception fields.
+(1) runs: executed with a restricted builtins set (imports limited to `math`); every grid call
+returns without error. (2) valid probabilities: a dict with exactly the keys stay_home /
+precautions / normal; values real, finite, ≥ 0, summing to 1 within 1e-9. (3, dynamic) `p` is a
+proxy that raises on any non-field attribute. (4) deterministic: a second fresh execution over
+the grid in reverse order, and two back-to-back repeat calls per point, give identical outputs.
+*Grid:* 82,208 inputs — 62,208 structured (population 3,000; day 0/7/60/600; deaths_28day_mean
+and …_7d_ago 0/0.1/3.6/100 each; cumulative 0/10/3,000; social_norm 0/0.85/1; age band
+0/2/8/9 with its own vulnerability; occupation_flex 0/0.41/1; response_efficacy 0/0.8/1; all
+three current actions; consistent and inconsistent combinations alike) plus 20,000 random
+points (seed 20261010) over wide ranges (deaths per day to 10,000, cumulative to 10^6, day to
+10,000, population 1/3,000/100,000, vulnerability and the other fractions uniform on 0–1).
+Self-test before use (synthetic rules): a valid rule passes; `import random`, a non-field
+attribute, `open`, probabilities summing to 1.5, a division by zero at day 0, negative
+probabilities, and a rule with hidden call-count state each fail. (The first version of check 4
+let the hidden-state rule pass by coincidence of call parity; fixed before any generation.)
+
+*Freeze (A54):* each passing rule is written once to `src/arm3_rules/v1/rule_k.py` (exact
+extracted code; never rewritten — the script refuses to overwrite), with the full reply
+`rule_k_reply.txt` and `manifest.json` (prompt file and SHA-256, model requested and served,
+settings, UTC time, request id, tokens, cost, code and reply SHA-256, and the log of every
+attempt including failures). Rejected replies go to `results/step5/`.
+
+*Caution curve (E24 b):* each rule evaluated on C37's situations (D0/D3/D12/D50/D100, also
+Trise/Tfall; young and old pilot agents; social_norm 0.85; current_action normal), caution =
+1 − P(normal), shown next to arm 2's C37 W1 answers.
+
+*Predictions (planning chat, Max), [Speculation], recorded before generation and before any
+simulation:* (1) arm-3 rules react to deaths more strongly than arm 2's pilot answers (medium
+confidence). (2) The rules differ substantially from each other (medium confidence).
+Operationalisation not specified; the facts reported against (1) are each rule's c(D100) −
+c(D0) per agent next to arm 2 W1's (young +0.050, old +0.033, C37).
+
+**C38 results. [Measured facts only.]** Run 10 Oct 2026 (07:46–07:47 UTC), `python
+experiments/step5_arm3_generate.py --run` then `--curves`; `results/step5/arm3_generate.log`,
+`arm3_curves.{json,log}`, `arm3_field_use.log`. Frozen rules: `src/arm3_rules/v1/rule_1.py` …
+`rule_5.py`, replies `rule_k_reply.txt`, `manifest.json`.
+
+*Generation:* 5 calls for 5 rules; **every rule passed all A53 checks on its first attempt; 0
+regenerations; 0 rejected replies.** Served model `claude-haiku-5-5`; stop_reason `end_turn`;
+input 1,257 tokens per call; output 845–972 tokens; **total cost $0.00291.** Every reply was a
+single fenced code block (extracted as the code). Grid: 82,208 inputs per rule.
+
+| rule | code SHA-256 |
+|---|---|
+| 1 | `cbcce5bf187e7909cb05d85968721e811ad5c9419fe5a5fbb95c07e0455d01f5` |
+| 2 | `879e8f3cdbf06f97a181d88c31ba1954831428a620e357cec98b7d60089f7fb7` |
+| 3 | `90a90bb858c09a9ac90ebba7a7772c3ed5e3fa2bcd68e22794827f3dd4223747` |
+| 4 | `a15335f89fb0ddad736f15e6d915d9994e74821a89ee799f2073f457f487d69e` |
+| 5 | `7bbcaff266d008f95444037c8536df7eccff781a61faf8e563e5947499eecbed` |
+
+*Structure (read from the code):* all five compute utility scores for the three options and
+apply a softmax; all five add a bonus for the current action; all five read deaths, social_norm,
+occupation_flex and response_efficacy. Several compute quantities they never use (rules 2, 3, 4
+compute rounded 4-week totals that do not enter the output; rule 1 has terms multiplied by 0.0).
+*Fields that do NOT change the output* (each field varied over 3 values at 3,000 grid points;
+`arm3_field_use.log`): rule 1 none; rule 2 `day`; rule 3 `age_band`, `day`; rule 4
+`deaths_cumulative`, `age_band`, `day`; rule 5 `age_band`, `day`. (Rules 3–5 use age only through
+`vulnerability`.)
+
+*Caution curve on C37's situations (c = 1 − P(normal) [P(stay home)]; social_norm 0.85,
+current_action normal; arm 2 = C37 W1 mean of 3 replies):*
+
+| agent | rule | D0 | D3 | D12 | D50 | D100 | Trise | Tfall |
+|---|---|---|---|---|---|---|---|---|
+| young | arm 2 W1 | 0.667 [0.10] | 0.650 [0.10] | 0.667 [0.10] | 0.667 [0.15] | 0.717 [0.13] | 0.550 [0.10] | 0.583 [0.10] |
+| young | rule 1 | 0.171 [0.06] | 0.372 [0.17] | 0.512 [0.27] | 0.628 [0.36] | 0.654 [0.38] | 0.567 [0.31] | 0.538 [0.29] |
+| young | rule 2 | 0.694 [0.31] | 0.992 [0.74] | 1.000 [0.87] | 1.000 [0.94] | 1.000 [0.96] | 1.000 [0.87] | 1.000 [0.88] |
+| young | rule 3 | 0.158 [0.04] | 0.286 [0.09] | 0.376 [0.13] | 0.378 [0.13] | 0.378 [0.13] | 0.377 [0.13] | 0.377 [0.13] |
+| young | rule 4 | 0.057 [0.01] | 0.061 [0.01] | 0.076 [0.02] | 0.162 [0.05] | 0.273 [0.09] | 0.101 [0.03] | 0.076 [0.02] |
+| young | rule 5 | 0.100 [0.04] | 0.104 [0.04] | 0.115 [0.04] | 0.157 [0.06] | 0.195 [0.08] | 0.115 [0.04] | 0.124 [0.05] |
+| old | arm 2 W1 | 0.767 [0.20] | 0.750 [0.20] | 0.750 [0.22] | 0.783 [0.27] | 0.800 [0.30] | 0.767 [0.20] | 0.717 [0.25] |
+| old | rule 1 | 0.171 [0.06] | 0.511 [0.27] | 0.702 [0.42] | 0.812 [0.53] | 0.829 [0.55] | 0.760 [0.47] | 0.731 [0.45] |
+| old | rule 2 | 0.754 [0.35] | 0.995 [0.76] | 1.000 [0.88] | 1.000 [0.95] | 1.000 [0.97] | 1.000 [0.88] | 1.000 [0.89] |
+| old | rule 3 | 0.336 [0.11] | 0.530 [0.23] | 0.635 [0.30] | 0.637 [0.30] | 0.637 [0.30] | 0.636 [0.30] | 0.636 [0.30] |
+| old | rule 4 | 0.112 [0.03] | 0.120 [0.03] | 0.147 [0.04] | 0.293 [0.10] | 0.448 [0.18] | 0.193 [0.06] | 0.147 [0.04] |
+| old | rule 5 | 0.128 [0.05] | 0.133 [0.05] | 0.147 [0.06] | 0.198 [0.08] | 0.243 [0.10] | 0.147 [0.06] | 0.158 [0.06] |
+
+(Values rounded to 3 decimals; 1.000 means P(normal) < 0.0005.)
+
+*Summaries (computed):*
+- c(D100) − c(D0): young — rules 1–5: +0.483, +0.306, +0.219, +0.216, +0.095; old — +0.658,
+  +0.246, +0.301, +0.336, +0.115. Arm 2 W1 (C37): young +0.050, old +0.033. Every rule's
+  difference exceeds arm 2's for both agents (5/5, 5/5).
+- Caution non-decreasing over D0 → D100 for every rule and both agents (10/10).
+- Spread across the five rules at the same situation: young c at D0 0.057–0.694, at D12
+  0.076–1.000, at D100 0.195–1.000; old at D0 0.112–0.754, at D100 0.243–1.000.
+- c(old) ≥ c(young) in 7/7 situations for every rule (rule 1 ties at D0, 0.171 both).
+- c(Trise) − c(Tfall): rule 1 +0.029 (both agents); rule 2 −0.0001 (both); rule 3 +0.0006
+  (both); rule 4 young +0.026, old +0.046; rule 5 young −0.009, old −0.011.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -2071,7 +2180,7 @@ state count is measured separately (C15, E3).
 | E14 | Find a sourced, robust way to quantify "number of oscillations" — or drop oscillation as a target signature entirely and rely solely on peak-height reduction / final-S shift from control (both robust throughout) | shape metric, stated project contribution |
 | E15 | **RESOLVED — see C9/A20-rev.** Bias confirmed (not a bug); 48 substeps adopted | closed |
 | E16 | **Root cause of the C11 residual identified for `direct-g` (C12): small H-compartment stock at δ_c=0.5 (peak H≈23 agents) produces a Jensen's-gap-style bias that vanishes at larger δ_c (0.10-0.80% error at δ_c=2.0/3.5/7.0, vs 4.56% at 0.5).** Not yet resolved for the actual `q`-based variants: continuous-q (4.13%) and daily-q (5.91%) at δ_c=0.5 have NOT been re-swept across δ_c (C12 deliberately isolated `direct-g` only, one variable at a time) — it is not yet confirmed the same collapse happens once per-agent stochastic draws are added back in. Open questions for the planning chat: (a) does the `q`-mechanism residual also collapse at larger δ_c, or does the Bernoulli draw add its own scale-dependent bias on top; (b) Test 2's actual δ_c=0.5 comes from rescaling Weitz's N·δ_c=50 down to N=100,000 — if small-N/small-δ_c is intrinsically biased, does that indict the rescaling approach itself, or only this validation test's choice of N; (c) what cadence to adopt for arm 1 given neither has been shown to close the gap at the production δ_c; (d) whether Test 2's stated 2% tolerance is still the right gate; (e) **C13's higher-priority finding: at N=3,000 (arm 1's actual population, not Test 2's N=100,000), the raw counts behind EITHER Weitz's H-stock or CBF's own γ_beh/daily-deaths trigger are already at or below the "broken" scale even with behaviour off — this may not be a δ_c/γ_beh tuning problem at all, but an N=3,000 problem that affects arm 1 directly, not just this validation test** | Test 2 closure; E2; arm 1 cadence choice; **arm 1 viability at N=3,000 (C13); N=30,000 tested for the real CBF mechanism and found NOT safe except at weak-behaviour settings when using Gozzi's literal yesterday-count signal (C16) — but IS statistically clean at both N=10,000 and N=30,000 (gap <2 SEMs) once the project's own actual 28-day-mean signal is used instead, at Gozzi's own unmodified γ_beh (C17). N=3,000 itself still untested under C17's configuration. **D12: C16/C17 both used a `direct-g` simplification now confirmed NOT a valid stand-in for CBF's real 5-compartment, memory-laden mechanism — their results stand only as tests of that simplified formula, not of arm 1's actual planned dynamics; the N=3,000 test was withheld pending this** |
-| E6 | Prompt wording and anchoring scheme; pilot before full arm-2 run. **Pilot plan (planning chat, Oct 2026):** about 10 sample situations — before the epidemic, rising, peak, falling; young and old — run BEFORE the prompt is frozen. **Pass criteria — APPROVED (A62):** (i) more caution at peak deaths than before the epidemic; (ii) older or more vulnerable agents are at least as cautious, all else equal; (iii) at the same death level, rising deaths give at least as much caution as falling; (iv) valid output every time. **The pilot is never judged on epidemic outcomes** (flattening, stretch). Draft template: `prompts/DRAFT_arm2_arm3.md` (not frozen) | arm 2; arm 3 (A49) |
+| E6 | **CLOSED → A66** (pilot C34–C37; template frozen as v1). Prompt wording and anchoring scheme; pilot before full arm-2 run. **Pilot plan (planning chat, Oct 2026):** about 10 sample situations — before the epidemic, rising, peak, falling; young and old — run BEFORE the prompt is frozen. **Pass criteria — APPROVED (A62):** (i) more caution at peak deaths than before the epidemic; (ii) older or more vulnerable agents are at least as cautious, all else equal; (iii) at the same death level, rising deaths give at least as much caution as falling; (iv) valid output every time. **The pilot is never judged on epidemic outcomes** (flattening, stretch). Draft template: `prompts/DRAFT_arm2_arm3.md` (not frozen) | arm 2; arm 3 (A49) |
 | E7 | Persona layer — may be redundant given the sourced population construction | diversity metric |
 | E8 | Gozzi SI prior ranges for β_B, μ_B, γ_beh (per-city posteriors, no canonical value) — confirmed directly against source (C13): no calibrated value exists anywhere in the repo, only the authors' own uncalibrated demo default (β_B=0.5, μ_B=0.01, r=0.5, γ_beh=1). C13 additionally finds this demo value implies a sub-single-digit death-count trigger even at the authors' own Madrid scale, before any rescaling | arm 1 calibration; Test 2 (E16) |
 | E9 | Whether the ABM/ODE oscillation discrepancy (D6) indicates a simulator defect | milestone 2 |
@@ -2082,6 +2191,7 @@ state count is measured separately (C15, E3).
 | E21 | **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
 | E22 | **RESOLVED → A48** (CBF's exact value; wording "About X% of people in your town are going about their lives normally."; undercounts) | closed |
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
+| E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Not yet specified (open):** Pearson or rank correlation; whether caution is the agents' decision probabilities or their realised actions; any lag between deaths and caution; how arm 1 (continuous S/S^B, no per-agent probabilities) enters (a). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above

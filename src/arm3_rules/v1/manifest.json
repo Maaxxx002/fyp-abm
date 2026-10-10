@@ -1,0 +1,200 @@
+{
+  "rules": [
+    {
+      "rule": 1,
+      "file": "src/arm3_rules/v1/rule_1.py",
+      "code_sha256": "cbcce5bf187e7909cb05d85968721e811ad5c9419fe5a5fbb95c07e0455d01f5",
+      "reply_file": "src/arm3_rules/v1/rule_1_reply.txt",
+      "reply_sha256": "738ca8ac1ab147c691b9c5b7f4e9e6ed61becf1aee0addc34c3a34d88b9b492f",
+      "attempts": 1,
+      "utc": "2026-10-10T07:46:34+00:00",
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBk1Br857Vd1vXyoqdK",
+      "input_tokens": 1257,
+      "output_tokens": 965,
+      "cost": 0.0006081999999999999
+    },
+    {
+      "rule": 2,
+      "file": "src/arm3_rules/v1/rule_2.py",
+      "code_sha256": "879e8f3cdbf06f97a181d88c31ba1954831428a620e357cec98b7d60089f7fb7",
+      "reply_file": "src/arm3_rules/v1/rule_2_reply.txt",
+      "reply_sha256": "bd7ce0c0dff7c898cac06475e37c0a98f0d41e72b0a533d344c417ca7f1f2170",
+      "attempts": 1,
+      "utc": "2026-10-10T07:46:42+00:00",
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBkbNeZjrQtNuKjtvqc",
+      "input_tokens": 1257,
+      "output_tokens": 923,
+      "cost": 0.0005872
+    },
+    {
+      "rule": 3,
+      "file": "src/arm3_rules/v1/rule_3.py",
+      "code_sha256": "90a90bb858c09a9ac90ebba7a7772c3ed5e3fa2bcd68e22794827f3dd4223747",
+      "reply_file": "src/arm3_rules/v1/rule_3_reply.txt",
+      "reply_sha256": "5c9ac0975e7f2d3ded37990ebfb2f00010276bbe0bfb0d5dca79fb9cdefd0a42",
+      "attempts": 1,
+      "utc": "2026-10-10T07:46:51+00:00",
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBmCdCwon1jVCcSEmiK",
+      "input_tokens": 1257,
+      "output_tokens": 856,
+      "cost": 0.0005537
+    },
+    {
+      "rule": 4,
+      "file": "src/arm3_rules/v1/rule_4.py",
+      "code_sha256": "a15335f89fb0ddad736f15e6d915d9994e74821a89ee799f2073f457f487d69e",
+      "reply_file": "src/arm3_rules/v1/rule_4_reply.txt",
+      "reply_sha256": "3ac4d3121204369859f43d8986c747c92fb3b2525300d47ccd8c77c48dd40a70",
+      "attempts": 1,
+      "utc": "2026-10-10T07:46:58+00:00",
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBmjx7MrvQ7YoZHPyXj",
+      "input_tokens": 1257,
+      "output_tokens": 845,
+      "cost": 0.0005482
+    },
+    {
+      "rule": 5,
+      "file": "src/arm3_rules/v1/rule_5.py",
+      "code_sha256": "7bbcaff266d008f95444037c8536df7eccff781a61faf8e563e5947499eecbed",
+      "reply_file": "src/arm3_rules/v1/rule_5_reply.txt",
+      "reply_sha256": "32e40cfba59b1b305e7ec00738871bb016ed5543e61c1bc923d602d7a782c429",
+      "attempts": 1,
+      "utc": "2026-10-10T07:47:05+00:00",
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBnERNn8BMFAjzSqDyz",
+      "input_tokens": 1257,
+      "output_tokens": 972,
+      "cost": 0.0006117
+    }
+  ],
+  "prompt_file": "prompts/frozen_v1/arm3_instruction_v1.txt",
+  "prompt_sha256": "fb28ae6f11f7468a25269c4d789995fb1d5ca5a6242723ec9cc843e7ebfb058f",
+  "model_requested": "claude-haiku-5-5",
+  "settings": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_tokens": 8192,
+    "effort": "not sent (API default medium)",
+    "temperature": "not sent (API default 1)",
+    "system_prompt": null
+  },
+  "grid_points": 82208,
+  "total_cost": 0.002909,
+  "generation_log": [
+    {
+      "rule": 1,
+      "attempt": 1,
+      "utc": "2026-10-10T07:46:34+00:00",
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      },
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBk1Br857Vd1vXyoqdK",
+      "stop_reason": "end_turn",
+      "input_tokens": 1257,
+      "output_tokens": 965,
+      "cost": 0.0006081999999999999,
+      "reply_sha256": "738ca8ac1ab147c691b9c5b7f4e9e6ed61becf1aee0addc34c3a34d88b9b492f",
+      "code_sha256": "cbcce5bf187e7909cb05d85968721e811ad5c9419fe5a5fbb95c07e0455d01f5",
+      "fenced": true
+    },
+    {
+      "rule": 2,
+      "attempt": 1,
+      "utc": "2026-10-10T07:46:42+00:00",
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      },
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBkbNeZjrQtNuKjtvqc",
+      "stop_reason": "end_turn",
+      "input_tokens": 1257,
+      "output_tokens": 923,
+      "cost": 0.0005872,
+      "reply_sha256": "bd7ce0c0dff7c898cac06475e37c0a98f0d41e72b0a533d344c417ca7f1f2170",
+      "code_sha256": "879e8f3cdbf06f97a181d88c31ba1954831428a620e357cec98b7d60089f7fb7",
+      "fenced": true
+    },
+    {
+      "rule": 3,
+      "attempt": 1,
+      "utc": "2026-10-10T07:46:51+00:00",
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      },
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBmCdCwon1jVCcSEmiK",
+      "stop_reason": "end_turn",
+      "input_tokens": 1257,
+      "output_tokens": 856,
+      "cost": 0.0005537,
+      "reply_sha256": "5c9ac0975e7f2d3ded37990ebfb2f00010276bbe0bfb0d5dca79fb9cdefd0a42",
+      "code_sha256": "90a90bb858c09a9ac90ebba7a7772c3ed5e3fa2bcd68e22794827f3dd4223747",
+      "fenced": true
+    },
+    {
+      "rule": 4,
+      "attempt": 1,
+      "utc": "2026-10-10T07:46:58+00:00",
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      },
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBmjx7MrvQ7YoZHPyXj",
+      "stop_reason": "end_turn",
+      "input_tokens": 1257,
+      "output_tokens": 845,
+      "cost": 0.0005482,
+      "reply_sha256": "3ac4d3121204369859f43d8986c747c92fb3b2525300d47ccd8c77c48dd40a70",
+      "code_sha256": "a15335f89fb0ddad736f15e6d915d9994e74821a89ee799f2073f457f487d69e",
+      "fenced": true
+    },
+    {
+      "rule": 5,
+      "attempt": 1,
+      "utc": "2026-10-10T07:47:05+00:00",
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      },
+      "model_served": "claude-haiku-5-5",
+      "request_id": "req_011CftBnERNn8BMFAjzSqDyz",
+      "stop_reason": "end_turn",
+      "input_tokens": 1257,
+      "output_tokens": 972,
+      "cost": 0.0006117,
+      "reply_sha256": "32e40cfba59b1b305e7ec00738871bb016ed5543e61c1bc923d602d7a782c429",
+      "code_sha256": "7bbcaff266d008f95444037c8536df7eccff781a61faf8e563e5947499eecbed",
+      "fenced": true
+    }
+  ]
+}

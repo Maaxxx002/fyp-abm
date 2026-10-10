@@ -1,0 +1,4 @@
+# Frozen prompt texts and frozen arm-3 rules are hashed byte-for-byte (register A66, C38):
+# never convert their line endings.
+prompts/frozen_v1/** -text
+src/arm3_rules/** -text

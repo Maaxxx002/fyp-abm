@@ -1,0 +1,50 @@
+```python
+import math
+
+def decide(p):
+    # Fraction of deaths visible to the person: recent trend and cumulative toll.
+    recent_total = round(p.deaths_28day_mean * min(28, p.day))
+    earlier_total = round(p.deaths_28day_mean_7d_ago * min(28, max(p.day - 7, 0)))
+    cum = round(p.deaths_cumulative)
+
+    # Perceived threat: rises with recent deaths, cumulative deaths, and personal vulnerability.
+    rising = max(0.0, p.deaths_28day_mean - p.deaths_28day_mean_7d_ago)
+    scale = max(1.0, p.population / 1000.0)
+    death_signal = math.tanh((p.deaths_28day_mean / scale) * 20.0 + rising / scale * 10.0 + cum / (p.population + 1) * 50.0)
+    threat = 0.5 * death_signal + 0.5 * min(1.0, p.vulnerability * 20.0)
+    threat = min(1.0, max(0.0, threat))
+
+    # Ability to stay home and belief that precautions work.
+    flex = p.occupation_flex
+    efficacy = p.response_efficacy
+
+    # Social conformity: people tend to follow what most others are doing.
+    conform = p.social_norm
+
+    # Utilities for each option (higher = more attractive).
+    u_stay = 2.0 * threat + 1.5 * flex - 0.5 * (1 - flex) + 0.3 * (1 - conform)
+    u_prec = 1.5 * efficacy + 1.0 * threat * efficacy + 0.5 * flex + 0.2 * conform
+    u_norm = 1.5 * conform + 1.2 * (1 - threat) + 0.6 * (1 - flex) + 0.4 * (1 - efficacy)
+
+    # Current behaviour creates inertia.
+    inertia = 0.6
+    if p.current_action == "stay_home":
+        u_stay += inertia
+    elif p.current_action == "precautions":
+        u_prec += inertia
+    else:
+        u_norm += inertia
+
+    # Softmax over utilities.
+    m = max(u_stay, u_prec, u_norm)
+    e_s = math.exp(u_stay - m)
+    e_p = math.exp(u_prec - m)
+    e_n = math.exp(u_norm - m)
+    total = e_s + e_p + e_n
+
+    return {
+        "stay_home": e_s / total,
+        "precautions": e_p / total,
+        "normal": e_n / total,
+    }
+```
