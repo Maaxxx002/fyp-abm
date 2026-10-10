@@ -135,14 +135,25 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
                      f_D=0.01, T_H=14.0, n_substeps=48,
                      window=28, detection_rate=0.7,
                      precaution_multiplier=PRECAUTION_MULTIPLIER,
-                     redecide_prob=None):
+                     redecide_prob=None, stop_deciding_when_no_infection=False,
+                     social_norm_def="cbf"):
     """Run one epidemic in the shared world with `decision` setting every agent's action.
 
     Disease, integration and death signal are those of run_cbf_behaviour (Weitz model B,
     48 sub-steps, 1 - exp(-rate*dt); 28-day mean of reported deaths over days strictly before
     today, reported = detection_rate * realised, no truncation, A24/A25). f_D is a scalar or a
     per-agent array (A26).
+
+    stop_deciding_when_no_infection (A55): if True, no agent is re-asked on a day that starts
+    with E + I = 0 (no further infection is possible). The decision stream is then not drawn
+    on that day; the disease stream is unaffected.
+    social_norm_def: "cbf" (A44, the default) = (S_normal + R) / N. "alive_not_home_not_H"
+    (C39 supplementary only) = agents acting normal / agents in S, E, I or R who are not
+    staying home. Only what decision functions are shown changes; arm 1's relaxation rate
+    uses its own counts and is unaffected.
     """
+    if social_norm_def not in ("cbf", "alive_not_home_not_H"):
+        raise ValueError(f"unknown social_norm_def {social_norm_def!r}")
     if decision.mode == "discrete" and decision.redecides:
         if redecide_prob is None:
             raise ValueError("a re-deciding function needs redecide_prob set explicitly "
@@ -176,16 +187,24 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
     recovered = np.zeros(days)
     S_frac = np.zeros(days)
     S_by_action = np.zeros((days, 3))
+    E_by_action = np.zeros((days, 3))
     social_norm = np.zeros(days)
 
     for t in range(days):
         window_start = max(0, t - window)
         D_mean = reported_deaths[window_start:t].mean() if t > 0 else 0.0
         awareness_signal[t] = D_mean
-        social_norm[t] = (np.count_nonzero((state == S) & (action == NORMAL))
-                          + np.count_nonzero(state == R)) / N      # A44, start of day t
+        if social_norm_def == "cbf":
+            social_norm[t] = (np.count_nonzero((state == S) & (action == NORMAL))
+                              + np.count_nonzero(state == R)) / N  # A44, start of day t
+        else:
+            live = (state == S) | (state == E) | (state == I) | (state == R)
+            out_ = live & (action != STAY_HOME)
+            social_norm[t] = np.count_nonzero(out_ & (action == NORMAL)) / np.count_nonzero(out_)
 
-        if decision.mode == "discrete" and decision.redecides:
+        if (decision.mode == "discrete" and decision.redecides
+                and not (stop_deciding_when_no_infection
+                         and np.count_nonzero((state == E) | (state == I)) == 0)):
             oh = own_health_of(state)
             eligible = oh == NEVER_ILL                   # A38 (not ill), A42 (not recovered)
             agents = np.flatnonzero(eligible & (drng.random(N) < redecide_prob))
@@ -266,6 +285,7 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
         s_now = state == S
         S_frac[t] = np.count_nonzero(s_now) / N
         S_by_action[t] = np.bincount(action[s_now], minlength=3)
+        E_by_action[t] = np.bincount(action[state == E], minlength=3)
 
         if (prevalence[t] == 0 and exposed[t] == 0
                 and np.count_nonzero(state == H) == 0):
@@ -275,13 +295,19 @@ def run_shared_world(N, seed, decision, days=600, seeds_infected=10,
             S_frac[t + 1:] = S_frac[t]
             recovered[t + 1:] = recovered[t]
             S_by_action[t + 1:] = S_by_action[t]
-            social_norm[t + 1:] = (S_by_action[t, NORMAL] + recovered[t]) / N
+            E_by_action[t + 1:] = E_by_action[t]
+            if social_norm_def == "cbf":
+                social_norm[t + 1:] = (S_by_action[t, NORMAL] + recovered[t]) / N
+            else:
+                n_out = S_by_action[t, NORMAL] + S_by_action[t, PRECAUTIONS] + recovered[t]
+                social_norm[t + 1:] = (S_by_action[t, NORMAL] + recovered[t]) / n_out
             break
 
     return dict(
         S=S_frac, prevalence=prevalence, incidence=daily_incidence,
         deaths=daily_deaths, reported_deaths=reported_deaths,
         awareness_signal=awareness_signal, exposed=exposed, recovered=recovered,
-        SB=S_by_action[:, PRECAUTIONS], S_by_action=S_by_action, social_norm=social_norm, N=N,
+        SB=S_by_action[:, PRECAUTIONS], S_by_action=S_by_action, E_by_action=E_by_action,
+        social_norm=social_norm, N=N,
         total_infected=N - np.count_nonzero(state == S),
     )

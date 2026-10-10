@@ -1988,6 +1988,66 @@ current_action normal; arm 2 = C37 W1 mean of 3 replies):*
 - c(Trise) − c(Tfall): rule 1 +0.029 (both agents); rule 2 −0.0001 (both); rule 3 +0.0006
   (both); rule 4 young +0.026, old +0.046; rule 5 young −0.009, old −0.011.
 
+**C39 — Arm 3, step 2: epidemic runs of the 5 frozen rules. PRE-REGISTRATION, written before
+any arm-3 epidemic run.** [Design: planning chat (Max), 10 Oct 2026.] No API calls. Rules,
+prompt and settings unchanged (rule files are hash-checked at load).
+
+*Setup:* shared world (`src/shared_world.py`), N = 3,000 frozen population, 600 days, 10
+initial infected, per-agent f_D, window 28, detection 0.7, 48 sub-steps. Only never-ill agents
+(S or E) decide (A38, A42); re-ask probability p = 0.3 per agent per day (A41, provisional and
+UNSOURCED); no agent is re-asked on a day starting with E + I = 0 (A55, new opt-in flag
+`stop_deciding_when_no_infection`). Each of rules 1–5 × S1 (R0 3, T_H 14), S2 (R0 2), S3 (T_H
+28) × seeds 0–29 = 450 runs. Control: `AlwaysNormal` in the same (discrete-mode) world, same
+seeds — one control per scenario and seed, shared by the five rules (90 runs). (Arm 1's C30
+controls are run_cbf_behaviour with β_B = 0, a different draw order; each arm is compared with
+its own control.)
+
+*Arm-3 decision function (`src/arm3.py`, `Arm3Rule`):* Perception built from world data only —
+deaths_28day_mean = the world's awareness signal at the start of the day; …_7d_ago = the same
+signal 7 days earlier (0 before day 7); deaths_cumulative = reported deaths on all earlier days;
+current_action; social_norm = the world's value at the start of the day; the agent's frozen
+age_band, vulnerability, occupation_flex, response_efficacy; population 3,000; day. Action drawn
+from the decision stream (A52): one uniform u per re-asked agent in index order; stay_home if
+u < P(stay_home), precautions if u < P(stay_home) + P(precautions), else normal. Day-0 actions
+all normal (as CBF's S^B starts empty); rules act through re-asking from day 0.
+`tests/test_arm3.py` (7 tests, pass): every rule loads; an edited rule is refused; the
+Perception equals the world's series (signal, signal 7 days earlier, cumulative, norm); no
+re-asking on days starting with E + I = 0; sampled shares match the probabilities; the
+supplementary norm definition; E-by-action counts. The 61 earlier fast tests still pass (the
+additions leave every default run bit-identical).
+
+*Metrics, as C30:* M3 = T10–90 on daily incidence; **stretch** = arm M3 ÷ own-control M3:
+ratio of means [95% CI, 1,000 paired bootstrap resamples of seeds, seed 20261005], median
+per-seed ratio, share of seeds with per-seed ratio > ×1.5; **peak-I reduction** (% of control
+mean, paired SEM); **final S** (arm, and paired increase); **M1 wave count** (EpidemicKabu,
+kernel 18); **runs finished by day 600** (E + I = 0 at day 600; A35 truncation rule);
+**death responsiveness** (E24 as filled: per-run Spearman, reported as mean and median over
+runs, with n defined). **Arm 3 as a whole:** per scenario, the mean and the min–max over the
+5 rules of each statistic, next to arm 1 (C30). Arm 1's death responsiveness: arm 1 re-run
+through `run_shared_world` (`CBFArm1`, bit-identical to run_cbf_behaviour, C31) for S1/S2/S3 ×
+30 seeds; final S and peak I checked against the stored C27 runs.
+
+*Supplementary (does not replace the main result):* S1 × 5 rules × 30 seeds rerun with
+social_norm = agents acting normal / agents in S, E, I or R not staying home
+(`social_norm_def="alive_not_home_not_H"`); same seeds and control; reported as the difference
+from the main S1 result.
+
+*Predictions (planning chat, Max), [Speculation], recorded before running:*
+- Rule 2: strong suppression from early on (large peak reduction; may resemble the
+  constant-caution ceiling case); low confidence on the stretch.
+- Rules 4 and 5: mild effects, similar to arm 1 (stretch below ×1.5).
+- The 5 rules spread widely in stretch and peak reduction.
+- Death responsiveness: positive for every rule.
+
+*Time gate (instruction: stop if the upper-end projection exceeds 10 minutes) — measured
+before any main run (timing runs: S2, rules 1–5, seeds 0–15, 16 workers):* simulation 0.23
+s/run effective (per-run maximum 7.6 s, median 2.8 s); EpidemicKabu 0.58 s/run effective (48
+calls; C30: 0.50). Work: 780 simulations (450 arm 3 + 90 control + 90 arm 1 + 150
+supplementary) and 690 wave counts (arm 3, control, supplementary; arm 1's are in C30).
+Projection: 3.0 + 6.7 = **9.7 min at measured rates; 6.2 + 6.7 = 12.9 min at the upper end**
+(every simulation as slow as the slowest). **Upper end exceeds 10 minutes → stopped before any
+main run; reported to the planning chat.**
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -2191,7 +2251,7 @@ state count is measured separately (C15, E3).
 | E21 | **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
 | E22 | **RESOLVED → A48** (CBF's exact value; wording "About X% of people in your town are going about their lives normally."; undercounts) | closed |
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
-| E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Not yet specified (open):** Pearson or rank correlation; whether caution is the agents' decision probabilities or their realised actions; any lag between deaths and caution; how arm 1 (continuous S/S^B, no per-agent probabilities) enters (a). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
+| E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Open points filled (Max, 10 Oct 2026, before any arm-3 run):** Spearman rank correlation; caution = the REALISED share of deciding agents (never-ill and alive: S or E) whose action is stay_home or precautions; lag 0; days while E + I > 0; for arm 1, the share in S^B among the same agents (S^B / (S + E); CBF has no cautious E state, so arm 1's E agents never count as cautious, whereas arm 3's E agents count by their realised action — recorded asymmetry). *Implementation (C39):* per run, day t pairs `deaths_28day_mean` at the start of day t (the world's awareness signal) with the caution share at the end of day t, over the days t whose end-of-day E + I > 0; undefined if either series is constant on those days (count reported). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above
