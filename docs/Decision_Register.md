@@ -2362,6 +2362,80 @@ incidence and ending by about day 85; C and C2 end by about day 70.
 every measure (stretch ×1.37 vs ×1.83, peak reduction 53.6 vs 71.8%, final S 0.662 vs 0.767);
 C2 weaker again.
 
+**C43 — C42 SUPPLEMENTARY: town-size sweep of Step B. PRE-REGISTRATION, written before the
+sweep is run (one timing run per size only).** [Design: planning chat (Max), 10 Oct 2026.] A
+capability test, not an arm; no API calls; no arm, rule or prompt changed.
+`experiments/step6_plateau_size_sweep.py`. Step B exactly as C42 (ideal signal δ = n_H/T_H, zero
+lag; every never-ill agent's action redrawn each sub-step; k = 2), S1, the SAME per-capita
+δ_c = 0.5×10⁻⁵ per day, i.e. **N·δ_c = 0.05 / 0.15 / 0.5 deaths/day at N = 10,000 / 30,000 /
+100,000.** Population = the frozen quota population built at each N (seed 0; mean IFR 0.009719 /
+0.009719 / 0.009718), per-agent f_D. 10 seeds (0–9) per N, each with its own AlwaysNormal control
+on the same seeds.
+
+*Reported per N:* stretch (ratio of mean T10–90 [95% CI, 1,000 paired bootstrap resamples, seed
+20261005], median per-seed ratio, share > ×1.5, share ≥ ×10); peak-I reduction; final S; attack
+size; wave count (EpidemicKabu, kernel 18); runs still active at day 600 (T10–90 then truncated, a
+lower bound); **mean number of people in H during the main phase** (main phase = days whose
+end-of-day E + I > 0; daily mean of the sub-step H counts, logged by the decision function, which
+already reads n_H; no change to any draw); **run-to-run SD of final S** (arm and control). One
+example curve per N: seed 0 (fixed here), per 1,000 people, log-type axis. The C42 pass mark
+(stretch ≥ ×10, or > half the runs active at day 600 with peak reduction ≥ 80%) is applied per N
+as a description.
+
+*Predictions (planning chat, Max), [Speculation], medium confidence:* N = 10,000 still no
+plateau (jumpy, about 1 person in H); N = 30,000 borderline; N = 100,000 plateau (stretch ≥ ×10
+or most runs active at day 600).
+
+*Time gate (stop and report if the upper end exceeds 30 minutes; if so, first drop to 5 seeds
+at N = 100,000):* timing, seed 0, 6 runs in parallel (`plateau_size_timing.log`): B 8.1 s
+(N 10,000; last active day 302), 34.4 s (30,000; active at day 600), 90.6 s (100,000; active at
+day 600); controls 3.0 / 6.6 / 30.4 s. Upper end: every run at 1.5× its size's timing, B runs at
+N = 10,000 doubled for full length, ×2 for 16 parallel workers sharing memory bandwidth, the 20
+N = 100,000 tasks in two rounds: about **10 min** including about 0.5 min of wave counts → run
+with 10 seeds at every N.
+
+**C43 results. [Measured facts only.]** Run 10 Oct 2026, `python experiments/step6_plateau_size_sweep.py
+--sim`, `--score`, `--plot`; `results/step6/plateau_size_runs.npz`, `plateau_size_sim.log`,
+`plateau_size_scores.{json,log}`, `plateau_size_examples.png`. Wall: 60 simulations 5.5 min (per
+run 3.4–306.7 s; the slowest single run exceeded the 1.5× timing assumption but the batch stayed
+far under the gate), 60 wave counts 0.5 min. n = 10 seeds (0–9) at every N; controls same seeds.
+Stretch is truncated (a lower bound, A35) wherever runs are still active at day 600.
+
+| | N = 10,000 | N = 30,000 | N = 100,000 |
+|---|---|---|---|
+| N·δ_c (deaths/day) | 0.05 | 0.15 | 0.5 |
+| stretch [95% CI] | ×11.99 [7.97, 16.72] | ×19.54 [17.25, 21.26] | ×20.23 [19.46, 20.92] |
+| median per-seed ratio | ×11.03 | ×20.31 | ×20.57 |
+| runs > ×1.5 / ≥ ×10 | 9/10 / 5/10 | 10/10 / 10/10 | 10/10 / 10/10 |
+| T10–90 arm vs control (d) | 281.7 vs 23.5 | 457.2 vs 23.4 | 475.3 vs 23.5 |
+| peak-I reduction | 83.5% (−34.9 SEM) | 92.2% (−280.7 SEM) | 93.6% (−160.1 SEM) |
+| final S (SD over runs) | 0.685 (0.157) | 0.613 (0.059) | 0.597 (0.026) |
+| control final S (SD) | 0.0585 (0.0034) | 0.0598 (0.0027) | 0.0591 (0.0009) |
+| attack size | 0.316 | 0.387 | 0.403 |
+| waves (runs > 1; control) | 5.10 (8/10; 1.00) | 7.80 (10/10; 1.00) | 8.80 (10/10; 1.00) |
+| runs active at day 600 | 3/10 | 9/10 | 10/10 |
+| last active day, per run | 64, 92, 219, 302, 312, 369, 502, 600, 600, 600 | 315, then 600 ×9 | 600 ×10 |
+| mean people in H, main phase (per-run range) | 1.22 (0.91–1.62) | 2.73 (2.41–3.11) | 8.41 (7.93–8.71) |
+
+Standard error of mean final S at n = 10 (SD/√10): 0.050 / 0.019 / 0.008 at N = 10,000 /
+30,000 / 100,000. C42 (N = 3,000, same per-capita δ_c, n = 30): final S 0.767 (SD 0.171 =
+0.0313 × √30), 0/30 active at day 600, stretch ×1.83.
+
+*C42 pass mark applied per N (description):* stretch ≥ ×10 at all three N (×12.0, ×19.5, ×20.2);
+"> half active at day 600 with peak reduction ≥ 80%": N = 10,000 no (3/10), N = 30,000 yes
+(9/10, 92.2%), N = 100,000 yes (10/10, 93.6%).
+
+*Example curves (seed 0, `plateau_size_examples.png`, per 1,000 people):* N = 10,000 — bursts
+separated by zero-incidence gaps, ending about day 300; N = 30,000 — continuous incidence of
+roughly 0.1–3 per 1,000 per day with recurring bumps to day 600; N = 100,000 — the same with
+smaller dips, about 0.1–2.5 per 1,000 per day to day 600. Control peaks at about 45 per 1,000.
+
+*Predictions (Max) vs outcome:* N = 10,000 "still no plateau (jumpy, about 1 person in H)" — 1.22
+people in H on average and bursts with gaps (seed 0), 3/10 active at day 600, but mean stretch
+×12.0 (median ×11.0) meets the ×10 criterion. N = 30,000 "borderline" — **not borderline**: ×19.5,
+10/10 runs ≥ ×10, 9/10 active at day 600. N = 100,000 "plateau" — **as predicted**: ×20.2, 10/10
+active at day 600.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
