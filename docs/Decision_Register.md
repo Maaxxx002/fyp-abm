@@ -2992,6 +2992,109 @@ PASS. Its stub call counts are in 10b (N = 10,000 rows).
 **wrong** (70,998); N = 15,000 5–7× that — as predicted (×6.8); cautious stub more calls at every
 N — as predicted. 10c meets the C42 pass mark — as predicted (×10.23, CI [5.99, 14.14]).
 
+**C53 — Step 11: how many DISTINCT arm-2 prompts are there? PRE-REGISTRATION, written before any
+step-11 run (the verification run included).** [Design: planning chat (Max), 16 Oct 2026.] A
+counting tool only: no API calls; no arm-2 code path for real runs is changed; the exact-reuse
+cache is not used by any real run. `experiments/step11_prompt_reuse.py`; outputs
+`results/step7/step11_*`.
+*Setup:* C52 10b's stub dry run — arm 2's decision loop (never-ill agents re-asked with p =
+0.3/day, A55 stop, 600 days), stubs A/B/C = 10/60/30 and 40/50/10 (action drawn from the decision
+stream, as 10b), world window **7 days** as instructed. S1 at N = 3,000 / 10,000 / 15,000; S2 and
+S3 at N = 15,000; seeds 0–9; both stubs.
+*Prompt:* the frozen v1 arm-2 template (renderer `step4_prompt_tokens.render`, asserted
+byte-equal to `prompts/frozen_v1/arm2_template_v1.txt`), filled for every decision. A prompt is
+identified by the tuple of its rendered field values — per day: population, day, the two death
+sentences, cumulative deaths, social-norm %; per agent: age-band text, vulnerability text,
+occupation_flex 0–10, response_efficacy 0–10, current action. **Check before use:** on one
+complete run per stub (S1, N = 3,000, seed 0) every decision is also rendered in full with the
+real renderer; distinct tuples, distinct strings and distinct (tuple, string) pairs must be equal
+(one-to-one).
+*Recorded design point, NOT decided (Claude Code):* the frozen v1 template states 4-week death
+totals ("In the past four weeks, n people…"), and the arm code fills `deaths_28day_mean` from the
+world's signal. With the world's window at 7 days a real arm 2 would therefore print a 7-day mean
+as a 4-week total. For this count the v1 text is filled exactly as v1 defines it (4-week totals
+from 28-day means of reported deaths, A58/A59); the 7-day world signal changes nothing here,
+because the stub ignores it. **A 7-day arm 2 would need a new template — a design question for
+the planning chat.**
+*Reported:* (a) total decisions (S1: checked equal to C52 10b per run); (b) distinct prompts per
+run (exact-match reuse within a run: one LLM call per distinct string); (c) distinct prompts
+across all 10 seeds of a configuration; (d) distinct rendered values per field. (a)–(c) as cost
+at $0.0000427 per call, ±30%. Also the mean number of asking days per stub (days with ≥ 1 agent
+asked).
+*Predictions (Claude Code), [Speculation]:*
+- (a) equals C52's count on every S1 run (high: the stub ignores the signal and the decision
+  draws are the same). S3's decisions equal S1's on every seed (high: T_H changes only when H
+  agents die; no deciding agent, infection or social-norm count depends on it).
+- (b) Reuse within a run is small at N = 3,000 (distinct ≥ 70% of decisions; medium) and larger
+  at N = 15,000 (distinct 25–55%; low): the dynamic part is shared by all agents on a day, and
+  there are at most 10 × 11 × 11 × 3 = 3,630 agent contexts, against about 900 (N = 3,000) or
+  4,500 (N = 15,000) agents asked per day.
+- (c) Reuse across seeds is small: distinct across seeds ≥ 95% of the sum of the per-run counts
+  (medium), because day, deaths and the norm differ between seeds.
+- (d) Most distinct values: day (hundreds), then social-norm %, cumulative deaths and the death
+  sentences; static fields at most 10 / 10 / 11 / 11 / 3; population 1.
+
+**C53 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step11_prompt_reuse.py
+--verify`, `--sim`, `--score`; `results/step7/step11_{verify,sim,scores}.log`, `step11_counts.json`.
+100 runs, 0.9 min. No API calls.
+*Check:* S1, N = 3,000, seed 0, every decision rendered in full — 10/60/30: 63,868 decisions,
+39,145 distinct tuples = 39,145 distinct strings = 39,145 distinct pairs; 40/50/10: 254,461
+decisions, 140,385 = 140,385 = 140,385 → one-to-one on both.
+
+*(a)–(c), 10 seeds per row; cost at $0.0000427 per call [−30%, +30%]:*
+
+| stub | scen | N | (a) decisions total (per run) | (b) distinct per run, mean (sum; share of (a)) | (c) distinct across seeds (share of (a)) | cost (a) | cost (b) | cost (c) |
+|---|---|---|---|---|---|---|---|---|
+| 10/60/30 | S1 | 3,000 | 707,006 (70,701) | 43,850 (438,497; 0.620) | 379,454 (0.537) | $30.19 [$21.13, $39.25] | $18.72 [$13.11, $24.34] | $16.20 [$11.34, $21.06] |
+| 10/60/30 | S1 | 10,000 | 2,941,272 (294,127) | 112,684 (1,126,842; 0.383) | 954,621 (0.325) | $125.59 [$87.91, $163.27] | $48.12 [$33.68, $62.55] | $40.76 [$28.53, $52.99] |
+| 10/60/30 | S1 | 15,000 | 4,814,977 (481,498) | 151,438 (1,514,381; 0.315) | 1,321,724 (0.275) | $205.60 [$143.92, $267.28] | $64.66 [$45.26, $84.06] | $56.44 [$39.51, $73.37] |
+| 10/60/30 | S2 | 15,000 | 14,643,596 (1,464,360) | 380,938 (3,809,383; 0.260) | 3,419,533 (0.234) | $625.28 [$437.70, $812.87] | $162.66 [$113.86, $211.46] | $146.01 [$102.21, $189.82] |
+| 10/60/30 | S3 | 15,000 | 4,814,977 (481,498) | 151,438 (1,514,381; 0.315) | 1,292,744 (0.268) | $205.60 [$143.92, $267.28] | $64.66 [$45.26, $84.06] | $55.20 [$38.64, $71.76] |
+| 40/50/10 | S1 | 3,000 | 1,435,766 (143,577) | 80,123 (801,229; 0.558) | 697,078 (0.486) | $61.31 [$42.92, $79.70] | $34.21 [$23.95, $44.48] | $29.77 [$20.84, $38.69] |
+| 40/50/10 | S1 | 10,000 | 8,838,650 (883,865) | 281,234 (2,812,336; 0.318) | 2,432,094 (0.275) | $377.41 [$264.19, $490.63] | $120.09 [$84.06, $156.11] | $103.85 [$72.70, $135.01] |
+| 40/50/10 | S1 | 15,000 | 10,809,361 (1,080,936) | 267,953 (2,679,531; 0.248) | 2,375,170 (0.220) | $461.56 [$323.09, $600.03] | $114.42 [$80.09, $148.74] | $101.42 [$70.99, $131.85] |
+| 40/50/10 | S2 | 15,000 | 2,153,850 (215,385) | 51,068 (510,683; 0.237) | 304,161 (0.141) | $91.97 [$64.38, $119.56] | $21.81 [$15.26, $28.35] | $12.99 [$9.09, $16.88] |
+| 40/50/10 | S3 | 15,000 | 10,809,361 (1,080,936) | 267,953 (2,679,531; 0.248) | 2,328,429 (0.215) | $461.56 [$323.09, $600.03] | $114.42 [$80.09, $148.74] | $99.42 [$69.60, $129.25] |
+
+S1 decisions equal C52 10b on every run (60/60). S3 equals S1 run by run in (a) and (b) (20/20).
+**Why (b) is the same in S3 and S1:** `day` is printed in every prompt, so no two days of one run
+share a prompt; within a run, reuse happens only among agents asked on the same day, and (b) is
+the sum over days of the distinct agent contexts asked that day. Cross-seed reuse ((c) ÷ sum of
+(b)): 0.847–0.898 in every row except 40/50/10 S2 (0.596, where epidemics are short — mean 48
+asking days — and many seeds share the same early-day prompts).
+
+*(d) distinct rendered values per field, across the 10 seeds* (static fields: age-band text 10,
+vulnerability text 10, occupation_flex 11, response_efficacy 11, current action 3 in every row;
+population 1):
+
+| stub | scen | N | day | recent-deaths sentence | earlier-deaths sentence | cumulative deaths | social norm % | day contexts | agent contexts |
+|---|---|---|---|---|---|---|---|---|---|
+| 10/60/30 | S1 | 3,000 | 187 | 13 | 14 | 19 | 58 | 1,317 | 1,398 |
+| 10/60/30 | S1 | 10,000 | 199 | 31 | 32 | 62 | 54 | 1,540 | 1,674 |
+| 10/60/30 | S1 | 15,000 | 227 | 44 | 45 | 84 | 53 | 1,756 | 1,740 |
+| 10/60/30 | S2 | 15,000 | 541 | 19 | 20 | 45 | 34 | 3,476 | 1,740 |
+| 10/60/30 | S3 | 15,000 | 227 | 36 | 37 | 82 | 53 | 1,722 | 1,740 |
+| 40/50/10 | S1 | 3,000 | 310 | 5 | 6 | 7 | 36 | 1,438 | 1,398 |
+| 40/50/10 | S1 | 10,000 | 443 | 7 | 8 | 13 | 30 | 2,661 | 1,674 |
+| 40/50/10 | S1 | 15,000 | 578 | 10 | 11 | 26 | 32 | 2,253 | 1,740 |
+| 40/50/10 | S2 | 15,000 | 119 | 4 | 5 | 3 | 26 | 261 | 1,740 |
+| 40/50/10 | S3 | 15,000 | 578 | 9 | 10 | 26 | 32 | 2,198 | 1,740 |
+
+"Day contexts" = distinct per-day tuples (day, death sentences, cumulative, norm) across the 10
+seeds; "agent contexts" = distinct (age, occupation_flex, response_efficacy, action) combinations
+asked (the frozen population has 1,398 / 1,674 / 1,740 of the 3,630 possible at N = 3,000 /
+10,000 / 15,000, all three actions included).
+
+*Asking days (days with ≥ 1 agent asked), mean per run:* stub 10/60/30 (10% stay home) — S1 150.9
+/ 177.7 / 197.4 at N = 3,000 / 10,000 / 15,000; S2 391.4 (15,000). Stub 40/50/10 (40% stay home)
+— S1 175.9 / 317.0 / 258.0; S2 48.0 (15,000). S3 = S1.
+
+*Predictions (Claude Code) vs outcome:* (a) equals C52 on every S1 run — as predicted; S3 = S1 —
+as predicted. (b) N = 3,000 distinct ≥ 70% — **wrong** (0.620, 0.558); N = 15,000 25–55% — as
+predicted for 10/60/30 (0.315), **just below** for 40/50/10 (0.248). (c) across seeds ≥ 95% of the
+per-run sum — **wrong** (0.596–0.898). (d) day the most distinct field — as predicted; social norm
+second at N = 3,000, cumulative deaths second at N = 10,000–15,000 (10/60/30).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
