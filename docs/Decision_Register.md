@@ -2886,6 +2886,112 @@ pass mark.
   (×10.24, met). 9c fails — as predicted; stretch below ×3 — **wrong** (×4.43). E26 (iii) met
   everywhere — as predicted (9c attack 0.565).
 
+**C52 — Step 10: graded-ness at N = 15,000 with the 7-day signal (10a); exact arm-2 call count
+by a stub dry run (10b); step C with the 7-day signal at N = 10,000 (10c). PRE-REGISTRATION,
+written before any step-10 run (timing included).** [Design: planning chat (Max), 16 Oct 2026.]
+No API calls (arm 2's LLM is replaced by a fixed stub; nothing is sent anywhere); no arm, rule or
+prompt changed. `experiments/step10_graded_and_calls.py`; outputs `results/step7/step10_*`.
+
+*10a — dial test.* Shared world, S1, N = 15,000 (frozen quota population, per-agent f_D), seeds
+0–9, step C with the **7-day** signal (agents' own mean of 70%-reported deaths, decisions once a
+day, p = 1, A55 stop), Weitz's q = 1 − g, k = 2. Per-capita δ_c grid {1e-6, 2e-6, 5e-6, 1e-5,
+2e-5, 5e-5, 1e-4, 2e-4, 3e-4, 5e-4} (N·δ_c = δ_c × 15,000). Reported: mean final S (SD) and runs
+active at day 600 per grid point; **spread = max − min over grid points of the mean final S**
+(C5's arithmetic, checked on C5's rows: 0.407 − 0.084 = 0.323 at N = 3,000, 0.819 − 0.080 = 0.739
+at 30,000). **Pass rule (written now): GRADED if the spread over C7's range [1e-6, 3e-4] (the
+nine grid points within it) ≥ 0.593.** Also reported, not used for the verdict: spread over C5's
+grid {1e-6, 5e-6, 2e-5, 1e-4, 5e-4} (500×) and over C5's 20× sub-range {1e-6, 5e-6, 2e-5}.
+*Recorded discrepancies (Claude Code):* (1) the instruction says "the same 20× range used in C5";
+C5's grid spans 500× and C7's spread is over [1e-6, 3e-4] (300×); "20×" in C5 refers to its first
+three points. C7's range is made primary because the reference values (0.629, 0.593) are C7
+spreads. (2) The C5/C7 script is not in the repo, so C7's interior grid points are unknown. (3)
+C5/C7 used the pilot rule (`experiments/abm.py`: two-sided stay home, every agent deciding, raw
+deaths, 7-day or 28-day mean), not step C in the shared world (one-sided, never-ill agents only,
+70% reporting). The comparison with 0.629 / 0.593 is therefore across different mechanisms.
+
+*10b — exact arm-2 call count, no API.* Arm 2's decision loop in the shared world — never-ill
+agents (S, E; A38/A42) re-asked with p = 0.3/day (A41), A55 stop, S1, 600 days, 28-day signal,
+frozen population, per-agent f_D — with the LLM replaced by a stub returning a fixed answer, the
+action drawn from the decision stream (A52/A56). One call = one agent asked; the stub is always
+valid, so no retries (A61) are counted. Stubs: **A/B/C = 10/60/30** and **40/50/10** (cautious).
+N = 3,000 (seeds 0–29; seeds 0–9 also reported alone), N = 10,000 and N = 15,000 (seeds 0–9).
+Cost = calls × $0.0000427 (C34 measured mean, thinking OFF), with a ±30% band. S1 only (S2, S3
+not counted). The stub ignores the signal, so the window length does not affect its counts.
+
+*10c — register check, then run.* N = 10,000 has NOT been run with the step-C setup and the 7-day
+signal: C1/C5/C7's N = 10,000 rows used the pilot rule (`experiments/abm.py`), C43's N = 10,000
+was step B (ideal signal), and C47/C51 ran N = 15,000–30,000. So it is run exactly as C51 9a:
+step C, 7-day, S1, N·δ_c = 0.05 (C43 per-capita), seeds 0–9, own AlwaysNormal control; C51's
+columns; C42 pass mark; E26 as revised in C50. Included in 10b's count.
+
+*Predictions (Claude Code), [Speculation]:* 10a — GRADED (primary spread ≥ 0.593; medium-low);
+final S not monotone over the whole grid (low). 10b — stub 10/60/30 per run: N = 3,000 30k–60k
+calls, N = 15,000 about 5–7× that (low; C32 control S1 29,868, arm 1 S1 36,157 per run);
+cautious stub more calls than 10/60/30 at every N (medium; slower epidemic, more asking days).
+10c — meets the C42 pass mark (low-medium; C43 step B at 10,000: ×12.0, 3/10 active; C51 at
+15,000: ×17.7).
+*Timing* (seed 0 of each of 19 kinds, 16 workers, `step10_timing.log`; no time gate was set for
+this step): dial runs 6.2–23.7 s, 10c 3.8 s, controls 5.0–6.4 s, stub runs 2.2–11.7 s. Upper end
+(every run at 1.5× the slowest of its kind, ×2 for workers sharing memory): about 13 min → run.
+
+**C52 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step10_graded_and_calls.py
+--timing`, `--sim`, `--score`; `results/step7/step10_runs.npz`, `step10_calls.json`,
+`step10_{timing,sim,scores}.log`, `step10_scores.json`. 130 simulations + 100 stub runs, 2.6 min.
+(The first `--score` stopped on a leftover unused line in the scoring code; it was removed and
+scoring rerun on the same cached runs.)
+
+*10a — dial test, N = 15,000, step C, 7-day signal, S1, n = 10 per point (control final S 0.0597):*
+
+| per-capita δ_c | N·δ_c | mean final S (SD) | active at day 600 |
+|---|---|---|---|
+| 1e-6 | 0.015 | 0.7338 (0.1172) | 2/10 |
+| 2e-6 | 0.030 | 0.7082 (0.1404) | 2/10 |
+| 5e-6 | 0.075 | 0.4477 (0.0691) | 8/10 |
+| 1e-5 | 0.150 | 0.4142 (0.1388) | 7/10 |
+| 2e-5 | 0.300 | 0.2956 (0.0130) | 4/10 |
+| 5e-5 | 0.750 | 0.2696 (0.0262) | 0/10 |
+| 1e-4 | 1.500 | 0.2028 (0.0257) | 0/10 |
+| 2e-4 | 3.000 | 0.1093 (0.0114) | 0/10 |
+| 3e-4 | 4.500 | 0.0831 (0.0077) | 0/10 |
+| 5e-4 | 7.500 | 0.0688 (0.0049) | 0/10 |
+
+Spread (max − min of mean final S): **C7 range [1e-6, 3e-4] (primary) 0.651 → GRADED** (≥ 0.593);
+C5 grid (500×) 0.665; C5 20× sub-range 0.438. Mean final S is non-increasing in δ_c over the whole
+grid. (The 5e-6 point is C51 9a's case; final S 0.4477 equal.) References (C7, pilot rule): N =
+10,000 + 7-day 0.629; N = 3,000 + 28-day 0.593 — different mechanism (see the pre-registration).
+
+*10b — arm-2 call count, stub dry run, S1 only, p = 0.3, A55 stop; $0.0000427 per call (C34),
+±30% band.*
+
+| stub A/B/C | N | seeds | calls per run, mean (SD; min–max) | asking days, mean | total calls | cost of these runs [−30%, +30%] | cost per run | stub final S |
+|---|---|---|---|---|---|---|---|---|
+| 10/60/30 | 3,000 | 10 (0–9) | 70,701 (8,743; 59,690–83,628) | 150.9 | 707,006 | $30.19 [$21.13, $39.25] | $3.02 | 0.260 |
+| 10/60/30 | 3,000 | 30 (0–29) | 70,998 (6,970; 59,690–83,628) | 153.1 | 2,129,952 | $90.95 [$63.66, $118.23] | $3.03 | 0.265 |
+| 10/60/30 | 10,000 | 10 | 294,127 (6,808; 284,456–305,430) | 177.7 | 2,941,272 | $125.59 [$87.91, $163.27] | $12.56 | 0.281 |
+| 10/60/30 | 15,000 | 10 | 481,498 (28,392; 448,910–530,681) | 197.4 | 4,814,977 | $205.60 [$143.92, $267.28] | $20.56 | 0.284 |
+| 40/50/10 | 3,000 | 10 (0–9) | 143,577 (69,813; 26,746–254,461) | 175.9 | 1,435,766 | $61.31 [$42.92, $79.70] | $6.13 | 0.875 |
+| 40/50/10 | 3,000 | 30 (0–29) | 128,728 (63,744; 26,746–254,461) | 155.7 | 3,861,845 | $164.90 [$115.43, $214.37] | $5.50 | 0.893 |
+| 40/50/10 | 10,000 | 10 | 883,865 (309,376; 308,568–1,200,308) | 317.0 | 8,838,650 | $377.41 [$264.19, $490.63] | $37.74 | 0.896 |
+| 40/50/10 | 15,000 | 10 | 1,080,936 (784,413; 188,208–2,375,173) | 258.0 | 10,809,361 | $461.56 [$323.09, $600.03] | $46.16 | 0.930 |
+
+Retries are not included (the stub is always valid). Against the provisional ~$100 budget (A67),
+computed: S1 alone at N = 15,000 × 10 seeds is $205.60 (10/60/30) to $461.56 (40/50/10); at N =
+3,000 × 30 seeds $90.95 to $164.90. The cautious stub has the larger run-to-run spread (SD 64k–784k
+calls per run) because its epidemics are near critical and their length varies.
+
+*10c — step C, 7-day signal, N = 10,000 (N·δ_c 0.05), C51's columns, n = 10 (control final S
+0.0585):* stretch **×10.23 [5.99, 14.14]** (truncated), median ×12.63, runs ≥ ×10 6/10; peak-I
+reduction 66.5% (−18.3 SEM); final S 0.514 (SD 0.148); attack 0.486; active at day 600 4/10 (last
+active days 89, 96, 159, 224, 393, 416, 600 ×4); mean end-of-day people in H over the main phase
+2.30 (1.11–4.36); **C42 pass mark MET** (stretch ≥ ×10; the CI includes values below ×10). E26
+(C50): max-lag DR +0.691 (best lag −8 [−11, 0]), caution SD 0.434, 10/10 runs meet all three →
+PASS. Its stub call counts are in 10b (N = 10,000 rows).
+
+*Predictions (Claude Code) vs outcome:* 10a GRADED — as predicted (0.651); final S not monotone —
+**wrong** (non-increasing over all 10 points). 10b 10/60/30 at N = 3,000 30k–60k calls per run —
+**wrong** (70,998); N = 15,000 5–7× that — as predicted (×6.8); cautious stub more calls at every
+N — as predicted. 10c meets the C42 pass mark — as predicted (×10.23, CI [5.99, 14.14]).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
