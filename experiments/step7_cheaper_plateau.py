@@ -119,14 +119,16 @@ def f_D_array(vul, f_D):
 
 
 def run_one(task):
-    """task = (kind, n_agents, f_D or None, ndc or None, seed); kind in ctrl / B / C."""
-    kind, n, f_D, ndc, seed = task
+    """task = (kind, n_agents, f_D or None, ndc or None, seed[, window]); kind in ctrl / B / C.
+    window (default 28, A24) is the length of the world's reported-death mean (C47: 7-day test)."""
+    kind, n, f_D, ndc, seed = task[:5]
+    window = task[5] if len(task) > 5 else 28
     from population import build_population
     from shared_world import (run_shared_world, AlwaysNormal, STAY_HOME, PRECAUTIONS)
     if n not in _POP:
         _POP[n] = build_population(N=n, seed=0)
     pop = _POP[n]
-    kw = dict(N=n, seed=seed, days=DAYS, f_D=f_D_array(pop.vulnerability, f_D), window=28,
+    kw = dict(N=n, seed=seed, days=DAYS, f_D=f_D_array(pop.vulnerability, f_D), window=window,
               detection_rate=0.7, R0=pc.R0, T_H=pc.T_H)
     t0 = time.time()
     h_sub = None
@@ -143,8 +145,8 @@ def run_one(task):
         o = run_shared_world(decision=pc.WeitzDaily(ndc), redecide_prob=1.0,
                              stop_deciding_when_no_infection=True, **kw)
     rec = {k: np.asarray(o[k], float) for k in ("incidence", "prevalence", "exposed", "S",
-                                                "awareness_signal", "recovered")}
-    deciders = o["S"] * n + o["exposed"]
+                                                "awareness_signal", "recovered", "deaths")}
+    deciders = o["S_by_action"].sum(1) + o["E_by_action"].sum(1)   # whole agents (C47, E24 rounding fix)
     cautious = (o["S_by_action"][:, STAY_HOME] + o["S_by_action"][:, PRECAUTIONS]
                 + o["E_by_action"][:, STAY_HOME] + o["E_by_action"][:, PRECAUTIONS])
     with np.errstate(invalid="ignore", divide="ignore"):

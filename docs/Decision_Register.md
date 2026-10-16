@@ -2642,6 +2642,185 @@ run" — SD 0 (to rounding) in both; DR undefined on 30/30 in S2, **but "defined
 predicted. Rules 1 and 3 PASS — as predicted. Rules 4 and 5 FAIL in S1 and S3 on (i) — FAIL in
 S1 and S3, on (i) and also on (ii) (caution SD 0.034–0.045); they also FAIL in S2, on (ii).
 
+**C47–C50 — Step 8. PRE-REGISTRATION, written before any step-8 run, including the 8b equations.**
+[Design: planning chat (Max), 16 Oct 2026.] Capability tests and measure revisions, not arms; no
+API calls; no arm, rule or prompt changed. `experiments/step8_plateau_followup.py` (reuses the
+step-7 code); outputs `results/step7/step8_*`. Test rule as C42/C43/C45 (Weitz's g, k = 2,
+never-ill agents stay home with q = 1 − g). n = 10 seeds (0–9) per case unless stated; each case
+compared with its own AlwaysNormal control on the same seeds. Reported per case as C45 (stretch
+[95% CI], median, runs ≥ ×10; peak-I reduction; final S; attack size; runs active at day 600;
+mean people in H over the main phase) and as C46 (E26 criteria, in C50). **Pass mark for 8a and
+8b cases: C42's** (stretch ≥ ×10, OR more than half the runs active at day 600 with peak
+reduction ≥ 80%), applied per case.
+
+*Code change (8c), made before any step-8 run:* the cautious share is now computed from whole
+agents — deciders = Σ `S_by_action` + Σ `E_by_action`, cautious = the precautions + stay-home
+counts (arm 1: `S_by_action[precautions]`) — in `step5_arm3_runs.run_one`,
+`step7_cheaper_plateau.run_one` and `step7_real_plateau_check.run_ceiling`, replacing
+S-fraction × N + E. `step7_cheaper_plateau.run_one` also accepts an optional window length
+(default 28, unchanged) and now records daily deaths.
+
+**C47 (8a) — Real information at larger towns.** Step C (δ = the agents' own mean of
+70%-reported deaths; decisions once per day at the start of the day, p = 1.0; A55 stop) at
+N = 15,000 / 20,000 / 30,000, normal per-agent f_D, C43's per-capita δ_c (N·δ_c = 0.075 / 0.10
+/ 0.15), 28-day mean (A24). At N = 30,000 also the same with a **7-DAY mean — a test of
+reverting A24 at large N** (the world's `window` = 7; nothing else changed). Controls: one
+AlwaysNormal run per N and seed (no decisions, so the window does not affect it).
+*Predictions (Max), [Speculation], medium-low confidence:* the 28-day step C fails the C42 pass
+mark at all three sizes; the 7-day version does better.
+*Predictions (Claude Code), [Speculation]:* 28-day step C fails at all three sizes with mean
+stretch below ×3 (medium; C42 step C at N = 3,000 gave ×1.37 and C45 step C ×0.84). The 7-day
+version has a larger stretch and peak reduction than the 28-day one at N = 30,000 (medium-low)
+but does not reach ×10 (low).
+
+**C48 (8b) — Route B retry at half the edge δ_c.** N = 3,000, f_D ∈ {0.05, 0.10} (IFR_10age
+scaled as C45, no band capped). **Rule (recorded now): N·δ_c = half the C45 edge value**, i.e.
+0.4456 / 2 = 0.2228 (f_D 0.05) and 0.8891 / 2 = 0.4446 (f_D 0.10). Equations first (C45's ODE:
+stretch, peak reduction, final S, E + I at day 600), then step B and step C (as C45) at those
+values. Controls as C45 (same f_D array, same seeds).
+*Predictions (Claude Code), [Speculation]:* ODE — about ×18 and still active at day 600 (high;
+the C45 grid point 0.2233 at f_D 0.05 gave ×18.43, 5.94 persons). Step B — mean stretch ≥ ×10 at
+both f_D (medium-low) but at most half the runs active at day 600, because the plateau now runs
+at fewer infections per day and fades out (low). Step C fails the pass mark at both f_D, stretch
+below ×2 (medium).
+
+**C49 (8c) — E24 rounding fix.** Pass mark (Claude Code's operationalisation of "no C39 verdict
+changes"): on the C39 cache converted to whole agents (cautious = rint(caution × (S·N + E)),
+deciders = rint(S·N) + E — exact, since both are integers; the conversion is checked against
+fresh reruns of 5 C39 runs with the fixed code), (a) no run changes between defined and
+undefined death responsiveness, (b) no per-run value changes by more than 10⁻⁹, (c) no E26
+verdict on a C39 case changes (C50 reports both the original and the revised criterion with the
+fix). *Prediction (Claude Code):* all three hold; the C31 ceiling S1 runs become "undefined" on
+30/30 (high).
+
+**C50 (8d) — E26 criterion (i) REVISED AFTER the C46 should-PASS case failed (not
+pre-specified; recorded as such).** Revised (i): death responsiveness = the MAXIMUM over lags
+L = −42 … +42 days of the Spearman correlation between `deaths_28day_mean` on day t (start of
+day, as E24) and the cautious share on day t + L (end of day); L < 0 means caution leads the
+signal. *Operationalisation (Claude Code, fixed now):* at each lag, pairs over days t with both
+t and t + L active (end-of-day E + I > 0) and inside the run; a lag is skipped if it has < 3 pairs
+or either series is constant; the run's value is the largest correlation over the remaining lags
+(signed, not absolute), with its lag reported; undefined if no lag qualifies. Threshold 0.3
+unchanged; (ii) and (iii), their thresholds and the majority-of-runs verdict unchanged.
+Whole-agent caution (8c) throughout. For the 7-day C47 case, `deaths_28day_mean` is recomputed
+from the run's daily deaths (and checked equal to the world's signal on every 28-day case).
+*Fact, by construction:* the maximum over 85 lags is at least the lag-0 value, so the revised (i)
+can only pass more runs than the original. Same known cases as C46: should PASS — Weitz rule
+N = 30,000 (C43); should FAIL — C31 ceiling (a) S1, (c) S2; rule 2 (S1–S3). Information: arm 1
+and rules 1, 3, 4, 5 (S1–S3), all C45 cases, all C47/C48 cases. **If a known case is still on
+the wrong side, it is reported and nothing else is changed.**
+*Predictions (Claude Code), [Speculation]:* C43 N = 30,000 PASSes the revised check, with the best
+lag negative (caution leads the 28-day signal), median best lag between −35 and −10 days
+(medium-low). Ceiling still FAILs ((i) undefined, (ii) SD 0) and rule 2 still FAILs on (iii)
+(high). Arm 1 and rules 1, 3 PASS (high). Rules 4 and 5 still FAIL, on (ii) (high).
+
+*Time gate:* stop if the upper-end projection exceeds 25 minutes; if so, first drop to 5 seeds at
+N = 30,000.
+*8b equations, run before timing (`results/step7/step8_ode.{json,log}`):* f_D 0.05, N·δ_c 0.2228:
+T10–90 424 d, ×18.43, peak reduction 86.6%, final S 0.3240, E + I at day 600 5.98 persons, ODE
+mean H 2.35; f_D 0.10, N·δ_c 0.4446: 425 d, ×18.48, 86.6%, 0.3243, 6.03 persons, H 4.69.
+*Timing* (seed 0 of each of 13 kinds, 16 workers, `step8_timing.log`): step C N = 15,000 22.2 s,
+20,000 6.3 s, 30,000 18.4 s (28-day) and 36.2 s (7-day, active to day 600); controls 6.0–9.6 s;
+N = 3,000 runs 1.3–9.3 s. Upper end (each run at 1.5× the slowest full-length timing of its kind,
+×2 for 16 workers sharing memory, plus scoring and the 8c reruns): about **9 min** → run with 10
+seeds everywhere.
+
+**C47–C50 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step8_plateau_followup.py
+--ode`, `--timing`, `--sim`, `--score`, `--e24`, `--e26`; `results/step7/step8_runs.npz`,
+`step8_{ode,timing,sim,scores,e24,e26}.{json,log}`. 130 simulations 1.7 min (per run 1.1–65.1 s).
+n = 10 seeds per ABM case.
+
+*C47 (8a) and C48 (8b), C45's measures* (H: step B = sub-step mean over the main phase; step C =
+end-of-day count):
+
+| case | N·δ_c | stretch [95% CI] | median | ≥ ×10 | peak-I red (SEM) | final S (SD) | attack | active at 600 | H (range) | C42 pass mark |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 8a C 28-day, N = 15,000 | 0.075 | ×4.07 [0.88, 8.51] (truncated) | ×0.78 | 2/10 | 74.3% (−25.7) | 0.730 (0.140) | 0.270 | 1/10 | 3.68 (1.47–6.41) | NOT MET |
+| 8a C 28-day, N = 20,000 | 0.10 | ×3.25 [0.72, 7.34] | ×0.80 | 1/10 | 69.1% (−20.6) | 0.707 (0.124) | 0.293 | 0/10 | 7.13 (2.78–13.94) | NOT MET |
+| 8a C 28-day, N = 30,000 | 0.15 | ×4.21 [0.73, 8.72] (truncated) | ×0.75 | 1/10 | 68.8% (−25.9) | 0.685 (0.115) | 0.315 | 1/10 | 9.11 (4.10–14.75) | NOT MET |
+| **8a C 7-DAY, N = 30,000** | 0.15 | **×20.03 [19.28, 20.83]** (truncated) | ×20.27 | **10/10** | 84.8% (−50.9) | 0.459 (0.024) | 0.541 | **10/10** | 3.50 (3.06–4.19) | **MET** |
+| 8b B, f_D 0.05 | 0.2228 | ×10.94 [7.01, 14.24] | ×13.61 | 7/10 | 82.2% (−24.0) | 0.492 (0.208) | 0.508 | 0/10 | 3.24 (2.16–4.80) | MET (stretch) |
+| 8b C, f_D 0.05 | 0.2228 | ×2.47 [0.77, 5.02] | ×0.80 | 1/10 | 45.2% (−13.0) | 0.506 (0.101) | 0.494 | 0/10 | 9.07 (2.89–12.75) | NOT MET |
+| 8b B, f_D 0.10 | 0.4446 | ×13.13 [10.33, 15.86] (truncated) | ×14.05 | 7/10 | 84.6% (−41.7) | 0.405 (0.112) | 0.595 | 1/10 | 5.80 (4.08–7.65) | MET (stretch) |
+| 8b C, f_D 0.10 | 0.4446 | ×1.27 [0.77, 2.24] | ×0.80 | 0/10 | 43.2% (−13.1) | 0.516 (0.059) | 0.484 | 0/10 | 21.91 (10.38–28.74) | NOT MET |
+
+Last active day per run: 8a 28-day N = 15,000: 71, 77, 80, 83, 91, 94, 103, 191, 327, 600;
+20,000: 82, 83, 84, 88, 90, 90, 102, 112, 210, 572; 30,000: 86, 89, 91, 99, 102, 105, 115, 207,
+309, 600; 7-day: 600 ×10. 8b B f_D 0.05: 70, 129, 147, 435, 436, 478, 480, 495, 554, 581; f_D
+0.10: 186, 246, 284, 448, 482, 484, 505, 568, 579, 600; step C: all ≤ 405 (f_D 0.05), ≤ 204
+(0.10). Controls: T10–90 23.2–23.5 d; final S 0.0566 (N = 3,000), 0.0597 / 0.0602 / 0.0598 (N =
+15,000 / 20,000 / 30,000). In the three 28-day step-C cases the mean stretch is carried by 1–3
+runs (median per-seed ratio ×0.75–0.80, i.e. most runs end SOONER than their control) while peak
+reduction is 69–74% and final S 0.68–0.73.
+
+*C49 (8c), E24 rounding fix:* the conversion of the C39 cache equals fresh reruns with the fixed
+code on 5/5 checked runs (arm1 S1 s0, rule1 S1 s0, rule2 S2 s3, rule4 S3 s7, supp_rule3 S1 s5;
+incidence identical on all 5); largest distance of a recovered count from a whole number
+2.3 × 10⁻¹³. Over the 27 C39 configs (780 runs): (a) **0 runs change between defined and
+undefined — met**; (b) **largest per-run change in death responsiveness 6.4 × 10⁻⁴ — NOT met (the
+pre-set bound was 10⁻⁹)**: rounding noise split rank ties in the caution series. Config means
+change by at most 2.7 × 10⁻⁵ (rule 4 S3 −0.005391 → −0.005418), so every DR value printed in C39,
+C40 and C46 (3 decimals) is unchanged; (c) **no E26 verdict on a C39 case changes — met** (C50,
+"orig" column). The C31 ceiling S1 runs are now "undefined" on 30/30 (C46: "defined", −0.021).
+*Correction made after the pre-registration (C50 scoring):* the step-8 signal recomputed from
+daily deaths differed from the world's signal only on days after a run had ended (the world stops
+updating it; max difference on active days 3.2 × 10⁻¹⁵), so the pre-set equality check first read
+0/7. It now compares active days only (7/7 equal); the 28-day cases use the world's own signal and
+the 7-day case uses the recomputed signal rounded to 12 decimals. In the first pass that same
+~10⁻¹⁵ noise moved four step-8 values in the third decimal (largest: 8b step B f_D 0.05, mean DR
+lag-0 +0.335 → +0.341); no verdict changed; every other row was identical
+(`step8_e26_first.log` kept).
+
+*C50 (8d), revised E26 criterion (i) (max over lags −42…+42 d; whole-agent caution).* Best lag L:
+caution on day t + L vs signal on day t; L < 0 = caution leads.
+
+| case | n | max-lag DR mean / median (n def) | best lag, median [range] | lag-0 DR mean | caution SD | attack | runs meeting (i-rev) / (i-lag 0) / (ii) / (iii) | verdict revised (original) |
+|---|---|---|---|---|---|---|---|---|
+| **should PASS:** Weitz rule N = 30,000 (C43) | 10 | +0.504 / +0.494 (10) | −14 [−21, −9] | +0.187 | 0.282 | 0.387 | 10 / 2 / 10 / 10 | **PASS** (FAIL) |
+| **should FAIL:** C31 ceiling (a) S1 | 30 | undefined (0) | — | undefined | 0.000 | 0.592 | 0 / 0 / 0 / 30 | FAIL (FAIL) |
+| **should FAIL:** C31 ceiling (c) S2 | 30 | undefined (0) | — | undefined | 0.000 | 0.047 | 0 / 0 / 0 / 6 | FAIL (FAIL) |
+| **should FAIL:** rule 2, S1 | 30 | +0.832 / +0.830 (8) | +2 [−40, +8] | +0.691 | 0.158 | 0.017 | 8 / 8 / 30 / 0 | FAIL (FAIL) |
+| **should FAIL:** rule 2, S2 | 30 | +0.823 / +0.807 (3) | −10 [−28, +10] | +0.711 | 0.174 | 0.009 | 3 / 3 / 30 / 0 | FAIL (FAIL) |
+| **should FAIL:** rule 2, S3 | 30 | +0.836 / +0.826 (5) | +4 [−40, +9] | +0.621 | 0.156 | 0.018 | 5 / 5 / 30 / 0 | FAIL (FAIL) |
+| arm 1, S1 / S2 / S3 | 30 each | +0.938 / +0.899 / +0.947 | +12 / +18 / +10 | +0.792 / +0.647 / +0.864 | 0.38 / 0.36 / 0.39 | 0.86 / 0.59 / 0.89 | 30, 30, 30 meet all | PASS ×3 (PASS ×3) |
+| rule 1, S1 / S2 / S3 | 30 each | +0.933 / +0.891 / +0.923 | +1 / +2.5 / +1 | +0.922 / +0.866 / +0.915 | 0.19 / 0.15 / 0.19 | 0.70 / 0.42 / 0.76 | 30 meet all, each | PASS ×3 (PASS ×3) |
+| rule 3, S1 / S2 / S3 | 30 each | +0.940 / +0.919 / +0.942 | +1 / +2 / +1 | +0.928 / +0.901 / +0.933 | 0.14 / 0.08 / 0.14 | 0.71 / 0.48 / 0.74 | 30 meet all, each | PASS ×3 (PASS ×3) |
+| rule 4, S1 / S2 / S3 | 30 each | +0.881 / +0.852 / +0.835 | −21.5 / −20.5 / −28 | +0.262 / +0.481 / −0.005 | 0.045 / 0.016 / 0.043 | 0.93 / 0.78 / 0.93 | (i-rev) 30/30 each; (ii) 4 / 0 / 3; all 4 / 0 / 3 | FAIL ×3 (FAIL ×3) |
+| rule 5, S1 / S2 / S3 | 30 each | +0.839 / +0.774 / +0.849 | −24 / −26 / −31.5 | +0.171 / +0.380 / −0.053 | 0.034 / 0.019 / 0.034 | 0.91 / 0.75 / 0.91 | (i-rev) 30/30 each; (ii) 0 each | FAIL ×3 (FAIL ×3) |
+| C45 1a B, f_D 0.025 / 0.05 / 0.10 | 10 each | +0.772 / +0.846 / +0.876 | −14.5 / −12 / −14 | +0.554 / +0.678 / +0.677 | 0.27 / 0.25 / 0.24 | 0.69 / 0.70 / 0.69 | 10 meet all, each | PASS ×3 (PASS ×3) |
+| C45 1a C, f_D 0.10 | 10 | +0.996 | 0 | +0.996 | 0.380 | 0.666 | 10 / 10 / 10 / 10 | PASS (PASS) |
+| C45 1b B, N = 15,000 | 10 | +0.516 / +0.474 | −13 [−15, +14] | +0.288 | 0.344 | 0.321 | 10 / 3 / 10 / 9 | PASS (FAIL) |
+| C45 1b B, N = 20,000 | 10 | +0.455 / +0.458 | −15.5 [−29, −9] | +0.146 | 0.311 | 0.338 | 9 / 1 / 10 / 10 | PASS (FAIL) |
+| 8a C 28-day, N = 15,000 / 20,000 / 30,000 | 10 each | +0.995 / +0.998 / +0.998 | 0 / 0 / 0 | same | 0.39 / 0.41 / 0.40 | 0.27 / 0.29 / 0.32 | 10 meet all, each | PASS ×3 (PASS ×3) |
+| 8a C 7-day, N = 30,000 | 10 | +0.702 / +0.701 | −10 [−14, −5] | +0.612 | 0.341 | 0.541 | 10 / 10 / 10 / 10 | PASS (PASS) |
+| 8b B, f_D 0.05 / 0.10 | 10 each | +0.681 / +0.698 | −15 / −15 | +0.341 / +0.365 | 0.27 / 0.24 | 0.51 / 0.60 | (i-rev) 10, 10; (i-lag 0) 7, 6; all others 10 | PASS ×2 (PASS ×2) |
+| 8b C, f_D 0.05 / 0.10 | 10 each | +0.996 / +0.994 | 0 / 0 | same | 0.38 / 0.39 | 0.49 / 0.48 | 10 meet all, each | PASS ×2 (PASS ×2) |
+
+**Known-case validation under the revised (i): every known case is on its expected side** —
+C43 N = 30,000 PASSes (10/10 runs meet all three; best lag −14 d median), the ceiling cases FAIL
+((i) undefined, (ii) SD 0; S2 also (iii)), rule 2 FAILs on (iii) in S1–S3. Other measured facts:
+under the revised (i), rules 4 and 5 meet (i) on 30/30 runs in every scenario (max-lag DR
+0.77–0.88, best lags −20.5 to −31.5 d; at lag 0: 1–24 runs) and FAIL only on (ii); arm 1's best
+lag is positive (+10 to +18 d: caution lags the signal), rules 1 and 3 at +1 to +2.5 d, every
+Weitz-rule step-B case negative (−10 to −15.5 d). The three 28-day step-C cases of C47 and the
+step-C cases of C45/C48 PASS E26 (both versions) while not meeting the C42 pass mark (median
+per-seed stretch ×0.75–0.83).
+
+*Predictions vs outcome:*
+- C47, Max: 28-day step C fails at all three sizes — **as predicted**; the 7-day version does
+  better — **as predicted** (×20.03 vs ×4.21; 10/10 vs 1/10 active). Claude Code: 28-day mean
+  stretch below ×3 — **wrong** (×4.07 / ×3.25 / ×4.21; medians ×0.75–0.80); 7-day better — as
+  predicted; 7-day does not reach ×10 — **wrong** (×20.03).
+- C48, Claude Code: ODE about ×18 and active — as predicted (×18.43 / ×18.48; 5.98 / 6.03 persons).
+  Step B mean stretch ≥ ×10 at both f_D — as predicted (×10.94, ×13.13); at most half active —
+  as predicted (0/10, 1/10). Step C fails at both — as predicted; "below ×2" — **wrong at f_D
+  0.05** (×2.47), right at 0.10 (×1.27).
+- C49, Claude Code: (a) and (c) hold — as predicted; (b) — **wrong** (6.4 × 10⁻⁴ > 10⁻⁹); ceiling
+  S1 undefined on 30/30 — as predicted.
+- C50, Claude Code: C43 PASSes with a negative median best lag between −35 and −10 d — as
+  predicted (−14). Ceiling and rule 2 FAIL — as predicted. Arm 1, rules 1 and 3 PASS — as
+  predicted. Rules 4 and 5 FAIL on (ii) — as predicted (they now meet the revised (i)).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -2847,7 +3026,7 @@ state count is measured separately (C15, E3).
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
 | E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Open points filled (Max, 10 Oct 2026, before any arm-3 run):** Spearman rank correlation; caution = the REALISED share of deciding agents (never-ill and alive: S or E) whose action is stay_home or precautions; lag 0; days while E + I > 0; for arm 1, the share in S^B among the same agents (S^B / (S + E); CBF has no cautious E state, so arm 1's E agents never count as cautious, whereas arm 3's E agents count by their realised action — recorded asymmetry). *Implementation (C39):* per run, day t pairs `deaths_28day_mean` at the start of day t (the world's awareness signal) with the caution share at the end of day t, over the days t whose end-of-day E + I > 0; undefined if either series is constant on those days (count reported). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
 | E25 | **Open, for the supervisor meeting (NOT decided): candidate switch of the main town size from N = 3,000 to N = 30,000.** Reason: a Weitz-style plateau is reachable in the shared world at N = 30,000 (C43: Step B stretch ×19.5, 9/10 runs active at day 600, about 2.7 people in H in the main phase) but not at N = 3,000 (C42: ×1.83, 0/30 active; about one hospitalised person switches q between ≈ 0 and ≈ 0.96). **If adopted:** rerun Steps 1–3 and arm 3 at N = 30,000; re-measure the run-to-run spread under arm 1 to set the seed count; consider re-testing the 7-day window (A47, `deaths_28day_mean_7d_ago`). N = 3,000 is currently settled by C5/C7 (measured floor) and D13. *Cost (C44):* arm 2 at N = 30,000 is $718–$1,371 for 10 runs × 3 scenarios (about $4,500 if arm 2 plateaus), against a budget of about $100 (A67). Cheaper routes to a plateau: C45 | N (C5/C7, D13); seed count; arm-2 call budget (C32, C44); every result C26–C41 |
-| E26 | **PROPOSED (for supervisor point 6; NOT adopted): the "real plateau" check.** A flattened result counts as behaviour-driven only if ALL hold: **(i)** death responsiveness (E24, exactly as implemented in C39) ≥ 0.3; **(ii)** the cautious share among deciding agents varies over time: SD (ddof = 1) of the daily caution share (E24's realised share; arm 1: S^B / (S + E)) over the days with end-of-day E + I > 0 ≥ 0.05; **(iii)** the disease really spread: attack size = 1 − S at day 600 (includes the 10 initial cases) ≥ 0.10. **All three thresholds are UNSOURCED** (planning chat's proposal, 16 Oct 2026). *Operationalisation (Claude Code, fixed before computing):* criteria are applied per run; an undefined death responsiveness (either series constant on the active days, E24) fails (i) for that run, and an undefined SD (< 2 active days) fails (ii). **Config verdict: PASS if more than half of its runs meet all three**; config means (DR over defined runs, n reported) are shown alongside. *Validation on known cases:* should PASS — Weitz's rule at N = 30,000 (C43 step B, 10 runs; rerun with the caution series logged, incidence checked bit-identical to the stored runs); should FAIL — everyone careful from day 0 (C31 ceiling: (a) S1 and (c) S2 all precautions, 30 runs each; rerun, final S checked against C31) and arm-3 rule 2 (C39; S1, S2, S3). Information only: arm 1 (C30, via C39's shared-world rerun) and rules 1, 3, 4, 5 (C39), in S1–S3; and every C45 case. **If a known case lands on the wrong side it is reported and the thresholds are NOT adjusted.** *Predictions (Claude Code), [Speculation]:* ceiling FAILs (ii) with SD exactly 0 and DR undefined on every run (high); rule 2 FAILs (iii) in all three scenarios (high; C39 attack ≈ 0.01–0.02); C43 N = 30,000 meets (ii) and (iii) (high) but (i) is uncertain (~50%) — its rule follows H (zero lag), while E24 correlates against the 28-day mean of reported deaths, which lags H by weeks, and on a plateau both move slowly; arm 1 PASSes in S1–S3 (medium); rules 1 and 3 PASS (medium-high); rules 4 and 5 FAIL in S1 and S3 on (i) (medium; C39 DR 0.26 / 0.17 and −0.01 / −0.05). **Validation result (C46): the should-PASS case (C43, N = 30,000) FAILs on (i) (DR +0.187); all should-FAIL cases FAIL. Thresholds not adjusted; open for the planning chat** | supervisor point 6; the claim "behaviour produced the plateau" |
+| E26 | **PROPOSED (for supervisor point 6; NOT adopted): the "real plateau" check.** A flattened result counts as behaviour-driven only if ALL hold: **(i)** death responsiveness (E24, exactly as implemented in C39) ≥ 0.3; **(ii)** the cautious share among deciding agents varies over time: SD (ddof = 1) of the daily caution share (E24's realised share; arm 1: S^B / (S + E)) over the days with end-of-day E + I > 0 ≥ 0.05; **(iii)** the disease really spread: attack size = 1 − S at day 600 (includes the 10 initial cases) ≥ 0.10. **All three thresholds are UNSOURCED** (planning chat's proposal, 16 Oct 2026). *Operationalisation (Claude Code, fixed before computing):* criteria are applied per run; an undefined death responsiveness (either series constant on the active days, E24) fails (i) for that run, and an undefined SD (< 2 active days) fails (ii). **Config verdict: PASS if more than half of its runs meet all three**; config means (DR over defined runs, n reported) are shown alongside. *Validation on known cases:* should PASS — Weitz's rule at N = 30,000 (C43 step B, 10 runs; rerun with the caution series logged, incidence checked bit-identical to the stored runs); should FAIL — everyone careful from day 0 (C31 ceiling: (a) S1 and (c) S2 all precautions, 30 runs each; rerun, final S checked against C31) and arm-3 rule 2 (C39; S1, S2, S3). Information only: arm 1 (C30, via C39's shared-world rerun) and rules 1, 3, 4, 5 (C39), in S1–S3; and every C45 case. **If a known case lands on the wrong side it is reported and the thresholds are NOT adjusted.** *Predictions (Claude Code), [Speculation]:* ceiling FAILs (ii) with SD exactly 0 and DR undefined on every run (high); rule 2 FAILs (iii) in all three scenarios (high; C39 attack ≈ 0.01–0.02); C43 N = 30,000 meets (ii) and (iii) (high) but (i) is uncertain (~50%) — its rule follows H (zero lag), while E24 correlates against the 28-day mean of reported deaths, which lags H by weeks, and on a plateau both move slowly; arm 1 PASSes in S1–S3 (medium); rules 1 and 3 PASS (medium-high); rules 4 and 5 FAIL in S1 and S3 on (i) (medium; C39 DR 0.26 / 0.17 and −0.01 / −0.05). **Validation result (C46): the should-PASS case (C43, N = 30,000) FAILs on (i) (DR +0.187); all should-FAIL cases FAIL. Thresholds not adjusted; open for the planning chat.** **Criterion (i) REVISED after that failure (C50, planning chat, 16 Oct 2026; still PROPOSED): maximum Spearman correlation over lags −42…+42 days, best lag reported; (ii), (iii) and thresholds unchanged. Under it every known case is on its expected side (C50).** **Planning chat (Max), 16 Oct 2026: criteria (i)–(iii) are kept as revised in C50. E26 is a NECESSARY check only: it rejects constant caution (ii) and plain suppression (iii), but it cannot show that a flattened curve is CAUSED by reacting (C50: step-C cases that do not flatten pass it; rules 4 and 5 meet the revised (i)). Still PROPOSED, for supervisor approval** | supervisor point 6; the claim "behaviour produced the plateau" |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above

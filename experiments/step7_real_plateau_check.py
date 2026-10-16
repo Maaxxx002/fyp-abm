@@ -51,7 +51,7 @@ def run_ceiling(task):
     o = run_shared_world(N=3000, seed=seed, decision=ForcedPrecautions(), days=600,
                          f_D=pop.vulnerability, window=28, detection_rate=0.7, **SCEN[sc])
     rec = {k: np.asarray(o[k], float) for k in ("prevalence", "exposed", "S", "awareness_signal")}
-    deciders = o["S"] * 3000 + o["exposed"]
+    deciders = o["S_by_action"].sum(1) + o["E_by_action"].sum(1)   # whole agents (C47, E24 rounding fix)
     cautious = (o["S_by_action"][:, STAY_HOME] + o["S_by_action"][:, PRECAUTIONS]
                 + o["E_by_action"][:, STAY_HOME] + o["E_by_action"][:, PRECAUTIONS])
     with np.errstate(invalid="ignore", divide="ignore"):

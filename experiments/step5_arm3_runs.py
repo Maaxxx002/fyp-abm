@@ -66,7 +66,7 @@ def run_one(task):
         o = run_shared_world(decision=Arm3Rule(k, pop), redecide_prob=P_REASK,
                              stop_deciding_when_no_infection=True, social_norm_def=norm, **kw)
     rec = {key: np.asarray(o[key], float) for key in KEEP}
-    deciders = o["S"] * N + o["exposed"]                  # never-ill and alive: S or E
+    deciders = o["S_by_action"].sum(1) + o["E_by_action"].sum(1)   # whole agents (C47, E24 rounding fix)
     if kind == "arm1":
         cautious = o["SB"]                                # E24: arm 1 = share in S^B
     else:
