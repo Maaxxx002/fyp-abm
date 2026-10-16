@@ -80,6 +80,10 @@ Last updated: after the shape-metric investigation and the N decision.
 | A64 | **Reply parsing (amends A56/A61):** a reply "A=a, B=b, C=c" with whole numbers ≥ 0 is valid if 98 ≤ a + b + c ≤ 102; it is then rescaled to sum to 100 (probabilities a/(a+b+c), b/(a+b+c), c/(a+b+c)). Outside 98–102 it is invalid and handled by A61 (retry up to 2 times, then keep `current_action`) | [Decision, planning chat (Max), 10 Oct 2026] Replaces the draft's "must sum to exactly 100" |
 | A65 | **LLM request settings for arms 2 and 3 (identical in both):** model `claude-haiku-5-5` (A63); **thinking OFF via the Messages API parameter `thinking: {"type": "disabled"}`** (docs: accepted on Claude Haiku 5.5 at effort `low`, `medium`, `high`; returns 400 at `xhigh`/`max`); `output_config.effort` NOT sent, so the API default applies (`medium` on Claude Haiku 5.5, docs); **`temperature`, `top_p`, `top_k` NOT sent, so the API default applies: temperature = 1** (docs: on Claude Haiku 5.5 any non-default sampling value returns 400 — temperature must be 1, top_p 0.99). No system prompt; the rendered prompt is the single user message. Arm-2 calls use `max_tokens` = 1024 (implementation cap so a reply cannot be cut off; arm 3's cap is set when arm 3 is built, since it returns code). **Pilot comparison only (not a production setting):** thinking ON = `thinking: {"type": "adaptive"}`, effort default, `max_tokens` 16000 | [Decision, planning chat (Max), 10 Oct 2026] Reasoning tokens are billed as output and could multiply arm 2's cost; the same setting must apply to arms 2 and 3. Noted from the docs, not acted on: the migration guide recommends lowering effort rather than disabling thinking on Claude Haiku 5.5 |
 | A66 | **Prompt pilot CLOSED (E6); prompt template FROZEN as v1. Prompt rounds are closed.** **Pilot conclusion:** under Claude Haiku 5.5 the arm-2 prompt is age-sensitive and only weakly death-sensitive; the criterion (i) pass in C37 is fragile (margins within repeat noise). The wording W1 (the draft template, unchanged) is selected by the pre-registered rule (C37). **Frozen texts** (`prompts/frozen_v1/`, UTF-8, LF line endings, no trailing newline; written by `experiments/step5_freeze_prompts.py` from `prompts/DRAFT_arm2_arm3.md`, which it asserts equal to the renderer's TEMPLATE; `.gitattributes` marks the folder `-text` so the bytes never change): **arm-2 template `arm2_template_v1.txt`, 997 characters, SHA-256 `fc75ff228eec760454b2a63f98a09a7be756791a50d6b54395f5029152533259`**; **arm-3 instruction `arm3_instruction_v1.txt` (draft section 2 with the template inserted verbatim at its slot, A49), 3,286 characters, SHA-256 `fb28ae6f11f7468a25269c4d789995fb1d5ca5a6242723ec9cc843e7ebfb058f`**. Rendering rules and reply handling as in the draft (A56–A61, A64); request settings A65 | [Decision, planning chat (Max), 10 Oct 2026] Evidence C34–C37 |
+| A67 | **API budget: about $100 in total** for all LLM use (arms 2 and 3, pilots included). **Provisional — to be re-confirmed with the supervisor.** Consequence recorded in C44: arm 2 as currently designed (N = 3,000, 30 runs × 3 scenarios, p = 0.3, A55 stop; $153–$198, C34) already exceeds it | [Supervisor meeting, 16 Oct 2026] |
+| A68 | **Ill agents do not decide; no extension.** A38 stays the only design; the planned variant-A extension (E21) is not built. C41 T2 ("variant A-physical", arm 3 only) remains a measured side result and is not extended to arm 2 or to an LLM-judgement version | [Supervisor meeting, 16 Oct 2026] Closes E21 |
+| A69 | **`social_norm` stays CBF's exact term** (A44/A48 reaffirmed). The alternative definition (agents acting normal / agents in S, E, I or R not staying home) is kept only as the existing C40 sensitivity result | [Supervisor meeting, 16 Oct 2026] |
+| A70 | **Tuning model parameters is approved if N = 30,000 is too costly.** Which parameters, and to what values, is NOT decided here. Recorded tension, not resolved: Scenario_Spec §1 lists IFR/age structure as a frozen property of the population and lets scenarios vary only R₀ and T_H; any tuned value must apply identically to every arm and control (the arms still differ only in the decision function) | [Supervisor meeting, 16 Oct 2026] First measured use: C45 (test case only, not an arm) |
 
 ## B. Sources — extraction status
 
@@ -2436,6 +2440,208 @@ people in H on average and bursts with gaps (seed 0), 3/10 active at day 600, bu
 10/10 runs ≥ ×10, 9/10 active at day 600. N = 100,000 "plateau" — **as predicted**: ×20.2, 10/10
 active at day 600.
 
+**C44 — Arm-2 cost estimate at N = 30,000 (computed in an earlier session; recorded 16 Oct 2026
+as given, not recomputed). [Measured facts / computed figures.]**
+- *Method:* C32's call-count method rerun at N = 30,000, 10 seeds, p = 0.3, A55 stop rule; cost
+  per call $0.0000427 (C34 pilot: ~361 input tokens at $0.10/M + 13 output at $0.50/M).
+- *Now (N = 3,000, 30 runs × 3 scenarios):* 3,588,962 calls (no-behaviour reference) to 4,630,971
+  (arm-1 reference) = $153–$198.
+- *N = 30,000, 10 runs × 3 scenarios:* 16,807,753 to 32,116,277 calls = $718–$1,371 (×4.7–6.9).
+  The ratio is above 3.3 because epidemics last longer in a bigger town (asking days per run: S1
+  control ~95 → 125; S2 control ~139 → 188; arm-1 S2 average 289 days; one S2 run alone needed
+  4.0M calls).
+- *Plateau case (assumption: arm 2 plateaus):* ~0.3 × 600 × 19,500 = 3.5M calls per run, ~105M
+  for 30 runs, about $4,500. Ceiling (everyone asked every day): ~162M calls, about $6,900.
+- Batch API would halve these (A63); whether batching fits the day-by-day loop is open.
+- *Against the budget (A67, about $100, provisional):* arm 2 as currently designed exceeds it
+  **even at N = 3,000** ($153–$198 for 90 runs, before retries), and at N = 30,000 by ×7–14
+  ($718–$1,371), or ×45 in the plateau case.
+
+**C45 — Can a plateau be reached more cheaply than N = 30,000? A CAPABILITY TEST, NOT AN ARM.
+PRE-REGISTRATION, written before any Part 1 run (ODE grid not yet solved; only a reproduction
+check of C42's Step A was run: the new ODE code gives ×21.83 / ×16.83 / ×6.17 at N·δ_c = 0.015 /
+0.05 / 0.15, equal to C42).** [Design: planning chat (Max), 16 Oct 2026; supervisor approval to
+tune, A70.] No API calls; no arm, rule or prompt changed. `experiments/step7_cheaper_plateau.py`;
+outputs `results/step7/`. Test rule as C42/C43: Weitz's g = 1/(1 + (δ/δ_c)^k), k = 2; never-ill
+agents (S or E) stay home with q = 1 − g; precautions unused; δ_c tuned.
+
+*1a — Route B (higher death rate at N = 3,000).* f_D ∈ {0.025, 0.05, 0.10}: **tuning values given
+by the planning chat, NOT sourced** (Weitz/Gozzi: 0.01 / 0.009718).
+- **Equations:** Weitz model B ODE, S1 (R₀ 3, latent 2 d, infectious 6 d, T_H 14), N = 3,000,
+  flat f_D, I(0) = 10/N, δ = γ_H·N·H (C42 Step A's code with f_D as a parameter). **Search rule
+  (fixed now):** N·δ_c = the LARGEST value on the log grid 0.005 × 10^(j/20), j = 0…80 (0.005 to
+  50 deaths/day, 20 points per decade) that meets C42 Step A's plateau criterion (T10–90 stretch
+  ≥ ×10 against the no-behaviour ODE with the same f_D, OR E + I ≥ 1 person at day 600). The grid
+  values next to the chosen one are reported. The same search is reported for f_D = 0.009718 as
+  a reference (C42's grid had 0.05 meeting the criterion and 0.15 not).
+- **Step B:** shared world, N = 3,000, S1, seeds 0–9, δ = n_H/T_H (zero lag), every never-ill
+  agent redrawn each sub-step (mode "substep"), at the chosen δ_c. Per-agent f_D =
+  IFR_10age[band] × f_D / 0.009718 (age pattern kept), capped at 1.0; capped bands reported
+  (computed in advance: the largest band, 80+, gives 0.078 × 10.29 = 0.80 at f_D = 0.10, so no
+  band is expected to be capped). Control: AlwaysNormal with the same f_D array, same seeds.
+- **Step C, best f_D only.** Best = the f_D with the largest step-B mean stretch (ratio of mean
+  T10–90); tie → the smaller f_D. Same δ_c; δ = the agents' 28-day mean of 70%-reported deaths
+  (A24/A25); decisions once per day at the start of the day, p = 1.0; A55 stop. Seeds 0–9;
+  control = that f_D's step-B control.
+
+*1b — Route A (middle town size, normal death rate).* Step B at N = 15,000 and 20,000, seeds 0–9,
+per-agent f_D unscaled, the same per-capita δ_c as C43 (0.5 × 10⁻⁵/day) → N·δ_c = 0.075 / 0.10.
+Frozen quota population built at each N (seed 0). Own AlwaysNormal controls, same seeds.
+
+*Reported per case:* stretch (ratio of mean T10–90 [95% CI, 1,000 paired bootstrap resamples,
+seed 20261005], median per-seed ratio, runs ≥ ×10); peak-I reduction (paired SEM); final S
+(mean, SD); attack size (1 − final S); runs still active at day 600 (E + I > 0; stretch then
+truncated, a lower bound, A35); mean number of people in H over the main phase (days with
+end-of-day E + I > 0) — for step B the daily mean of sub-step H counts (C43's measure); for
+step C the end-of-day H count (step C's decision function does not see H; H = N − S − E − I − R
+− cumulative deaths). No wave counts (not requested). As information only, E26's three
+criteria are also reported for every C45 case (C46).
+
+*Design note, recorded before running (Claude Code):* choosing the LARGEST δ_c that still meets
+the ODE criterion places the ODE at the edge of that criterion (ODE stretch near ×10, or barely
+active at day 600). Step B can therefore at best reproduce about that stretch, so a step-B result
+below ×10 at that δ_c does not by itself show that a stronger plateau is unreachable at that f_D.
+Reported, not changed.
+
+*Predictions (planning chat, Max), [Speculation]:* 1a — a plateau becomes reachable at N = 3,000
+for f_D = 0.05 or 0.10 in step B, weaker in step C (medium-low confidence). 1b — 20,000 reliable,
+15,000 borderline (low confidence).
+
+*Predictions (Claude Code), [Speculation]:*
+- ODE: the chosen N·δ_c rises roughly in proportion to f_D (H scales with f_D, and g depends on
+  H only through H/δ_c) — about 0.3 / 0.6 / 1.2 deaths/day (medium-high).
+- Step B: the death signal grows with f_D (about 2.6× / 5.1× / 10.3× as many people in H), but the
+  infection process on the ODE plateau still runs at the same few new infections per day as at
+  f_D = 0.009718 (the ODE's incidence barely depends on f_D at matched δ_c/f_D), so stochastic
+  fade-out (E + I reaching 0) is not removed. f_D = 0.10: mean stretch ≥ ×10 but at most 5/10 runs
+  active at day 600 (low). f_D = 0.025: mean stretch < ×10 (medium-low).
+- Step C weaker than step B on stretch and peak reduction (medium).
+- 1b: N = 20,000 mean stretch ≥ ×10 with ≥ 7/10 active at day 600; N = 15,000 mean stretch ≥ ×10
+  with 4–7/10 active (low; C43: ×12.0 with 3/10 active at 10,000, ×19.5 with 9/10 at 30,000).
+
+*Time gate:* stop and report if the upper-end projection exceeds 20 minutes (timing recorded
+below before the main run).
+*ODE search done before timing (it fixes δ_c; `results/step7/cheaper_plateau_ode.{json,log}`):*
+chosen N·δ_c = **0.2233 / 0.4456 / 0.8891** deaths/day for f_D = 0.025 / 0.05 / 0.10 (reference
+f_D = 0.009718: 0.0889). *Timing* (seed 0 of each kind, 9 runs in parallel,
+`cheaper_plateau_timing.log`): N = 3,000 step B 2.5–3.8 s, step C 0.9 s, control 0.6 s; N = 15,000
+B 9.9 s, N = 20,000 B 15.6 s, controls 2.8–3.1 s. Upper end (every run at about 2× its timing,
+×2 for 16 workers sharing memory, plus Part 2's reruns: 10 × N = 30,000 at C43's 34 s × 3 and 60
+ceiling runs): about **5 min** → run.
+
+**C45 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step7_cheaper_plateau.py
+--ode`, `--timing`, `--sim`, `--simC`, `--score`; `results/step7/cheaper_plateau_ode.{json,log}`,
+`cheaper_plateau_runs.npz`, `cheaper_plateau_sim.log`, `cheaper_plateau_scores.{json,log}`. Wall:
+324 ODE solves 4 s; 100 main simulations 1.1 min (per run 1.2–44.8 s); 10 step-C runs < 0.1 min.
+n = 10 seeds (0–9) in every ABM case; controls same seeds.
+
+*ODE search (S1, N = 3,000; no-behaviour T10–90 23 d).* At the chosen value, and the next grid
+value up (first failing):
+
+| f_D | chosen N·δ_c | ODE stretch | peak-I red | final S | E + I at day 600 | ODE mean H (E + I ≥ 1) | next value up: stretch, E + I at 600 |
+|---|---|---|---|---|---|---|---|
+| 0.009718 (reference) | 0.0889 | ×10.09 | 75.0% | 0.2827 | 0.06 | 0.64 | 0.0998: ×9.04, 0.03 |
+| 0.025 | **0.2233** | ×10.35 | 75.5% | 0.2834 | 0.08 | 1.61 | 0.2506: ×9.26, 0.03 |
+| 0.05 | **0.4456** | ×10.35 | 75.5% | 0.2835 | 0.08 | 3.22 | 0.5000: ×9.30, 0.03 |
+| 0.10 | **0.8891** | ×10.39 | 75.6% | 0.2836 | 0.08 | 6.42 | 0.9976: ×9.30, 0.03 |
+
+At every chosen value the criterion is met by stretch ≥ ×10, not by activity at day 600 (E + I
+0.08 persons). *Scaling of f_D:* no band capped at any f_D (largest band value 0.2007 / 0.4013 /
+0.8026); realised population mean f_D 0.025000 / 0.050000 / 0.099999.
+
+*ABM results.* Stretch = ratio of mean T10–90 [95% CI]; H = mean people in H over the main phase
+(step B: sub-step mean, C43's measure; step C: end-of-day count).
+
+| case | N·δ_c | stretch [95% CI] | median | ≥ ×10 | peak-I red (SEM) | final S (SD) | attack | active at 600 | last active day, per run | H (per-run range) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1a B, f_D 0.025 | 0.2233 | ×8.10 [6.97, 9.34] | ×7.88 | 1/10 | 69.5% (−19.0) | 0.315 (0.051) | 0.685 | 0/10 | 220, 285, 308, 320, 321, 322, 333, 349, 419, 424 | 2.02 (1.63–2.53) |
+| 1a B, f_D 0.05 | 0.4456 | ×9.44 [8.18, 10.78] | ×9.27 | 4/10 | 74.6% (−23.5) | 0.298 (0.039) | 0.702 | 0/10 | 295, 296, 302, 361, 378, 399, 399, 424, 445, 520 | 3.76 (2.62–4.45) |
+| 1a B, f_D 0.10 | 0.8891 | ×9.57 [8.25, 10.87] | ×8.43 | 4/10 | 75.2% (−32.0) | 0.313 (0.032) | 0.687 | 0/10 | 271, 306, 306, 311, 314, 341, 415, 422, 438, 552 | 8.11 (6.26–10.18) |
+| 1a C, f_D 0.10 | 0.8891 | ×0.84 [0.82, 0.87] | ×0.83 | 0/10 | 19.3% (−9.0) | 0.334 (0.045) | 0.666 | 0/10 | 79, 80, 82, 86, 87, 89, 97, 104, 105, 128 | 29.84 (18.96–37.01), end of day |
+| 1b B, N = 15,000 | 0.075 | ×13.43 [8.23, 17.72] (truncated) | ×14.44 | 7/10 | 87.0% (−69.7) | 0.679 (0.132) | 0.321 | 5/10 | 78, 179, 186, 355, 455, 600 ×5 | 1.72 (1.34–2.46) |
+| 1b B, N = 20,000 | 0.10 | ×16.20 [12.32, 19.78] (truncated) | ×19.20 | 7/10 | 91.6% (−122.0) | 0.662 (0.122) | 0.338 | 7/10 | 182, 254, 322, 600 ×7 | 2.04 (1.73–2.46) |
+
+Controls: N = 3,000 final S 0.0566, T10–90 23.2 d (the same infections at every f_D: f_D only
+routes I-leavers to H or R); N = 15,000 final S 0.0597, T10–90 23.5 d; N = 20,000 0.0602, 23.3 d.
+Every 1a step-B run has per-seed stretch > ×1.5 (10/10 at each f_D); 1b: 9/10 (15,000), 10/10
+(20,000). **Best f_D by the pre-registered rule: 0.10** (×9.57 vs ×9.44 and ×8.10).
+
+*C42 pass mark applied as a description* (stretch ≥ ×10, or > half the runs active at day 600
+with peak reduction ≥ 80%): 1a step B — not met at any f_D (×8.10 / ×9.44 / ×9.57; 0/10 active);
+1b — met at N = 15,000 (×13.43; 5/10 active) and N = 20,000 (×16.20; 7/10 active, 91.6%).
+
+*Predictions vs outcome:*
+- Max, 1a: "a plateau becomes reachable at N = 3,000 for f_D = 0.05 or 0.10 in step B" — the C42
+  pass mark is not met (×9.44 and ×9.57, CIs [8.18, 10.78] and [8.25, 10.87]; 4/10 runs ≥ ×10
+  each; 0/10 active at day 600). The ODE at the same δ_c gives ×10.35 / ×10.39. "Weaker in step
+  C" — **as predicted** (×0.84, peak reduction 19.3%).
+- Max, 1b: "20,000 reliable, 15,000 borderline" — 20,000: ×16.20, 7/10 ≥ ×10, 7/10 active;
+  15,000: ×13.43, 7/10 ≥ ×10, 5/10 active.
+- Claude Code: chosen N·δ_c rising in proportion to f_D — proportional (0.2233 / 0.4456 / 0.8891,
+  ×2.0 per doubling); the guessed values (0.3 / 0.6 / 1.2) were too high. f_D 0.10 "mean
+  stretch ≥ ×10, at most 5/10 active" — **stretch wrong** (×9.57), activity 0/10. f_D 0.025
+  "< ×10" — as predicted (×8.10). Step C weaker than B — as predicted. 1b: 20,000 "≥ ×10 with
+  ≥ 7/10 active" — as predicted (×16.20, 7/10); 15,000 "≥ ×10 with 4–7/10 active" — as
+  predicted (×13.43, 5/10).
+
+**C46 — "Real plateau" check (E26, proposed). PRE-REGISTRATION: the definition, cases and
+predictions are in E26, written before any Part 2 computation.** `experiments/step7_real_plateau_check.py`;
+outputs `results/step7/real_plateau_*`.
+
+**C46 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step7_real_plateau_check.py
+--sim`, `--score`; `results/step7/real_plateau_runs.npz`, `real_plateau_sim.log`,
+`real_plateau_scores.{json,log}`. 70 reruns, 1.2 min. **Reproduction checks:** C43 N = 30,000
+step B rerun — incidence bit-identical to the stored runs on 10/10 seeds; C31 ceiling reruns —
+mean final S 0.40774 (S1) and 0.95254 (S2), equal to C31. C39 and arm-1 cases read from the C39
+cache (`results/step5/arm3_runs.npz`); C45 cases from C45's runs.
+
+| case | n | DR mean / median (n defined) | caution SD, mean | attack, mean | runs meeting (i) / (ii) / (iii) / all | verdict |
+|---|---|---|---|---|---|---|
+| **should PASS:** Weitz rule, N = 30,000 (C43 step B) | 10 | +0.187 / +0.134 (10) | 0.282 | 0.387 | 2 / 10 / 10 / 2 | **FAIL** |
+| **should FAIL:** C31 ceiling (a) S1, all precautions | 30 | −0.021 / −0.019 (30, see note) | 0.000 | 0.592 | 0 / 0 / 30 / 0 | FAIL |
+| **should FAIL:** C31 ceiling (c) S2, all precautions | 30 | undefined (0) | 0.000 | 0.047 | 0 / 0 / 6 / 0 | FAIL |
+| **should FAIL:** C39 rule 2, S1 | 30 | +0.691 / +0.716 (8) | 0.158 | 0.017 | 8 / 30 / 0 / 0 | FAIL |
+| **should FAIL:** C39 rule 2, S2 | 30 | +0.711 / +0.720 (3) | 0.174 | 0.009 | 3 / 30 / 0 / 0 | FAIL |
+| **should FAIL:** C39 rule 2, S3 | 30 | +0.621 / +0.679 (5) | 0.156 | 0.018 | 5 / 30 / 0 / 0 | FAIL |
+| arm 1 (CBF), S1 | 30 | +0.792 / +0.799 (30) | 0.377 | 0.856 | 30 / 30 / 30 / 30 | PASS |
+| arm 1, S2 | 30 | +0.647 / +0.659 (30) | 0.360 | 0.593 | 28 / 30 / 30 / 28 | PASS |
+| arm 1, S3 | 30 | +0.864 / +0.893 (30) | 0.387 | 0.891 | 30 / 30 / 30 / 30 | PASS |
+| rule 1, S1 / S2 / S3 | 30 each | +0.922 / +0.866 / +0.915 (means; 30 each) | 0.187 / 0.147 / 0.186 | 0.702 / 0.422 / 0.757 | all 30/30 | PASS ×3 |
+| rule 3, S1 / S2 / S3 | 30 each | +0.928 / +0.901 / +0.933 | 0.138 / 0.083 / 0.137 | 0.708 / 0.478 / 0.737 | all 30/30 | PASS ×3 |
+| rule 4, S1 | 30 | +0.262 / +0.280 (30) | 0.045 | 0.925 | 13 / 4 / 30 / 4 | FAIL |
+| rule 4, S2 | 30 | +0.481 / +0.489 (30) | 0.016 | 0.784 | 24 / 0 / 30 / 0 | FAIL |
+| rule 4, S3 | 30 | −0.005 / +0.008 (30) | 0.043 | 0.926 | 2 / 3 / 30 / 0 | FAIL |
+| rule 5, S1 | 30 | +0.171 / +0.140 (30) | 0.034 | 0.908 | 8 / 0 / 30 / 0 | FAIL |
+| rule 5, S2 | 30 | +0.380 / +0.367 (30) | 0.019 | 0.746 | 19 / 0 / 30 / 0 | FAIL |
+| rule 5, S3 | 30 | −0.053 / −0.094 (30) | 0.034 | 0.910 | 1 / 0 / 30 / 0 | FAIL |
+| C45 1a step B, f_D 0.025 / 0.05 / 0.10 | 10 each | +0.554 / +0.678 / +0.677 (10 each) | 0.269 / 0.254 / 0.237 | 0.685 / 0.702 / 0.687 | all 10/10 | PASS ×3 |
+| C45 1a step C, f_D 0.10 | 10 | +0.996 / +0.996 (10) | 0.380 | 0.666 | 10 / 10 / 10 / 10 | PASS |
+| C45 1b step B, N = 15,000 | 10 | +0.288 / +0.211 (10) | 0.344 | 0.321 | 3 / 10 / 9 / 2 | FAIL |
+| C45 1b step B, N = 20,000 | 10 | +0.146 / +0.135 (10) | 0.311 | 0.338 | 1 / 10 / 10 / 1 | FAIL |
+
+(Rule 1 and 3 rows: DR means listed per scenario; every run meets every criterion.)
+
+**Known-case validation: one should-PASS case lands on the wrong side.** Weitz's rule at N =
+30,000 (C43) FAILs, on criterion (i) only: death responsiveness +0.187 mean (2/10 runs ≥ 0.3),
+while (ii) and (iii) hold on 10/10 runs. Reported; **the thresholds were NOT adjusted.** All
+should-FAIL cases FAIL: the ceiling cases on (i) and (ii) (S2 also on (iii)), rule 2 on (iii) in
+all three scenarios (and on (i) for most runs).
+
+*Data-correctness note (E24 implementation), measured:* in the C31 ceiling S1 runs the caution
+share is constant up to floating-point rounding (largest spread on active days 3.3 × 10⁻¹⁶,
+from S-fraction × N not being an exact integer, max error 2.3 × 10⁻¹³). E24's code
+(`step5_arm3_runs.death_resp`, an exact `ptp == 0` test) therefore treats the series as
+non-constant and returns a Spearman value on 30/30 runs (−0.021 mean) instead of "undefined". No
+verdict changes (the runs fail (i) and (ii) either way). In the C39 cache, 0 of 780 runs have a
+spread in (0, 10⁻⁹), so no C39 value is affected. Not fixed (the E24 code is unchanged).
+
+*Predictions (Claude Code, E26) vs outcome:* ceiling "SD exactly 0 and DR undefined on every
+run" — SD 0 (to rounding) in both; DR undefined on 30/30 in S2, **but "defined" on 30/30 in S1**
+(the rounding note above). Rule 2 FAILs (iii) in all three — as predicted. C43 N = 30,000 meets
+(ii) and (iii) — as predicted; (i) given ~50% — failed (+0.187). Arm 1 PASSes in S1–S3 — as
+predicted. Rules 1 and 3 PASS — as predicted. Rules 4 and 5 FAIL in S1 and S3 on (i) — FAIL in
+S1 and S3, on (i) and also on (ii) (caution SD 0.034–0.045); they also FAIL in S2, on (ii).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -2636,10 +2842,12 @@ state count is measured separately (C15, E3).
 | E17 | **BUILT, TESTED, AND CLOSED — see C18/C19/C20.** `src/model.py`'s `run_cbf_behaviour` implements the real S/S^B two-compartment mechanism (adoption + relaxation, competing hazards). The ~4-6% relative-error gap against a sanity-checked DDE reference (N=3,000/10,000/30,000, 30 then 90 seeds) is confirmed real, N-independent, not a small-S^B-count artifact, and not a coding bug — adopted as a documented, accepted limitation (C20) rather than pursued further | closed |
 | E19 | **ADOPTED → A55** (arm 2 stops LLM calls once E + I = 0) | closed |
 | E20 | **RESOLVED → A42** (recovered agents do not decide; act normal). Consequence A43 (own_health dropped from the main-design vector) | closed |
-| E21 | **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
+| E21 | **CLOSED → A68 (supervisor, 16 Oct 2026: ill agents do not decide; no extension). C41 T2 is the only measurement made.** Original text: **Planned measured extension (A45), a reported result, not a side note:** once arm 3 exists, run it with and without ill agents deciding. **Variant A:** ill agents may decide; if an ill agent stays home, it neither catches nor SPREADS (two-sided, as A23), so staying home then stops transmission from that agent. Report the difference (variant A − main design, paired seeds) in stretch factor, peak reduction and final S. Needs own_health back in the vector (A43). Code-change estimate in C31's report. Open for variant A, to decide before building it: whether a newly ill agent keeps its last action or starts normal until re-asked (at p = 0.3/day that is ~3.3 days of a 6-day infectious period), and whether precautions reduce an ill agent's infectiousness | arm 3; the stated contribution |
 | E22 | **RESOLVED → A48** (CBF's exact value; wording "About X% of people in your town are going about their lives normally."; undercounts) | closed |
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
 | E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Open points filled (Max, 10 Oct 2026, before any arm-3 run):** Spearman rank correlation; caution = the REALISED share of deciding agents (never-ill and alive: S or E) whose action is stay_home or precautions; lag 0; days while E + I > 0; for arm 1, the share in S^B among the same agents (S^B / (S + E); CBF has no cautious E state, so arm 1's E agents never count as cautious, whereas arm 3's E agents count by their realised action — recorded asymmetry). *Implementation (C39):* per run, day t pairs `deaths_28day_mean` at the start of day t (the world's awareness signal) with the caution share at the end of day t, over the days t whose end-of-day E + I > 0; undefined if either series is constant on those days (count reported). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
+| E25 | **Open, for the supervisor meeting (NOT decided): candidate switch of the main town size from N = 3,000 to N = 30,000.** Reason: a Weitz-style plateau is reachable in the shared world at N = 30,000 (C43: Step B stretch ×19.5, 9/10 runs active at day 600, about 2.7 people in H in the main phase) but not at N = 3,000 (C42: ×1.83, 0/30 active; about one hospitalised person switches q between ≈ 0 and ≈ 0.96). **If adopted:** rerun Steps 1–3 and arm 3 at N = 30,000; re-measure the run-to-run spread under arm 1 to set the seed count; consider re-testing the 7-day window (A47, `deaths_28day_mean_7d_ago`). N = 3,000 is currently settled by C5/C7 (measured floor) and D13. *Cost (C44):* arm 2 at N = 30,000 is $718–$1,371 for 10 runs × 3 scenarios (about $4,500 if arm 2 plateaus), against a budget of about $100 (A67). Cheaper routes to a plateau: C45 | N (C5/C7, D13); seed count; arm-2 call budget (C32, C44); every result C26–C41 |
+| E26 | **PROPOSED (for supervisor point 6; NOT adopted): the "real plateau" check.** A flattened result counts as behaviour-driven only if ALL hold: **(i)** death responsiveness (E24, exactly as implemented in C39) ≥ 0.3; **(ii)** the cautious share among deciding agents varies over time: SD (ddof = 1) of the daily caution share (E24's realised share; arm 1: S^B / (S + E)) over the days with end-of-day E + I > 0 ≥ 0.05; **(iii)** the disease really spread: attack size = 1 − S at day 600 (includes the 10 initial cases) ≥ 0.10. **All three thresholds are UNSOURCED** (planning chat's proposal, 16 Oct 2026). *Operationalisation (Claude Code, fixed before computing):* criteria are applied per run; an undefined death responsiveness (either series constant on the active days, E24) fails (i) for that run, and an undefined SD (< 2 active days) fails (ii). **Config verdict: PASS if more than half of its runs meet all three**; config means (DR over defined runs, n reported) are shown alongside. *Validation on known cases:* should PASS — Weitz's rule at N = 30,000 (C43 step B, 10 runs; rerun with the caution series logged, incidence checked bit-identical to the stored runs); should FAIL — everyone careful from day 0 (C31 ceiling: (a) S1 and (c) S2 all precautions, 30 runs each; rerun, final S checked against C31) and arm-3 rule 2 (C39; S1, S2, S3). Information only: arm 1 (C30, via C39's shared-world rerun) and rules 1, 3, 4, 5 (C39), in S1–S3; and every C45 case. **If a known case lands on the wrong side it is reported and the thresholds are NOT adjusted.** *Predictions (Claude Code), [Speculation]:* ceiling FAILs (ii) with SD exactly 0 and DR undefined on every run (high); rule 2 FAILs (iii) in all three scenarios (high; C39 attack ≈ 0.01–0.02); C43 N = 30,000 meets (ii) and (iii) (high) but (i) is uncertain (~50%) — its rule follows H (zero lag), while E24 correlates against the 28-day mean of reported deaths, which lags H by weeks, and on a plateau both move slowly; arm 1 PASSes in S1–S3 (medium); rules 1 and 3 PASS (medium-high); rules 4 and 5 FAIL in S1 and S3 on (i) (medium; C39 DR 0.26 / 0.17 and −0.01 / −0.05). **Validation result (C46): the should-PASS case (C43, N = 30,000) FAILs on (i) (DR +0.187); all should-FAIL cases FAIL. Thresholds not adjusted; open for the planning chat** | supervisor point 6; the claim "behaviour produced the plateau" |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above
