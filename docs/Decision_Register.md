@@ -2821,6 +2821,71 @@ per-seed stretch ×0.75–0.83).
   predicted (−14). Ceiling and rule 2 FAIL — as predicted. Arm 1, rules 1 and 3 PASS — as
   predicted. Rules 4 and 5 FAIL on (ii) — as predicted (they now meet the revised (i)).
 
+**C51 — Step 9: the 7-day signal at smaller towns and with a deadlier disease. A CAPABILITY TEST,
+NOT AN ARM. PRE-REGISTRATION, written before any step-9 run (timing included).** [Design:
+planning chat (Max), 16 Oct 2026.] No API calls; no arm, rule or prompt changed.
+`experiments/step9_7day_signal.py` (reuses `step7_cheaper_plateau.run_one` and step 8's summary
+and E26 code); outputs `results/step7/step9_*`. **Every case:** step C — δ = the agents' own mean
+of 70%-reported deaths over the last **7 days** (the world's `window` = 7, instead of A24's 28;
+as C47's 7-day case), decisions once per day at the start of the day, p = 1.0, A55 stop; Weitz's
+g, k = 2, never-ill agents stay home with q = 1 − g; S1; seeds 0–9; own AlwaysNormal control on
+the same seeds.
+- **9a** N = 15,000 and 20,000, normal per-agent f_D, C43's per-capita δ_c → N·δ_c 0.075 / 0.10.
+- **9b** N = 3,000, f_D ∈ {0.05, 0.10} (IFR_10age scaled as C45, no band capped), N·δ_c = half the
+  C45 edge, as C48: 0.2228 / 0.4446.
+- **9c** N = 3,000, normal per-agent f_D, C43's per-capita δ_c → N·δ_c 0.015 (= C42's value).
+*Pass mark:* C42's (stretch ≥ ×10, OR more than half the runs active at day 600 with peak
+reduction ≥ 80%), per case. *Reported:* C47/C48's measures (stretch [95% CI], median, runs ≥ ×10;
+peak-I reduction; final S; attack size; runs active at day 600; mean end-of-day people in H over
+the main phase) plus the E26 verdict as revised in C50 (`deaths_28day_mean` recomputed from the
+run's daily deaths, rounded to 12 decimals, as C50's 7-day case).
+*Predictions (planning chat, Max), [Speculation], low-medium confidence:* 9a — 20,000 passes,
+15,000 borderline; 9b — f_D 0.10 passes, 0.05 borderline; 9c fails.
+*Predictions (Claude Code), [Speculation]:* 9a — both sizes meet the pass mark (20,000 medium-low;
+15,000 low), with fewer runs active at day 600 at 15,000 than at 20,000. 9b — f_D 0.10 mean
+stretch ×5–12 (borderline; low), f_D 0.05 fails (low): at N = 3,000 the 7-day window holds only a
+few deaths, so the signal moves in large steps. 9c fails, stretch below ×3 (medium): one reported
+death in the 7-day window gives 0.1/day = 6.7 δ_c, i.e. q ≈ 0.98, so the response is on/off (C42
+arithmetic). E26: every case meets (iii) except possibly 9c (low).
+*Time gate:* stop if the upper-end projection exceeds 25 minutes. *Timing* (seed 0 of each of the
+10 kinds, 16 workers, `step9_timing.log`): N = 15,000 15.5 s, 20,000 24.3 s (active to day 600),
+N = 3,000 1.6–4.1 s, controls 0.9–5.4 s. Upper end (every run at 1.5× the slowest of its kind, ×2
+for workers sharing memory): about **3 min** → run.
+
+**C51 results. [Measured facts only.]** Run 16 Oct 2026, `python experiments/step9_7day_signal.py
+--timing`, `--sim`, `--score`; `results/step7/step9_runs.npz`, `step9_{timing,sim,scores}.log`,
+`step9_scores.json`. 100 simulations 1.1 min (per run 1.1–41.5 s). n = 10 seeds per case. All
+cases step C with the 7-day signal. H = mean end-of-day people in H over the main phase.
+
+| case | N·δ_c | stretch [95% CI] | median | ≥ ×10 | peak-I red (SEM) | final S (SD) | attack | active at 600 | H (range) | C42 pass mark |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 9a N = 15,000 | 0.075 | ×17.71 [15.21, 19.57] (truncated) | ×18.85 | 10/10 | 79.9% (−41.9) | 0.448 (0.069) | 0.552 | 8/10 | 1.92 (1.61–2.53) | **MET** |
+| 9a N = 20,000 | 0.10 | ×16.86 [12.68, 19.88] (truncated) | ×19.78 | 8/10 | 76.5% (−43.6) | 0.475 (0.107) | 0.525 | 7/10 | 2.65 (2.02–3.93) | **MET** |
+| 9b N = 3,000, f_D 0.05 | 0.2228 | ×10.24 [7.81, 12.79] (truncated) | ×10.40 | 6/10 | 66.1% (−18.3) | 0.375 (0.096) | 0.625 | 1/10 | 4.30 (2.88–7.37) | **MET** (stretch; CI includes values below ×10) |
+| 9b N = 3,000, f_D 0.10 | 0.4446 | ×9.44 [6.65, 11.77] | ×10.17 | 5/10 | 64.0% (−23.9) | 0.400 (0.131) | 0.600 | 0/10 | 9.01 (4.30–22.06) | NOT MET |
+| 9c N = 3,000, normal f_D | 0.015 | ×4.43 [2.60, 6.28] | ×4.45 | 1/10 | 44.1% (−7.2) | 0.436 (0.113) | 0.565 | 0/10 | 1.50 (0.55–3.68) | NOT MET |
+
+Last active day per run: 9a 15,000: 339, 437, 600 ×8; 20,000: 190, 283, 589, 600 ×7; 9b f_D 0.05:
+150, 187, 291, 302, 377, 430, 446, 448, 455, 600; f_D 0.10: 66, 147, 311, 329, 367, 432, 433, 442,
+445, 597; 9c: 59, 84, 88, 187, 188, 217, 224, 246, 260, 455. Controls: T10–90 23.2–23.5 d; final
+S 0.0566 (N = 3,000), 0.0597 (15,000), 0.0602 (20,000).
+
+*E26 (as revised in C50):* every case PASSes, with 10/10 runs meeting all three criteria in each.
+Max-lag DR mean (best lag, median [range]): 9a 15,000 +0.652 (−8 [−10, −2]); 20,000 +0.708 (−9.5
+[−14, −6]); 9b f_D 0.05 +0.738 (−7 [−11, −3]); f_D 0.10 +0.845 (−10 [−16, −7]); 9c +0.672 (−12
+[−21, 0]). Caution SD 0.301–0.465; attack 0.525–0.625. 9c PASSes E26 while not meeting the C42
+pass mark.
+
+*Predictions vs outcome:*
+- Max: 9a 20,000 passes — **as predicted** (×16.86); 15,000 borderline — **not borderline** (×17.71,
+  10/10 runs ≥ ×10, 8/10 active). 9b f_D 0.10 passes — **not met** (×9.44, CI [6.65, 11.77],
+  median ×10.17); f_D 0.05 borderline — met at ×10.24 with a CI from ×7.81 to ×12.79. 9c fails —
+  **as predicted** (×4.43).
+- Claude Code: 9a both sizes meet — as predicted; fewer runs active at 15,000 than at 20,000 —
+  **wrong** (8/10 vs 7/10). 9b f_D 0.10 ×5–12 — as predicted (×9.44); f_D 0.05 fails — **wrong**
+  (×10.24, met). 9c fails — as predicted; stretch below ×3 — **wrong** (×4.43). E26 (iii) met
+  everywhere — as predicted (9c attack 0.565).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
