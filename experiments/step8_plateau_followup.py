@@ -272,7 +272,9 @@ def per_run_rev(sig, caution, prev, exp_, S):
                 verdict_orig="PASS" if (i0 & ii & iii).sum() > n / 2 else "FAIL")
 
 
-def e26():
+def e26_cases():
+    """Every C50 case as (label, (signal, caution, prevalence, exposed, S)); also returns the
+    signal check of the step-8 28-day cases."""
     cases = []
     rpc = dict(np.load(rp.CACHE))
 
@@ -322,6 +324,11 @@ def e26():
             chk.append(bool(np.allclose(sig[act], g("awareness_signal")[act], rtol=0, atol=1e-12)))
             sig = g("awareness_signal")
         cases.append((f"info: {label}", (sig, g("caution"), g("prevalence"), g("exposed"), g("S"))))
+    return cases, chk
+
+
+def e26():
+    cases, chk = e26_cases()
     print(f"signal28 recomputed from deaths == world awareness_signal on active days (28-day runs): "
           f"{sum(chk)}/{len(chk)} cases")
     print("case | n | max-lag DR mean / median (n def) | best lag median [range] | lag-0 DR mean (n def) | "

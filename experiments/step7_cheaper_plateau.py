@@ -119,10 +119,12 @@ def f_D_array(vul, f_D):
 
 
 def run_one(task):
-    """task = (kind, n_agents, f_D or None, ndc or None, seed[, window]); kind in ctrl / B / C.
+    """task = (kind, n_agents, f_D or None, ndc or None, seed[, window[, p]]); kind in ctrl / B / C.
+    p (default 1.0) is step C's re-decide probability per day (C54: p = 0.3).
     window (default 28, A24) is the length of the world's reported-death mean (C47: 7-day test)."""
     kind, n, f_D, ndc, seed = task[:5]
     window = task[5] if len(task) > 5 else 28
+    p_redecide = task[6] if len(task) > 6 else 1.0
     from population import build_population
     from shared_world import (run_shared_world, AlwaysNormal, STAY_HOME, PRECAUTIONS)
     if n not in _POP:
@@ -142,7 +144,7 @@ def run_one(task):
         h_sub = np.zeros(DAYS)
         h_sub[:nd] = hh[:nd * SUB].reshape(nd, SUB).mean(1)
     else:
-        o = run_shared_world(decision=pc.WeitzDaily(ndc), redecide_prob=1.0,
+        o = run_shared_world(decision=pc.WeitzDaily(ndc), redecide_prob=p_redecide,
                              stop_deciding_when_no_infection=True, **kw)
     rec = {k: np.asarray(o[k], float) for k in ("incidence", "prevalence", "exposed", "S",
                                                 "awareness_signal", "recovered", "deaths")}

@@ -3095,6 +3095,197 @@ predicted for 10/60/30 (0.315), **just below** for 40/50/10 (0.248). (c) across 
 per-run sum — **wrong** (0.596–0.898). (d) day the most distinct field — as predicted; social norm
 second at N = 3,000, cumulative deaths second at N = 10,000–15,000 (10/60/30).
 
+**C54–C57 — Step 12. PRE-REGISTRATION, written before any step-12 run (timing included).**
+[Design: planning chat (Max), 31 Oct 2026.] **Everything here is PROVISIONAL: N = 15,000 with a
+7-day signal is proposed, not adopted; A24 (28-day window) and A7/A30 (N = 3,000) still stand.**
+No API calls (no Anthropic, no Qwen). `experiments/step12_n15k_checks.py` (Parts 1–3, Part 4's
+prompt sample) and `experiments/step12_qwen_tokens.py` (Part 4's offline token count, run in a
+separate environment with `tokenizers`); outputs `results/step7/step12_*`. Code changes made
+first, behaviour-neutral: `step7_cheaper_plateau.run_one` accepts an optional re-decide rate p
+(default 1.0, unchanged); `step8_plateau_followup.e26()` split into `e26_cases()` + printing
+(its output was re-run and is byte-identical to before). *Environment note:* `python` on PATH now
+resolves to Python 3.12 (no numpy); every step-12 run uses the project interpreter, Python 3.14
+(numpy 2.5.2, scipy 1.18.1), called explicitly.
+
+**C54 (Part 1, gate) — C51 9a with re-decide rate p = 0.3.** Weitz test rule, step C, 7-day
+signal, S1, N = 15,000, N·δ_c 0.075, seeds 0–9, own AlwaysNormal control; everything as C51 9a
+except p = 0.3 (A41's provisional value) instead of 1.0. Reported: C51's columns + E26 (C50
+version), beside C51 9a. Pass mark: C42's. *Prediction (Claude Code), [Speculation]:* weaker than
+p = 1 on stretch and peak reduction (medium); still meets the C42 pass mark (low); E26 PASS
+(medium).
+
+**C55 (Part 2) — arm 1 (CBF, unchanged rule and parameters: β_B 0.5, μ_B 0.01, γ_beh 1, r 0.5) in
+the shared world, N = 15,000, 7-day signal.** S1, S2, S3; seeds 0–9; each scenario with its own
+AlwaysNormal control; frozen quota population at N = 15,000, per-agent f_D, detection 0.7.
+Reported per scenario: stretch [95% CI], median, peak-I reduction, final S, attack, runs active at
+day 600, EpidemicKabu wave count (kernel 18), death responsiveness (E24: lag-0 Spearman against
+`deaths_28day_mean`, recomputed from the run's deaths since the world's signal is 7-day; the
+correlation against the world's own 7-day signal also shown as information) and the E26 verdict
+(C50 version). Scenario separation as C27 (per-seed difference of the behaviour effects of S2 and
+S3 vs S1, in SEM; final S and peak I). C30 (N = 3,000, 28-day, 30 seeds) beside it. Note:
+arm 1 never stays home, so its strongest effect is r = 0.5 on adopters (A37: 3 × 0.5 = 1.5 > 1).
+*Predictions (Claude Code), [Speculation]:* stretch below ×2 in every scenario (high); peak
+reduction larger than C30's in each scenario (medium; more deaths per day at N = 15,000 and a
+shorter window both raise CBF's adoption rate); E26 PASS in all three (medium); about 1 wave
+(medium); separation: S2's final-S effect larger than S1's by > 2 SEM (medium), S3's smaller by
+> 2 SEM (low).
+
+**C56 (Part 3) — E26 robustness to the lag window.** Criterion (i) rescored as the maximum
+Spearman over |L| ≤ W for W = 21, 28, 42, 63 days (C50's pairing rule otherwise; ±42 is C50's
+version); (ii), (iii), thresholds and the majority verdict unchanged; whole-agent caution. Cases:
+every C50 case, every C51 case, C52 10c, C54 and C55. Reported: per case and window, runs
+meeting (i), runs meeting all three, verdict; and every case whose verdict differs from its ±42
+verdict. *Prediction (Claude Code), [Speculation]:* no verdict changes in any window (medium).
+Rules 4 and 5 have best lags of −20 to −31 days and may lose (i) at ±21, but they already fail on
+(ii); C43 N = 30,000's best lags lie in [−21, −9], so it keeps (i) at ±21.
+
+**C57 (Part 4) — Qwen cost, offline.** *Tokenizer:* no Alibaba page read states which tokenizer
+the API model `qwen3.8-flash` uses, and Model Studio offers no tokenizer download for it. The
+closest official tokenizer is the one in the Qwen team's open-weight repository
+**Qwen/Qwen3.8-Flash-Next** on Hugging Face (commit `de4b8e4d43b917e7706784d8bb445c9af86a3540`,
+last modified 27 Aug 2026), whose model card states: "Qwen3.8-Flash is the official version based
+on Qwen3.8-Flash-Next with more production features". Its `tokenizer.json` and
+`chat_template.jinja` are downloaded to the scratchpad (data files only, no model code run).
+Counted: (a) the 42 C37 pilot prompts (14 situations × W1/W2/W3); (b) a uniform random sample of
+1,000 decisions from all 61,6xx,xxx decisions of C53's dry run (all 10 configurations × 10 seeds;
+sample seed 20261031; the sampled prompts are re-rendered with the real v1 renderer by re-running
+C53's stub runs, whose decision counts are checked against C53); (c) the reply "A=10, B=60,
+C=30". Each prompt raw and wrapped by the repo's chat template (one user message,
+add_generation_prompt, enable_thinking False). Cost per call at **$0.15 / $0.47 per M input /
+output tokens** (Model Studio pricing page, `qwen3.8-flash`, Singapore, International scope,
+read 31 Oct 2026; page last updated 30 Oct 2026), and C53's column (c) redone for Qwen beside
+Haiku's ($0.0000427 per call), ±30%. *Thinking (Alibaba docs only):* "Use deep thinking models via
+API" (https://www.alibabacloud.com/help/en/model-studio/deep-thinking, last updated 29 Oct
+2026) lists "Qwen3.8 Flash series (Hybrid thinking mode, thinking mode enabled by default):
+qwen3.8-flash"; the parameter is `enable_thinking` ("Set to `false`: the model responds
+directly"); the DashScope API reference
+(https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope, last updated 27 Oct
+2026) gives `enable_thinking` true/false for hybrid models, placed in `parameters` over HTTP. A
+sentence on that page saying "`enable_thinking` only accepts `true`; passing `false` causes the
+API request to fail" refers to glm-5.3, not qwen3.8-flash. *Prediction (Claude Code),
+[Speculation]:* v1 prompts 220–260 raw tokens (low-medium); cost per call within ±25% of Haiku's
+$0.0000427 (low).
+
+*Time gate:* stop and report if the upper-end projection exceeds 25 minutes. *Timing* (seed 0 of
+each of 8 kinds, 16 workers, `step12_timing.log`): Part 1 step C 21.6 s (active to day 600),
+control 5.5 s; arm 1 6.3 / 10.4 / 9.0 s (S1/S2/S3), controls 5.5–7.8 s. Upper end (each run at
+1.5× the slowest of its kind, S2 arm-1 runs stretched to 600 days, ×2 for shared memory; plus wave
+counts, Part 3's lag rescoring, Part 4's re-sampling run (C53: 0.9 min) and the tokenizer set-up):
+about **10 min** → run.
+
+**C54–C57 results. [Measured facts only; PROVISIONAL setting, see above.]** Run 31 Oct 2026 with
+Python 3.14: `step12_n15k_checks.py --timing`, `--sim`, `--score`, `--lags`, `--sample`; then
+`step12_qwen_tokens.py` in a separate venv (tokenizers 0.23.3, jinja2 3.1.6). Outputs
+`results/step7/step12_{timing,sim,scores,lags,sample,qwen_tokens,qwen_c53c}.log`, `step12_runs.npz`,
+`step12_scores.json`, `step12_lags.json`, `step12_prompts.json`, `step12_qwen_tokens.json`. 80
+simulations 1.3 min (per run 6.4–41.4 s), 60 wave counts 0.8 min; lag rescoring 12 s; sampling
+89 s. n = 10 seeds per case.
+
+*C54 (Part 1) — Weitz test rule, step C, 7-day, S1, N = 15,000, N·δ_c 0.075:*
+
+| | p = 0.3 (C54) | p = 1.0 (C51 9a) |
+|---|---|---|
+| stretch [95% CI] | ×18.41 [17.15, 19.49] (truncated) | ×17.71 [15.21, 19.57] (truncated) |
+| median per-seed; runs ≥ ×10 | ×18.67; 10/10 | ×18.85; 10/10 |
+| peak-I reduction (SEM) | 77.7% (−52.2) | 79.9% (−41.9) |
+| final S (SD); attack | 0.426 (0.039); 0.574 | 0.448 (0.069); 0.552 |
+| active at day 600 | 8/10 (last active 439, 519, 600 ×8) | 8/10 (339, 437, 600 ×8) |
+| mean end-of-day people in H (range) | 1.91 (1.46–2.51) | 1.92 (1.61–2.53) |
+| C42 pass mark | **MET** | MET |
+| E26 (C50): max-lag DR (best lag); lag-0 DR; caution SD; runs meeting all | +0.801 (−5 [−7, −2]); +0.759; 0.338; 10/10 → PASS | +0.652 (−8 [−10, −2]); +0.567; 0.392; 10/10 → PASS |
+
+Control final S 0.0597, T10–90 23.5 d (same control as C51).
+
+*C55 (Part 2) — arm 1 (CBF unchanged), shared world, N = 15,000, 7-day signal; C30 (N = 3,000,
+28-day, n = 30) beside:*
+
+| | S1 N 15,000 7-d | S1 C30 | S2 N 15,000 7-d | S2 C30 | S3 N 15,000 7-d | S3 C30 |
+|---|---|---|---|---|---|---|
+| stretch [95% CI] | ×1.51 [1.36, 1.67] | ×1.079 [1.018, 1.158] | ×2.26 [1.52, 3.65] | ×1.239 [0.962, 1.704] | ×1.31 [1.15, 1.45] | ×1.020 [0.987, 1.057] |
+| median per-seed | ×1.53 | ×1.000 | ×1.64 | ×0.964 | ×1.29 | ×0.980 |
+| peak-I reduction (SEM) | 41.2% (−11.0) | 12.8% | 69.6% (−22.9) | 23.6% | 30.7% (−6.3) | 7.0% |
+| final S (SD) | 0.280 (0.037) | 0.144 | 0.665 (0.041) | 0.408 | 0.243 (0.046) | 0.109 |
+| attack | 0.720 | 0.856 | 0.335 | 0.593 | 0.757 | 0.891 |
+| active at day 600 | 0/10 | 0/30 | 0/10 | 0/30 | 0/10 | 0/30 |
+| waves, mean (runs > 1) | 1.10 (1/10) | 1.00 | 1.40 (2/10) | 1.20 | 1.00 (0/10) | 1.00 |
+| death responsiveness E24 (lag 0, vs 28-day mean) | +0.919 (10) | +0.792 | +0.833 (10) | +0.647 | +0.907 (10) | +0.864 |
+| E26 (C50): max-lag DR (best lag); verdict | +0.962 (+7 [5, 10]); PASS 10/10 | PASS | +0.907 (+13.5 [2, 34]); PASS 10/10 | PASS | +0.942 (+6 [4, 13]); PASS 10/10 | PASS |
+
+Controls (N = 15,000): final S 0.0597 (S1, S3) and 0.2059 (S2); T10–90 23.5 / 43.2 / 23.5 d;
+waves 1.00. C42 pass mark not met in any scenario. Mean end-of-day people in H over the main phase
+9.14 / 2.86 / 19.84. Death responsiveness against the world's own 7-day signal (information):
++0.713 / +0.606 / +0.699. Last active day ≤ 210 (S1), ≤ 579 (S2; next-longest 258), ≤ 194 (S3).
+*Scenario separation (C27 method, n = 10):* S2 vs S1 — final S **+0.2381 ± 0.0162 (+14.66 SEM)**,
+peak I +163.2 ± 113.8 (+1.43 SEM); S3 vs S1 — final S **−0.0369 ± 0.0138 (−2.67 SEM)**, peak I
+**+349.5 ± 140.4 (+2.49 SEM)**. C27 (N = 3,000, n = 30): S2 +0.1171 (+9.09), peak I +3.6 (+0.37);
+S3 −0.0350 (−5.82), peak I +39.3 (+3.96).
+
+*C56 (Part 3) — E26 verdict by lag window* (45 cases: 34 from C50, 5 from C51, C52 10c, C54, 3 from
+C55): **no case changes verdict in any window (0/45)**. Runs meeting (i) do change in two cases at
+±21 only: rule 4 S3 29/30 (30/30 at ±28 and wider), rule 5 S3 26/30 (30/30); both FAIL on (ii) in
+every window. All should-PASS / should-FAIL known cases keep their expected side in all four
+windows.
+
+*C57 (Part 4) — Qwen tokens, offline.* Tokenizer: `Qwen/Qwen3.8-Flash-Next` commit `de4b8e4`
+(`tokenizer.json` SHA-256 `0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3`,
+class Qwen2Tokenizer; `chat_template.jinja` SHA-256
+`c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041`). Chat framing with
+enable_thinking = False: `<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n`
+(+12 tokens; with thinking on, the template instead opens `<think>\n` and, with the default
+effort, adds no system text unless tools are passed). Sample: 1,000 of C53's 61,968,816
+decisions, drawn from 93 runs; every re-run's decision count equals C53's. (The pre-registration's
+"61,6xx,xxx" was a placeholder written before the count; the total is 61,968,816.)
+
+| set | n | mean characters | raw tokens, range (mean) | framed tokens, range (mean) | Haiku (count_tokens, C37) |
+|---|---|---|---|---|---|
+| C37 W1 | 14 | — | 292–303 | 304–315 | 358–363 |
+| C37 W2 | 14 | — | 292–324 | 304–336 | 358–389 |
+| C37 W3 | 14 | — | 290–301 | 302–313 | 346–351 |
+| C37 all | 42 | 1,030 | 290–324 (302.5) | 302–336 (314.5) | |
+| C53 random sample | 1,000 | 1,014 | 287–303 (294.6) | 299–315 (306.6) | |
+
+Reply "A=10, B=60, C=30": 14 tokens; 15 with `<|im_end|>` (Haiku, C34: 13 output tokens). **Cost
+per call** at $0.15 / $0.47 per M: C53 sample, framed mean + reply with end **$0.00005304
+(×1.242 Haiku's $0.0000427)**; raw mean + reply $0.00005077 (×1.189); framed maximum $0.00005430.
+C37: $0.00005423 (framed mean). Whether Alibaba bills the template framing exactly as counted here
+is not stated on the pages read; the API's `usage` field is authoritative.
+
+*C53 column (c) at both prices (distinct prompts across 10 seeds; ±30%; Qwen at $0.00005304):*
+
+| stub | scen | N | (c) | Haiku | Qwen 3.8 Flash |
+|---|---|---|---|---|---|
+| 10/60/30 | S1 | 3,000 | 379,454 | $16.20 [$11.34, $21.06] | $20.13 [$14.09, $26.16] |
+| 10/60/30 | S1 | 10,000 | 954,621 | $40.76 [$28.53, $52.99] | $50.63 [$35.44, $65.82] |
+| 10/60/30 | S1 | 15,000 | 1,321,724 | $56.44 [$39.51, $73.37] | $70.10 [$49.07, $91.13] |
+| 10/60/30 | S2 | 15,000 | 3,419,533 | $146.01 [$102.21, $189.82] | $181.36 [$126.95, $235.77] |
+| 10/60/30 | S3 | 15,000 | 1,292,744 | $55.20 [$38.64, $71.76] | $68.56 [$47.99, $89.13] |
+| 40/50/10 | S1 | 3,000 | 697,078 | $29.77 [$20.84, $38.69] | $36.97 [$25.88, $48.06] |
+| 40/50/10 | S1 | 10,000 | 2,432,094 | $103.85 [$72.70, $135.01] | $128.99 [$90.29, $167.69] |
+| 40/50/10 | S1 | 15,000 | 2,375,170 | $101.42 [$70.99, $131.85] | $125.97 [$88.18, $163.76] |
+| 40/50/10 | S2 | 15,000 | 304,161 | $12.99 [$9.09, $16.88] | $16.13 [$11.29, $20.97] |
+| 40/50/10 | S3 | 15,000 | 2,328,429 | $99.42 [$69.60, $129.25] | $123.49 [$86.45, $160.54] |
+
+*Thinking (Alibaba docs, read 31 Oct 2026):* qwen3.8-flash is listed as hybrid thinking with
+**thinking enabled by default**; it is turned off with **`enable_thinking: false`** (OpenAI-
+compatible Python SDK: `extra_body={"enable_thinking": False}`; DashScope HTTP: inside
+`parameters`) — https://www.alibabacloud.com/help/en/model-studio/deep-thinking and
+https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope. The docs also state that
+in thinking mode the thought process is billed as output tokens. The model-info page
+(https://www.alibabacloud.com/help/en/model-studio/qwen3-8-flash, last updated 30 Oct 2026) lists
+one output price ($0.47/M) for both modes and no input-length tiers.
+
+*Predictions (Claude Code) vs outcome:*
+- C54: weaker than p = 1 on stretch — **wrong** (×18.41 vs ×17.71; CIs overlap); on peak reduction
+  — as predicted (77.7% vs 79.9%). Meets the C42 pass mark — as predicted. E26 PASS — as predicted.
+- C55: stretch below ×2 in every scenario — **wrong in S2** (×2.26 [1.52, 3.65]); right in S1
+  (×1.51) and S3 (×1.31). Peak reduction larger than C30 in each — as predicted (41.2 / 69.6 /
+  30.7% vs 12.8 / 23.6 / 7.0%). E26 PASS in all three — as predicted. About 1 wave — as predicted
+  (1.10 / 1.40 / 1.00). Separation: S2 > S1 by > 2 SEM — as predicted (+14.66); S3 < S1 by > 2
+  SEM — as predicted (−2.67).
+- C56: no verdict changes — as predicted (0/45).
+- C57: v1 prompts 220–260 raw tokens — **wrong** (287–303 in the C53 sample). Cost within ±25% of
+  Haiku — as predicted, narrowly (+24.2% framed; +18.9% raw).
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
