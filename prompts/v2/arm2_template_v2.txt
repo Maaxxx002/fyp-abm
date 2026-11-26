@@ -1,0 +1,20 @@
+You live in a town of {population} people. An infectious disease has been spreading in your town for {day} days.
+
+{deaths_recent} {deaths_earlier} In total, {deaths_cumulative} people in your town have died of it so far.
+
+About {social_norm} of people in your town are going about their lives normally.
+
+You are {age_band}. For someone your age, this disease is fatal in {vulnerability} cases.
+
+How easily you could stay at home if you chose to: {occupation_flex} on a scale from 0 (not at all) to 10 (completely).
+How much you believe that taking precautions protects you: {response_efficacy} on a scale from 0 (not at all) to 10 (completely).
+
+Lately you have been {current_action}.
+
+What will you do from today? The options are:
+A) Stay at home.
+B) Go out, but take precautions.
+C) Go out and carry on as normal.
+
+Give the probability, in percent, that you choose each option. Use whole numbers that add up to 100. Reply in exactly this form and nothing else:
+A=<number>, B=<number>, C=<number>

@@ -84,6 +84,11 @@ Last updated: after the shape-metric investigation and the N decision.
 | A68 | **Ill agents do not decide; no extension.** A38 stays the only design; the planned variant-A extension (E21) is not built. C41 T2 ("variant A-physical", arm 3 only) remains a measured side result and is not extended to arm 2 or to an LLM-judgement version | [Supervisor meeting, 16 Oct 2026] Closes E21 |
 | A69 | **`social_norm` stays CBF's exact term** (A44/A48 reaffirmed). The alternative definition (agents acting normal / agents in S, E, I or R not staying home) is kept only as the existing C40 sensitivity result | [Supervisor meeting, 16 Oct 2026] |
 | A70 | **Tuning model parameters is approved if N = 30,000 is too costly.** Which parameters, and to what values, is NOT decided here. Recorded tension, not resolved: Scenario_Spec §1 lists IFR/age structure as a frozen property of the population and lets scenarios vary only R₀ and T_H; any tuned value must apply identically to every arm and control (the arms still differ only in the decision function) | [Supervisor meeting, 16 Oct 2026] First measured use: C45 (test case only, not an arm) |
+| A71 | **N = 15,000 with a 7-day death signal adopted for all further work, reverting A24.** The awareness signal is the world's 7-day rolling mean of reported deaths (days strictly before today; the days so far if fewer than 7; reported = 0.7 × realised, A25). For further work this also replaces the 28-day signal of A8 and N = 3,000 of A7/A30 (D17). Results measured under the earlier settings stand as measured | [Decision, Max, 26 Nov 2026] Evidence C51, C52, C54. Closes E25 (with N = 15,000, not 30,000). Consequence: the frozen v1 prompt shows 4-week totals of the 28-day mean, so arm 2 needs a re-frozen prompt (A74) |
+| A72 | **LLM for arms 2 and 3 (A50): `qwen3.8-flash`, thinking OFF (`enable_thinking: false`; OpenAI-compatible SDK `extra_body={"enable_thinking": False}`), via the lab's Qwen account.** Supersedes A63 (Claude Haiku 5.5) and A65's model and thinking settings | [Decision, supervisor, Meeting 5, 2 Nov 2026] The key's owner confirmed by email that automated script use is allowed (Max, Nov 2026). Pay-as-you-go price and token counts: C57. **Flagged (Claude Code, 26 Nov 2026), not resolved:** the key is a Token Plan key (its base-URL host is `token-plan.ap-southeast-1.maas.aliyuncs.com`). Alibaba's Token Plan pages, read 26 Nov 2026, say: "For interactive use only within compatible AI coding and agent tools. Not permitted for automated scripts or application backends." (Token Plan Team Edition overview); "It must not be used for automation scripts, custom application backends, or any non-interactive batch call scenarios." (Token Plan Personal Edition); "Using the API key for production automated services, batch scripts, or scheduled background tasks is not allowed." (Token Plan FAQ); "Violations may result in subscription suspension or API Key revocation."; Team-Edition keys "are restricted to the assigned seat holder and must not be shared". Token Plan bills Credits, not dollars, and publishes no Credit rate for qwen3.8-flash. See C58 |
+| A73 | **No hard API budget cap** (supersedes A67's provisional "about $100"). Arm 2 runs scenario by scenario, with a usage check after each scenario | [Decision, supervisor, Meeting 5, 2 Nov 2026] |
+| A74 | **Prompt v2 = option A.** Template text identical to v1 (A66). Only the two death sentences change, to one-week totals from the world's 7-day window (A71); Perception fields `deaths_7day_mean` and `deaths_7day_mean_7d_ago` replace `deaths_28day_mean` and `deaths_28day_mean_7d_ago`. {deaths_recent}: n = half_up(min(7, day) × deaths_7day_mean); day ≥ 7 "In the past week, {n} people in your town died of it."; day < 7 "Since the outbreak began, {n} people in your town have died of it.". {deaths_earlier}: deaths_7day_mean_7d_ago = 0 before day 7; m = half_up(min(7, day − 7) × deaths_7day_mean_7d_ago); day ≥ 14 "In the week before that, {m} died."; 7 ≤ day < 14 "Between the start of the outbreak and a week ago, {m} died."; day < 7 "A week ago, {m} people had died of it.". Arm-3 instruction v2 = v1 except the two attribute lines (now the 7-day fields, shown as the average × min(7, day) and × min(7, day − 7), rounded). **The reason for re-freezing is the 7-day signal change, not any result.** Held as a DRAFT in `prompts/v2/` until the pilot checks pass; v1 is untouched | [Decision, Max, 26 Nov 2026] Built and checked in C58 |
+| A75 | **Meeting 5 analyses requested:** (1) a repeat pilot, which decides whether identical prompts may be reused (C53's exact-reuse question); (2) sensitivity: one-input-at-a-time situations, and real situations taken from S1/S2/S3; (3) a model comparison; all compared with arms 1 and 3. Designs not decided here | [Decision, supervisor, Meeting 5, 2 Nov 2026] |
 
 ## B. Sources — extraction status
 
@@ -3286,6 +3291,93 @@ one output price ($0.47/M) for both modes and no input-length tiers.
 - C57: v1 prompts 220–260 raw tokens — **wrong** (287–303 in the C53 sample). Cost within ±25% of
   Haiku — as predicted, narrowly (+24.2% framed; +18.9% raw).
 
+**C58 — Step 13: prompt v2 draft, Qwen client, 20-call smoke test. PRE-REGISTRATION, written
+26 Nov 2026 before any step-13 run and before any API call.** Settings A71–A74. Script
+`experiments/step13_v2_smoke.py`; renderer `src/render_v2.py`; client `src/qwen_client.py`;
+Perception `PerceptionV2` (`src/perception.py`); test `tests/test_render_v2.py`. Run with the
+project's Python 3.14 (`py -3.14`).
+
+*Part A — v2 draft and totality.* `prompts/v2/arm2_template_v2.txt` byte-identical to
+`prompts/frozen_v1/arm2_template_v1.txt`; `prompts/v2/arm3_instruction_v2.txt` = v1 with the two
+attribute lines replaced (A74), nothing else changed. Checks: every PerceptionV2 field maps to
+exactly one placeholder, each placeholder occurs exactly once in the template, changing any one
+field changes only the line holding its placeholder, and for equal non-death fields the v2 and
+v1 renderings differ only in the deaths line. Examples at days 3, 10 and 45 from the C55 arm-1
+S1 run (N = 15,000, seed 0, 7-day window), agent = the lowest-index agent in age band 7 who is
+never-ill at the start of that day, current_action = that agent's action then (start-of-day
+state is read without changing the run; the run's outputs are asserted equal to a plain run).
+*Predictions:* all checks pass; day 3 and day 10 show 0 deaths (first deaths need ≈ 2 + 6 + 14
+days); day 45 shows non-zero counts in both death sentences.
+
+*Part B — Qwen client.* openai SDK 3.60.0; base URL and key read from
+`C:\Users\Admin\Documents\QWENAPI\.env` at run time only (never printed, logged or copied);
+model `qwen3.8-flash`; `extra_body={"enable_thinking": False}`; temperature, top_p and other
+sampling parameters NOT sent (API defaults); `max_tokens` 1024 (A65's implementation cap); no
+system prompt. Invalid replies: A64 parsing, A61 retries (up to 2, then keep current_action).
+Transport errors (429, 5xx, connection): SDK retries off; the client waits 60 s (Alibaba: a
+429 "usually recovers automatically within one minute") and retries up to 2 times. Every HTTP
+request counts toward a hard cap of 25. Logged per request: prompt/completion/total tokens,
+reasoning and cached tokens if returned, finish reason, seconds, HTTP status, response headers
+(except set-cookie), and whether any reasoning text came back. Checked offline with a fake
+client before any real call.
+
+*Part C — smoke test (approved: up to 25 calls).* 10 rendered v2 prompts × 2 repeats, sent one
+at a time: days 3, 10, 30, 45, 90 of the Part-A run × the lowest-index never-ill agent in age
+band 2 (20–24) and in band 8 (70s), each with its actual start-of-day action. Planned: 20
+requests (cap 25); pay-as-you-go equivalent ≈ 20 × $0.000053 ≈ $0.0011 (C57); Token Plan
+Credits per call unknown. *Predictions:* ≥ 19/20 replies valid at the first attempt; reasoning
+tokens 0 or absent on all; prompt tokens 295–315 per call; completion tokens 14–16; 0.4–3 s per
+call; no 429; the band-8 agent's caution (1 − P(normal)) ≥ the band-2 agent's on at least 4 of
+the 5 days; the two repeats of the same prompt give different answers on at least 3 of the 10
+prompts (temperature default, not 0).
+
+**C58 results, Parts A and B. [Measured facts only.]** Run 26 Nov 2026, `py -3.14
+experiments/step13_v2_smoke.py --write-v2 / --examples / --offline / --plan`;
+`py -3.14 -m pytest tests/test_render_v2.py tests/test_perception.py`. **No API call was made.**
+
+*Part A.* `prompts/v2/arm2_template_v2.txt`: 997 characters, SHA-256
+`fc75ff228eec760454b2a63f98a09a7be756791a50d6b54395f5029152533259` (= v1's, A66).
+`prompts/v2/arm3_instruction_v2.txt`: 3,280 characters, SHA-256
+`a4c50433aff063419169c3753e1569cb234dd60bc0690ce286a748f810bb7ed9` (v1 with the two attribute entries
+replaced; 5 of their 6 lines change; 6 characters shorter). Both DRAFT, not frozen; `.gitattributes`
+marks `prompts/v2/**` `-text`. Totality and v1-equality tests: 42 passed (tests/test_render_v2.py
+and test_perception.py). Full suite (`py -3.14 -m pytest`, 56 min): 108 passed, 1 failed —
+`test_meanfield_recovery`, the known Test-2 gap of C11/E16 (`src/model.py` is not changed in this
+step). The re-run C55 arm-1 S1 seed-0 run equals the step-12 cache exactly
+(incidence, prevalence, S, awareness signal, deaths), so reading start-of-day state did not change
+it; the 7-day signal equals the mean of reported deaths over the days strictly before each day.
+Examples (agent 11598, band 7, occupation_flex 1.0, response_efficacy 0.867): day 3 "Since the
+outbreak began, 0 people in your town have died of it. A week ago, 0 people had died of it." /
+social norm 100% / normal; day 10 "In the past week, 0 people in your town died of it. Between the
+start of the outbreak and a week ago, 0 died." / 99% / normal; day 45 "In the past week, 9 people
+in your town died of it. In the week before that, 4 died. In total, 16 people in your town have
+died of it so far." (7-day means 1.30 and 0.50) / 34% / precautions. Full texts:
+`results/step13/examples.log`. Predictions: all checks pass — as predicted; 0 deaths on days 3 and
+10, non-zero on day 45 — as predicted.
+
+*Part B.* Offline fake-API check passed: a valid reply, an A64-rescaled reply (sum 99) after one
+invalid reply, a 429 followed by a 60 s wait and a valid reply, an A61 fallback after three invalid
+replies, and the request cap; every request sent `model`, `messages`, `max_tokens`, `extra_body`
+only (`{"enable_thinking": False}`), no sampling parameters. **Default sampling (Alibaba Chat
+Completions reference, https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions,
+last updated 24 Nov 2026, read 26 Nov 2026):** temperature for "Qwen3.8 (non-thinking mode)" 0.7
+(qwen3.8-flash is not named on that line; the family is); top_p 0.8 and presence_penalty 1.5 for
+qwen3.8-flash in non-thinking mode (named); top_k 20 ("all other models"). Thinking-mode defaults
+differ (temperature 1.0 for text, top_p 0.95). The Token Plan pages say nothing about sampling
+defaults. `usage` fields per that page: prompt_tokens, completion_tokens, total_tokens;
+completion_tokens_details (incl. reasoning_tokens) "usually returned only when the model outputs a
+thinking process"; prompt_tokens_details.cached_tokens.
+
+*Part C — NOT RUN (held by Claude Code, 26 Nov 2026, for Max's decision; see A72's flag).* The
+key's base URL is a Token Plan endpoint, and the Token Plan terms read the same day forbid
+automated scripts (A72). Planned and printed by `--plan`: 20 decisions, hard cap 25 requests,
+≈ $0.0011 at pay-as-you-go prices; Token Plan Credits per call not published. Token Plan usage is
+shown only in the console: Model Studio console → Token Plan → My Subscriptions / Usage Analysis
+(https://modelstudio.console.alibabacloud.com/ap-southeast-1/subscription/token-plan; Team usage
+analysis is visible to the owner or an administrator only, not to a member). The pages document
+no credits field in API responses; an exhausted quota returns 429 "insufficient_quota" and is not
+converted to pay-as-you-go.
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -3463,6 +3555,12 @@ Design_Spec §5. Nothing depended on it: D4's conclusion (the space is comparabl
 ~5.4 × 10⁵ decision count, so caching may save little) holds either way, and the realised
 state count is measured separately (C15, E3).
 
+**D17 — A24 reversed (A71): the 28-day signal and N = 3,000 are replaced for all further work.**
+Before: N = 3,000 (A7, reaffirmed A30) and the 28-day rolling mean of reported deaths (A8,
+reaffirmed A24). After: N = 15,000 and the 7-day rolling mean (A71; Max, 26 Nov 2026; evidence
+C51, C52, C54). C7's objection to the 7-day window was measured at N ≤ 3,000. Every result
+recorded under the earlier settings stands as measured; it is not re-labelled.
+
 ## E. Open items
 
 | # | Item | Blocks |
@@ -3490,7 +3588,7 @@ state count is measured separately (C15, E3).
 | E22 | **RESOLVED → A48** (CBF's exact value; wording "About X% of people in your town are going about their lives normally."; undercounts) | closed |
 | E23 | **Open: plateau reachability under stay home is shown by arithmetic only, not yet by a run.** With stay home ×0 on own susceptibility, effective R = R₀ × (share of susceptibles not at home) when the rest act normal, so at R₀ = 3 holding R ≤ 1 needs a stay-home share > 2/3 (A37's reason). No run has yet shown an epidemic plateau produced this way. C31 Check 2(b) tested a FIXED 50% at home (below 2/3), not a plateau | the Weitz signature being reachable at all in S1/S3 |
 | E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Open points filled (Max, 10 Oct 2026, before any arm-3 run):** Spearman rank correlation; caution = the REALISED share of deciding agents (never-ill and alive: S or E) whose action is stay_home or precautions; lag 0; days while E + I > 0; for arm 1, the share in S^B among the same agents (S^B / (S + E); CBF has no cautious E state, so arm 1's E agents never count as cautious, whereas arm 3's E agents count by their realised action — recorded asymmetry). *Implementation (C39):* per run, day t pairs `deaths_28day_mean` at the start of day t (the world's awareness signal) with the caution share at the end of day t, over the days t whose end-of-day E + I > 0; undefined if either series is constant on those days (count reported). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
-| E25 | **Open, for the supervisor meeting (NOT decided): candidate switch of the main town size from N = 3,000 to N = 30,000.** Reason: a Weitz-style plateau is reachable in the shared world at N = 30,000 (C43: Step B stretch ×19.5, 9/10 runs active at day 600, about 2.7 people in H in the main phase) but not at N = 3,000 (C42: ×1.83, 0/30 active; about one hospitalised person switches q between ≈ 0 and ≈ 0.96). **If adopted:** rerun Steps 1–3 and arm 3 at N = 30,000; re-measure the run-to-run spread under arm 1 to set the seed count; consider re-testing the 7-day window (A47, `deaths_28day_mean_7d_ago`). N = 3,000 is currently settled by C5/C7 (measured floor) and D13. *Cost (C44):* arm 2 at N = 30,000 is $718–$1,371 for 10 runs × 3 scenarios (about $4,500 if arm 2 plateaus), against a budget of about $100 (A67). Cheaper routes to a plateau: C45 | N (C5/C7, D13); seed count; arm-2 call budget (C32, C44); every result C26–C41 |
+| E25 | **RESOLVED → A71 (N = 15,000 with a 7-day signal, not 30,000; Max, 26 Nov 2026).** Original text: **Open, for the supervisor meeting (NOT decided): candidate switch of the main town size from N = 3,000 to N = 30,000.** Reason: a Weitz-style plateau is reachable in the shared world at N = 30,000 (C43: Step B stretch ×19.5, 9/10 runs active at day 600, about 2.7 people in H in the main phase) but not at N = 3,000 (C42: ×1.83, 0/30 active; about one hospitalised person switches q between ≈ 0 and ≈ 0.96). **If adopted:** rerun Steps 1–3 and arm 3 at N = 30,000; re-measure the run-to-run spread under arm 1 to set the seed count; consider re-testing the 7-day window (A47, `deaths_28day_mean_7d_ago`). N = 3,000 is currently settled by C5/C7 (measured floor) and D13. *Cost (C44):* arm 2 at N = 30,000 is $718–$1,371 for 10 runs × 3 scenarios (about $4,500 if arm 2 plateaus), against a budget of about $100 (A67). Cheaper routes to a plateau: C45 | N (C5/C7, D13); seed count; arm-2 call budget (C32, C44); every result C26–C41 |
 | E26 | **PROPOSED (for supervisor point 6; NOT adopted): the "real plateau" check.** A flattened result counts as behaviour-driven only if ALL hold: **(i)** death responsiveness (E24, exactly as implemented in C39) ≥ 0.3; **(ii)** the cautious share among deciding agents varies over time: SD (ddof = 1) of the daily caution share (E24's realised share; arm 1: S^B / (S + E)) over the days with end-of-day E + I > 0 ≥ 0.05; **(iii)** the disease really spread: attack size = 1 − S at day 600 (includes the 10 initial cases) ≥ 0.10. **All three thresholds are UNSOURCED** (planning chat's proposal, 16 Oct 2026). *Operationalisation (Claude Code, fixed before computing):* criteria are applied per run; an undefined death responsiveness (either series constant on the active days, E24) fails (i) for that run, and an undefined SD (< 2 active days) fails (ii). **Config verdict: PASS if more than half of its runs meet all three**; config means (DR over defined runs, n reported) are shown alongside. *Validation on known cases:* should PASS — Weitz's rule at N = 30,000 (C43 step B, 10 runs; rerun with the caution series logged, incidence checked bit-identical to the stored runs); should FAIL — everyone careful from day 0 (C31 ceiling: (a) S1 and (c) S2 all precautions, 30 runs each; rerun, final S checked against C31) and arm-3 rule 2 (C39; S1, S2, S3). Information only: arm 1 (C30, via C39's shared-world rerun) and rules 1, 3, 4, 5 (C39), in S1–S3; and every C45 case. **If a known case lands on the wrong side it is reported and the thresholds are NOT adjusted.** *Predictions (Claude Code), [Speculation]:* ceiling FAILs (ii) with SD exactly 0 and DR undefined on every run (high); rule 2 FAILs (iii) in all three scenarios (high; C39 attack ≈ 0.01–0.02); C43 N = 30,000 meets (ii) and (iii) (high) but (i) is uncertain (~50%) — its rule follows H (zero lag), while E24 correlates against the 28-day mean of reported deaths, which lags H by weeks, and on a plateau both move slowly; arm 1 PASSes in S1–S3 (medium); rules 1 and 3 PASS (medium-high); rules 4 and 5 FAIL in S1 and S3 on (i) (medium; C39 DR 0.26 / 0.17 and −0.01 / −0.05). **Validation result (C46): the should-PASS case (C43, N = 30,000) FAILs on (i) (DR +0.187); all should-FAIL cases FAIL. Thresholds not adjusted; open for the planning chat.** **Criterion (i) REVISED after that failure (C50, planning chat, 16 Oct 2026; still PROPOSED): maximum Spearman correlation over lags −42…+42 days, best lag reported; (ii), (iii) and thresholds unchanged. Under it every known case is on its expected side (C50).** **Planning chat (Max), 16 Oct 2026: criteria (i)–(iii) are kept as revised in C50. E26 is a NECESSARY check only: it rejects constant caution (ii) and plain suppression (iii), but it cannot show that a flattened curve is CAUSED by reacting (C50: step-C cases that do not flatten pass it; rules 4 and 5 meet the revised (i)). Still PROPOSED, for supervisor approval** | supervisor point 6; the claim "behaviour produced the plateau" |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 

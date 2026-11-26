@@ -46,14 +46,14 @@ never stay home) and is bit-identical to `run_cbf_behaviour` (C31).
 
 | | Value | Source |
 |---|---|---|
-| N | 3,000 | measured floor, register C5/C7 |
+| N | **15,000** for all further work (was 3,000) | register A71, D17 (evidence C51, C52, C54) |
 | Run length | 600 days | |
 | Initial infected | 10 agents | register D8 — larger seeds destroy the growth phase |
 | Integration | **48 sub-steps/day**, `1 − exp(−rate·dt)` | measured convergence, register C9 (Gozzi's own default of 12 is insufficient for this model's extra H-compartment chain) |
 | R₀ / latent / infectious | 3.0 / 2 d / 6 d | Weitz Table 1 |
 | f_D | **per-agent** `IFR_10age[age_band]` (mean 0.009718); 0.01 flat only in the DDE/aggregate reference for flat-f_D checks | Gozzi; register A26 |
 | T_H | 14 d default | Weitz Fig 6 |
-| Awareness signal | **28-day rolling mean** of reported deaths; Gozzi's one-day signal rejected | register C7, A24 |
+| Awareness signal | **7-day rolling mean** of reported deaths for all further work (was 28-day, A24 reverted); Gozzi's one-day signal rejected | register A71, D17 |
 | Detection rate | 0.7, **plain multiplier** on realised deaths, no integer truncation (deviation from Gozzi's code) | Gozzi; register A25 |
 | Death delay Δ | **not added** — the H compartment (T_H) already supplies the infection-to-death delay | register A25 |
 | Age structure | New York `pop_data_Nk.csv`, 10 bands | Gozzi repo |
@@ -63,7 +63,8 @@ never stay home) and is bit-identical to `run_cbf_behaviour` (C31).
 | Who decides | never-ill agents only (not ill, not recovered, not H/D) | register A38, A42 |
 | Re-decision cadence | p = 0.3/day, arms 2–4, **provisional and UNSOURCED**; arm 1 continuous | register A41 |
 | `social_norm` | (S_normal + R)/N, CBF's exact term; wording "About X% of people in your town are going about their lives normally." | register A44, A48 |
-| LLM (arms 2, 3) | Claude Haiku 5.5, `claude-haiku-5-5`; $0.10 / $0.50 per M input / output tokens (standard API, prompts ≤ 100k tokens, checked 10 Oct 2026) | register A63 |
+| LLM (arms 2, 3) | `qwen3.8-flash`, thinking off (`extra_body={"enable_thinking": False}`), lab's Qwen account; pay-as-you-go $0.15 / $0.47 per M input / output tokens (C57). Replaces Claude Haiku 5.5 (A63) | register A72 |
+| Prompt | v1 frozen (`prompts/frozen_v1/`, 28-day wording); **v2 is a DRAFT** (`prompts/v2/`, 7-day wording) until the pilot checks pass | register A66, A74 |
 
 ⚠️ **Symbol collision.** Gozzi's `mu` = 1/infectious period, `eps` = 1/latent period. Weitz's
 `μ` = 1/latent, `γ` = 1/infectious. Same letters, opposite meanings. Use explicit names
@@ -127,6 +128,12 @@ zero. Use 48 sub-steps in `src/`, and Test 1's 1% tolerance (G1) is now honestly
   headline result that was wrong.
 - Own errors plainly and correct the register.
 - Prefer small commits. Run the verification tests before claiming anything works.
+- **Always run the project's Python 3.14 explicitly** (`py -3.14 ...`). `python` on PATH may
+  resolve to another interpreter without numpy.
+- **Credit rule:** before any call that spends API credits, print the planned number of calls
+  and a rough cost, then proceed only within what Max has approved for that step.
+- The Qwen key lives in `C:\Users\Admin\Documents\QWENAPI\.env` (`DASHSCOPE_API_KEY`,
+  `QWEN_BASE_URL`). Read it at run time only; never print, log, copy or commit it.
 - **Pass marks (register A28/A31), fixed for every config:**
   (a) lower peak I and higher final S than the config's own no-behaviour control, each by
   > 2 SEM of the paired (same-seed) difference. (b) vs the DDE reference: the 30-seed run is

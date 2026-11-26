@@ -101,3 +101,38 @@ class Perception:
 
     day: int
     # Simulation day, 0-indexed, matching src/model.py's daily loop.
+
+
+@dataclass(frozen=True)
+class PerceptionV2:
+    """DRAFT v2 vector (register A71, A74): Perception with the two 28-day death fields replaced
+    by the world's 7-day window. Every other field, its type and its meaning are unchanged.
+    Used by the v2 prompt (src/render_v2.py) only until v2 is frozen; v1 code keeps Perception.
+    """
+
+    # ---- dynamic ----
+
+    deaths_7day_mean: float
+    # Reported deaths/day, 7-day rolling mean over the days strictly before today (the days so
+    # far, if fewer than 7): the world's awareness signal under A71.
+
+    deaths_cumulative: float
+    # As Perception.deaths_cumulative.
+
+    deaths_7day_mean_7d_ago: float
+    # The same 7-day mean as it stood 7 days earlier; 0 before day 7 (A74).
+
+    current_action: Action
+    social_norm: float
+
+    # ---- static ----
+
+    age_band: int
+    vulnerability: float
+    occupation_flex: float
+    response_efficacy: float
+
+    # ---- context ----
+
+    population: int
+    day: int
