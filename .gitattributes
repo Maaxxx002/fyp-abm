@@ -3,3 +3,4 @@
 prompts/frozen_v1/** -text
 src/arm3_rules/** -text
 prompts/v2/** -text
+prompts/frozen_v2/** -text

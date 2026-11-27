@@ -1,27 +1,39 @@
 """
 Arm-2 LLM client for qwen3.8-flash via Alibaba's OpenAI-compatible endpoint (register A72).
 
-Request settings: model qwen3.8-flash, thinking OFF via extra_body={"enable_thinking": False};
-temperature, top_p and every other sampling parameter are NOT sent, so the API defaults apply;
-max_tokens 1024 (A65's implementation cap, so a reply cannot be cut off); no system prompt, the
-rendered prompt is the single user message.
+Request settings (A72, A79): model qwen3.8-flash; temperature 0.7, top_p 0.8, presence_penalty 1.5
+as top-level SDK arguments; extra_body={"enable_thinking": False, "top_k": 20} (top_k is not an
+OpenAI standard parameter, so Alibaba's reference puts it in extra_body); max_tokens 1024 (A65's
+implementation cap, so a reply cannot be cut off); no system prompt, the rendered prompt is the
+single user message. The settings are recorded with every request.
 
 Reply handling: A64 parsing; A61 retries (up to 2 more attempts after an invalid reply, then the
 agent keeps its current action -- the caller applies that fallback). Transport errors (429, 5xx,
 timeouts, connection errors): the SDK's own retries are off; the client waits RETRY_WAIT_S and
-retries up to 2 times, logging each attempt. Every HTTP request counts toward `max_requests`.
+retries up to 2 times, logging each attempt.
+
+Ledger (C59): every HTTP request is written to a JSONL ledger, one line per request, appended,
+flushed and fsynced BEFORE the request is sent, under a lock (safe under concurrent requests).
+The cap counts the lines already in the ledger, so a restart cannot exceed a step's total, and a
+request interrupted in flight is still counted. Each request's outcome (tokens, seconds, status,
+reply) is appended to the sibling file <ledger>.responses.jsonl when it completes.
 
 SECURITY: the key and base URL are read from ENV_FILE at run time only. They are passed to the
 SDK and never printed, logged, returned or written anywhere.
 """
+import hashlib
+import json
 import os
 import re
+import threading
 import time
 
 ENV_FILE = os.environ.get("QWEN_ENV_FILE", r"C:\Users\Admin\Documents\QWENAPI\.env")
 MODEL = "qwen3.8-flash"
-EXTRA_BODY = {"enable_thinking": False}
 MAX_TOKENS = 1024
+SAMPLING = dict(temperature=0.7, top_p=0.8, presence_penalty=1.5)     # A79, top-level SDK arguments
+EXTRA_BODY = {"enable_thinking": False, "top_k": 20}                   # A72, A79
+SETTINGS = dict(model=MODEL, max_tokens=MAX_TOKENS, **SAMPLING, extra_body=EXTRA_BODY)
 RETRY_WAIT_S = 60          # Alibaba rate-limit page: a 429 "usually recovers automatically within one minute"
 TRANSPORT_RETRIES = 2
 REPLY_RE = re.compile(r"^\s*A\s*=\s*(\d+)\s*,\s*B\s*=\s*(\d+)\s*,\s*C\s*=\s*(\d+)\s*$")
@@ -62,23 +74,66 @@ class RequestCapReached(RuntimeError):
     pass
 
 
-class QwenArm2:
-    def __init__(self, client, max_requests, sleep=time.sleep):
-        self.client, self.max_requests, self.sleep = client, max_requests, sleep
-        self.n_requests = 0
-        self.requests = []          # one record per HTTP request, in order
+class Ledger:
+    """Append-only JSONL, one line per HTTP request, written before the request is sent."""
 
-    def _request(self, prompt):
-        if self.n_requests >= self.max_requests:
-            raise RequestCapReached(f"request cap {self.max_requests} reached")
+    def __init__(self, path):
+        self.path = path
+        self.responses_path = (path[:-6] if path.endswith(".jsonl") else path) + ".responses.jsonl"
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        self.lock = threading.Lock()
+        self.n = 0
+        if os.path.exists(path):
+            data = open(path, "rb").read()
+            self.n = sum(1 for line in data.split(b"\n") if line.strip())   # a torn last line counts too
+            if data and not data.endswith(b"\n"):
+                with open(path, "ab") as f:
+                    f.write(b"\n")
+
+    def _append(self, path, obj):
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(obj) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+
+    def reserve(self, cap, entry):
+        with self.lock:
+            if self.n >= cap:
+                raise RequestCapReached(f"request cap {cap} reached ({self.n} requests in {self.path})")
+            self.n += 1
+            entry = dict(i=self.n, **entry)
+            self._append(self.path, entry)
+            return self.n
+
+    def record(self, rec):
+        with self.lock:
+            self._append(self.responses_path, rec)
+
+
+class QwenArm2:
+    def __init__(self, client, max_requests, ledger_path, sleep=time.sleep, max_tokens=MAX_TOKENS):
+        self.client, self.max_requests, self.sleep = client, max_requests, sleep
+        self.max_tokens = max_tokens                       # arm 3 uses 8192 (C59 step 3b)
+        self.settings = dict(SETTINGS, max_tokens=max_tokens)
+        self.ledger = Ledger(ledger_path)
+        self.requests = []          # this session's request records, in completion order
+
+    @property
+    def n_requests(self):
+        """Requests in the ledger, including earlier sessions."""
+        return self.ledger.n
+
+    def _request(self, prompt, key):
         import openai
-        self.n_requests += 1
-        rec = dict(i=self.n_requests, t_start=time.time())
+        i = self.ledger.reserve(self.max_requests, dict(
+            t=time.time(), key=key, prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            settings=self.settings))
+        rec = dict(i=i, key=key, settings=self.settings, t_start=time.time())
         t0 = time.perf_counter()
         try:
             raw = self.client.chat.completions.with_raw_response.create(
-                model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=MAX_TOKENS,
-                extra_body=EXTRA_BODY)
+                model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=self.max_tokens,
+                **SAMPLING, extra_body=EXTRA_BODY)
             r = raw.parse()
             rec["seconds"] = time.perf_counter() - t0
             rec["http_status"] = raw.status_code
@@ -106,13 +161,15 @@ class QwenArm2:
             if resp is not None:
                 rec["headers"] = {k: v for k, v in resp.headers.items() if k.lower() not in HIDDEN_HEADERS}
             rec["text"] = None
+        rec["t_end"] = time.time()
         self.requests.append(rec)
+        self.ledger.record(rec)
         return rec
 
-    def _attempt(self, prompt):
+    def _attempt(self, prompt, key):
         """One reply attempt, with up to TRANSPORT_RETRIES retries on transport errors."""
         for k in range(TRANSPORT_RETRIES + 1):
-            rec = self._request(prompt)
+            rec = self._request(prompt, key)
             if rec["error"] is None:
                 return rec
             status = rec["http_status"]
@@ -122,11 +179,11 @@ class QwenArm2:
             self.sleep(RETRY_WAIT_S)
         return rec
 
-    def ask(self, prompt):
+    def ask(self, prompt, key=None):
         """One decision: up to 1 + 2 attempts on invalid replies (A61)."""
         attempts = []
         for _ in range(3):
-            a = self._attempt(prompt)
+            a = self._attempt(prompt, key)
             a["parsed"] = parse(a["text"]) if a["error"] is None else None
             attempts.append(a)
             if a["parsed"] is not None or a["error"] is not None:

@@ -63,8 +63,11 @@ never stay home) and is bit-identical to `run_cbf_behaviour` (C31).
 | Who decides | never-ill agents only (not ill, not recovered, not H/D) | register A38, A42 |
 | Re-decision cadence | p = 0.3/day, arms 2–4, **provisional and UNSOURCED**; arm 1 continuous | register A41 |
 | `social_norm` | (S_normal + R)/N, CBF's exact term; wording "About X% of people in your town are going about their lives normally." | register A44, A48 |
-| LLM (arms 2, 3) | `qwen3.8-flash`, thinking off (`extra_body={"enable_thinking": False}`), lab's Qwen account; pay-as-you-go $0.15 / $0.47 per M input / output tokens (C57). Replaces Claude Haiku 5.5 (A63) | register A72 |
-| Prompt | v1 frozen (`prompts/frozen_v1/`, 28-day wording); **v2 is a DRAFT** (`prompts/v2/`, 7-day wording) until the pilot checks pass | register A66, A74 |
+| LLM (arms 2, 3) | `qwen3.8-flash`, lab's Qwen account (Token Plan key, pilot only, A76/A77); every request sends temperature 0.7, top_p 0.8, presence_penalty 1.5 and `extra_body={"enable_thinking": False, "top_k": 20}`; pay-as-you-go $0.15 / $0.47 per M input / output tokens (C57). Replaces Claude Haiku 5.5 (A63) | register A72, A79 |
+| Arm-2 answer reuse | stored answers keyed by (scenario, N, seed, SHA-256 of the exact prompt, answer index); never shared between runs, so reuse is only among agents asked the same day in the same run; call estimates use C53 column (b) | register A78, A80, A81 |
+| Prompt | v1 frozen (`prompts/frozen_v1/`, 28-day wording); **v2 frozen 27 Nov 2026** (`prompts/frozen_v2/`, 7-day wording); A62 checks are a reported diagnostic for v2, not a gate | register A66, A74, C63, D18 |
+| Arm-3 rules (Qwen) | 5 rules from the frozen v2 instruction, `src/arm3_rules/qwen_v2/` (Haiku rules in `v1/` untouched) | register C62 |
+| Arm-2 answer reuse factor | m = 3 answers per prompt (A78 on the repeat pilot) | register C62, A78, A81 |
 
 ⚠️ **Symbol collision.** Gozzi's `mu` = 1/infectious period, `eps` = 1/latent period. Weitz's
 `μ` = 1/latent, `γ` = 1/infectious. Same letters, opposite meanings. Use explicit names

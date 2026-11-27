@@ -10,9 +10,10 @@ Step 13 (register C58): prompt v2 DRAFT (A74), the Qwen client (A72) and a 20-ca
                smoke-test prompts (days 3, 10, 30, 45, 90 x bands 2 and 8).
   --plan       print the planned calls and a rough cost. No network.
   --offline    exercise the client with a fake API (valid, invalid-then-valid, 429-then-valid,
-               request cap). No network.
+               request cap held across a simulated restart, A79 settings sent). No network.
   --run        THE ONLY MODE THAT SPENDS CREDITS: 10 prompts x 2 repeats, one at a time, hard cap
-               MAX_REQUESTS HTTP requests. Writes results/step13/smoke_log.json.
+               MAX_REQUESTS HTTP requests counted in the ledger results/pilot/step1/requests.jsonl
+               (C59 step 1; survives restarts), A79 settings. Writes results/pilot/step1/smoke_log.json.
   --score      summarise the smoke log.
 
 Usage:  py -3.14 experiments/step13_v2_smoke.py --write-v2 | --examples | --plan | --offline | --run | --score
@@ -32,7 +33,9 @@ OUT = os.path.join(ROOT, "results", "step13")
 V1 = os.path.join(ROOT, "prompts", "frozen_v1")
 V2 = os.path.join(ROOT, "prompts", "v2")
 PROMPTS_FILE = os.path.join(OUT, "smoke_prompts.json")
-LOG_FILE = os.path.join(OUT, "smoke_log.json")
+PILOT1 = os.path.join(ROOT, "results", "pilot", "step1")             # C59 step 1
+LEDGER_FILE = os.path.join(PILOT1, "requests.jsonl")
+LOG_FILE = os.path.join(PILOT1, "smoke_log.json")
 CACHE12 = os.path.join(ROOT, "results", "step7", "step12_runs.npz")
 
 N, SEED = 15_000, 0
@@ -183,44 +186,58 @@ class _Fake:
 
 
 def offline():
+    import tempfile
     import qwen_client as qc
     waits = []
     fake = _Fake(["A=10, B=60, C=30", "I would stay home.", "A=33, B=33, C=33", 429, "A=0, B=50, C=50",
                   "x", "y", "z", "A=1, B=1, C=1"])
-    q = qc.QwenArm2(fake, max_requests=8, sleep=waits.append)
-    r1, r2_, r3, r4 = q.ask("p1"), q.ask("p2"), q.ask("p3"), q.ask("p4")
-    assert r1["valid_first"] and r1["final"]["raw"] == [10, 60, 30] and r1["retries"] == 0
-    assert not r2_["valid_first"] and r2_["retries"] == 1 and r2_["final"]["sum"] == 99      # A64 98-102
-    assert r3["valid_first"] and r3["final"]["raw"] == [0, 50, 50] and waits == [qc.RETRY_WAIT_S]
-    assert r4["fallback"] and r4["retries"] == 2                                              # A61
-    try:
-        q.ask("p5")
-        raise AssertionError("cap not enforced")
-    except qc.RequestCapReached:
-        pass
-    assert q.n_requests == 8 and all(k["extra_body"] == {"enable_thinking": False} for k in fake.sent)
-    assert all(k["model"] == "qwen3.8-flash" and "temperature" not in k and "top_p" not in k for k in fake.sent)
-    assert q.requests[3]["http_status"] == 429 and q.requests[3]["error"]["code"] == "Throttling"
-    print(f"offline client check OK: {q.n_requests} fake requests; valid / A64-rescaled / 429-retry / "
-          f"A61-fallback / cap paths; request kwargs {sorted(fake.sent[0])}")
+    with tempfile.TemporaryDirectory() as tmp:
+        ledger = os.path.join(tmp, "requests.jsonl")
+        q = qc.QwenArm2(fake, max_requests=8, ledger_path=ledger, sleep=waits.append)
+        r1, r2_ = q.ask("p1", key="k1"), q.ask("p2", key="k2")
+        assert q.n_requests == 3
+        q = qc.QwenArm2(fake, max_requests=8, ledger_path=ledger, sleep=waits.append)   # simulated restart
+        assert q.n_requests == 3
+        r3, r4 = q.ask("p3", key="k3"), q.ask("p4", key="k4")
+        assert r1["valid_first"] and r1["final"]["raw"] == [10, 60, 30] and r1["retries"] == 0
+        assert not r2_["valid_first"] and r2_["retries"] == 1 and r2_["final"]["sum"] == 99      # A64 98-102
+        assert r3["valid_first"] and r3["final"]["raw"] == [0, 50, 50] and waits == [qc.RETRY_WAIT_S]
+        assert r4["fallback"] and r4["retries"] == 2                                              # A61
+        try:
+            q.ask("p5", key="k5")
+            raise AssertionError("cap not enforced across the restart")
+        except qc.RequestCapReached:
+            pass
+        lines = [json.loads(x) for x in open(ledger, encoding="utf-8")]
+        resp = [json.loads(x) for x in open(q.ledger.responses_path, encoding="utf-8")]
+        assert [x["i"] for x in lines] == list(range(1, 9)) and len(resp) == 8 and len(fake.sent) == 8
+        assert [x["key"] for x in lines] == ["k1", "k2", "k2", "k3", "k3", "k4", "k4", "k4"]
+        assert all(x["settings"] == qc.SETTINGS for x in lines + resp)
+        assert resp[3]["http_status"] == 429 and resp[3]["error"]["code"] == "Throttling"
+    want = dict(model="qwen3.8-flash", max_tokens=1024, temperature=0.7, top_p=0.8, presence_penalty=1.5,
+                extra_body={"enable_thinking": False, "top_k": 20})                              # A79
+    assert all({k: v for k, v in kw.items() if k != "messages"} == want for kw in fake.sent)
+    print(f"offline client check OK: 8 fake requests over two client instances sharing one ledger (cap held "
+          f"after the restart); valid / A64-rescaled / 429-retry / A61-fallback / cap paths; every request "
+          f"sent {want}")
 
 
 def run():
     import qwen_client as qc
     sm = json.load(open(PROMPTS_FILE))["prompts"]
     plan()
-    q = qc.QwenArm2(qc.make_client(), max_requests=MAX_REQUESTS)
+    q = qc.QwenArm2(qc.make_client(), max_requests=MAX_REQUESTS, ledger_path=LEDGER_FILE)
     decisions, t0 = [], time.time()
     try:
         for rep in range(REPEATS):
             for s in sm:                                         # one at a time
-                d = q.ask(s["prompt"])
+                d = q.ask(s["prompt"], key=f"{s['id']}|rep{rep}")
                 decisions.append(dict(id=s["id"], repeat=rep, **d))
                 print(f"  {s['id']:8s} rep {rep}: {q.requests[-1]['text']!r} "
                       f"({q.requests[-1]['seconds']:.2f}s)", flush=True)
     except qc.RequestCapReached as e:
         print(f"STOPPED: {e}")
-    json.dump(dict(model=qc.MODEL, extra_body=qc.EXTRA_BODY, max_tokens=qc.MAX_TOKENS,
+    json.dump(dict(settings=qc.SETTINGS,
                    wall_s=time.time() - t0, n_requests=q.n_requests, decisions=decisions,
                    requests=q.requests), open(LOG_FILE, "w"), indent=1)
     print(f"{q.n_requests} requests in {time.time() - t0:.0f}s; log {os.path.relpath(LOG_FILE, ROOT)}")

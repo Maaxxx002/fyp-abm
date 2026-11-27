@@ -1,0 +1,148 @@
+import math
+
+def decide(p):
+    """
+    Calculate the probability of choosing each option (A, B, C) based on personal attributes.
+    
+    Returns a dictionary with keys "stay_home", "precautions", "normal" containing probabilities
+    that sum to 1.0.
+    """
+    
+    # Helper to safely handle edge cases in division or log if needed, though we use linear/logistic mostly
+    
+    # 1. Determine base tendencies from static attributes
+    
+    # Vulnerability factor: Higher vulnerability -> more likely to stay home or take precautions
+    # Map vulnerability (0-1) to a risk score. 
+    # If vulnerability is high, staying home becomes much more attractive relative to normal.
+    vuln_score = p.vulnerability * 10.0  # Scale up for effect
+    
+    # Age band influence: Older age bands generally have higher vulnerability already captured, 
+    # but behavioral norms might differ. We'll rely primarily on vulnerability and efficacy.
+    # Let's add a small bias for older people being more cautious regardless of specific current vulnerability stat?
+    # The prompt says "For someone your age, this disease is fatal in ... cases". So vuln covers it.
+    # However, social pressure/norms might vary by age. Let's keep it simple and focus on the explicit stats.
+    
+    # Occupation Flexibility: Higher flex -> easier to stay home -> higher prob of A
+    # Lower flex -> harder to stay home -> lower prob of A, shifts to B or C
+    flex_score = p.occupation_flex * 5.0
+    
+    # Response Efficacy: Belief that precautions work.
+    # High efficacy -> Increases preference for B (precautions) over C (normal).
+    # Also increases preference for A (stay home) as it's the ultimate precaution.
+    efficacy_score = p.response_efficacy * 8.0
+    
+    # 2. Dynamic factors from situation
+    
+    # Deaths recent vs earlier: Trend in deaths.
+    # If deaths are increasing (recent > earlier), fear increases -> shift towards A and B.
+    # If decreasing, complacency might increase -> shift towards C.
+    
+    recent_total = round(p.deaths_7day_mean * min(7, p.day)) if p.day > 0 else 0
+    earlier_total = round(p.deaths_7day_mean_7d_ago * min(7, max(0, p.day - 7))) if p.day > 7 else 0
+    
+    # Normalize death counts relative to population to get intensity
+    pop = max(1, p.population)
+    recent_rate = recent_total / pop
+    earlier_rate = earlier_total / pop
+    
+    # Fear trend factor: positive if worsening, negative if improving
+    # Cap the effect to avoid extreme swings
+    trend_factor = (recent_rate - earlier_rate) * 1000.0 
+    trend_factor = max(-2.0, min(2.0, trend_factor))
+    
+    # Cumulative deaths impact: General severity awareness
+    cum_rate = p.deaths_cumulative / pop
+    severity_factor = cum_rate * 500.0
+    severity_factor = max(0.0, min(3.0, severity_factor))
+    
+    # Social Norm: Percentage going about lives normally.
+    # High norm -> Pressure to conform to C (normal).
+    # Low norm -> Social permission/pressure to stay safe (A/B).
+    norm_pressure = p.social_norm * 4.0  # Range 0-4
+    
+    # Current Action: Inertia/Habit
+    # People tend to stick with what they've been doing unless strong reasons to change.
+    inertia_bonus_A = 1.0 if p.current_action == "stay_home" else 0.0
+    inertia_bonus_B = 1.0 if p.current_action == "precautions" else 0.0
+    inertia_bonus_C = 1.0 if p.current_action == "normal" else 0.0
+    
+    # 3. Construct Utility Scores for each option
+    
+    # Option A: Stay Home
+    # Driven by: Vulnerability, Severity, Fear Trend, Flexibility, Efficacy, Social Norm (inverse), Inertia
+    u_A = (
+        vuln_score * 1.5 +          # Strong driver
+        severity_factor * 1.0 +     # Strong driver
+        trend_factor * 1.5 +        # Strong driver
+        flex_score * 1.0 +          # Moderate driver
+        efficacy_score * 0.5 +      # Weak driver (staying home works even if you doubt precautions specifically, but efficacy helps)
+        (1.0 - p.social_norm) * 2.0 + # Strong inverse social pressure
+        inertia_bonus_A * 1.5       # Habit
+    )
+    
+    # Option B: Go out, but take precautions
+    # Driven by: Vulnerability, Severity, Fear Trend, Efficacy, Social Norm (moderate), Flexibility (low need), Inertia
+    # Note: Precautions are chosen when one cannot/will not stay home fully, but wants protection.
+    u_B = (
+        vuln_score * 1.0 +          # Moderate driver
+        severity_factor * 0.8 +     # Moderate driver
+        trend_factor * 1.0 +        # Moderate driver
+        efficacy_score * 2.0 +      # Strong driver (this is the key belief for B)
+        (1.0 - abs(flex_score - 0.5)) * 0.5 + # Neutral to slight boost if flexible enough to go out but careful
+        (1.0 - p.social_norm) * 1.0 + # Moderate inverse social pressure
+        inertia_bonus_B * 1.5       # Habit
+    )
+    
+    # Option C: Go out and carry on as normal
+    # Driven by: Low Vulnerability, Low Severity, Low Fear, Low Efficacy, High Social Norm, Low Flexibility (forced?), Inertia
+    u_C = (
+        (1.0 - vuln_score / 10.0) * 2.0 +   # Strong driver if low vuln
+        (1.0 - severity_factor / 3.0) * 2.0 + # Strong driver if low severity
+        (-trend_factor) * 1.0 +             # Driver if trend is improving
+        (1.0 - efficacy_score / 8.0) * 2.0 + # Strong driver if low efficacy
+        p.social_norm * 3.0 +               # Strong driver from social norm
+        (1.0 - p.occupation_flex) * 1.0 +   # If you can't stay home easily, you might just go out anyway
+        inertia_bonus_C * 1.5               # Habit
+    )
+    
+    # Ensure utilities are non-negative for exponential weighting
+    # Shift them so the minimum is 0 or slightly above to prevent underflow issues, 
+    # but softmax handles negatives fine. We just need to ensure they don't blow up too fast.
+    
+    # Apply Softmax to convert utilities to probabilities
+    # Temperature parameter controls how sharp the choice is.
+    # Lower temperature = sharper choices (more deterministic). Higher = smoother.
+    T = 1.5 
+    
+    # Subtract max for numerical stability
+    max_u = max(u_A, u_B, u_C)
+    exp_A = math.exp((u_A - max_u) / T)
+    exp_B = math.exp((u_B - max_u) / T)
+    exp_C = math.exp((u_C - max_u) / T)
+    
+    total_exp = exp_A + exp_B + exp_C
+    
+    prob_A = exp_A / total_exp
+    prob_B = exp_B / total_exp
+    prob_C = exp_C / total_exp
+    
+    # Round to whole numbers that add to 100 for output consistency? 
+    # The prompt asks for probabilities in percent as whole numbers adding to 100.
+    # But the function signature returns floats? 
+    # "Give the probability, in percent, that you choose each option... Reply in exactly this form..."
+    # This part of the prompt describes the USER interaction.
+    # The Python function description says: `return {"stay_home": ..., "precautions": ..., "normal": ...}`
+    # And rules say: "The three probabilities must be non-negative and sum to 1".
+    # It does NOT explicitly say the returned values must be integers or percentages in the code return.
+    # Usually, such functions return floats [0,1].
+    # However, looking at the example format `A=<number>, B=<number>, C=<number>` where numbers are percents.
+    # The function `decide` is internal logic. I will return floats summing to 1.0.
+    
+    # Double check constraints: "Use only the attributes... No randomness... Same input same output."
+    
+    return {
+        "stay_home": prob_A,
+        "precautions": prob_B,
+        "normal": prob_C
+    }

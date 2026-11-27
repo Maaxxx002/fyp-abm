@@ -1,0 +1,201 @@
+```python
+import math
+
+def decide(p):
+    """
+    Calculate the probability of choosing each option (Stay Home, Precautions, Normal)
+    based on personal and situational attributes.
+    
+    Returns a dictionary with keys "stay_home", "precautions", "normal" 
+    containing probabilities that sum to 1.0.
+    """
+    
+    # --- Helper functions for scaling inputs to intuitive ranges (0-1 or similar) ---
+    
+    def get_deaths_recent_intensity():
+        # {deaths_recent} shows average times min(7, day), rounded.
+        # We use the raw p.deaths_7day_mean as the intensity signal.
+        # Normalize by population to get per-capita death rate proxy.
+        if p.population <= 0:
+            return 0.0
+        # Scale deaths per day relative to population. 
+        # A high per-capita death rate increases fear.
+        # Using log scale to handle wide ranges.
+        rate = p.deaths_7day_mean / max(1, p.population)
+        # Map rate to 0-1. 
+        # If rate is very low (e.g., < 1e-5), effect is minimal.
+        # If rate is high (e.g., > 1e-2), effect is strong.
+        # Let's use a sigmoid-like function or simple clamping.
+        # For simplicity, let's assume a reference rate. 
+        # In real epidemics, daily death rates are often small fractions.
+        # Let's define intensity based on absolute numbers too, as people react to headlines.
+        # But per-capita is more rational. Let's combine both?
+        # The prompt implies people read the description. 
+        # Description has absolute numbers.
+        # Let's use the absolute number of recent deaths normalized by a "town size factor".
+        
+        recent_total = round(p.deaths_7day_mean * min(7, p.day))
+        # Normalize by sqrt(population) or similar to account for town size expectations?
+        # Or just normalize by population directly.
+        # Let's use a logistic function on the per-capita death rate.
+        # Reference: 0.001 (0.1%) daily death rate is very high.
+        # 0.00001 is low.
+        x = rate * 10000  # Scale so 0.0001 becomes 1.0
+        intensity = 1 / (1 + math.exp(-x + 5)) # Center around x=5 (rate=0.0005)
+        return intensity
+
+    def get_trend_factor():
+        # Compare current deaths_7day_mean with 7 days ago.
+        # If increasing, fear goes up. If decreasing, fear goes down.
+        prev = p.deaths_7day_mean_7d_ago
+        curr = p.deaths_7day_mean
+        
+        if prev == 0 and curr == 0:
+            return 1.0 # Neutral
+            
+        if prev == 0:
+            # Sudden start, high alarm
+            return 1.5 
+        
+        ratio = curr / prev
+        # Ratio > 1 means worsening.
+        # Cap the effect.
+        if ratio > 3:
+            trend_effect = 1.5
+        elif ratio < 0.3:
+            trend_effect = 0.5
+        else:
+            # Linear-ish interpolation in log space or simple mapping
+            # Map ratio 0.3->3 to 0.5->1.5
+            # log(ratio) range: log(0.3) ~ -1.2, log(3) ~ 1.1
+            l_ratio = math.log(max(0.001, ratio))
+            # Normalize to roughly -1 to 1
+            norm_l = max(-1, min(1, l_ratio / 1.1))
+            # Map -1 -> 0.5, 1 -> 1.5
+            trend_effect = 1.0 + 0.5 * norm_l
+        return trend_effect
+
+    def get_vulnerability_score():
+        # p.vulnerability is 0 to 1.
+        # Directly use it.
+        return p.vulnerability
+
+    def get_social_norm_pressure():
+        # p.social_norm is 0 to 1. 
+        # High social norm (people going about lives normally) pushes towards C.
+        # Low social norm pushes towards A/B.
+        return p.social_norm
+
+    def get_efficacy_score():
+        # p.response_efficacy is 0 to 1.
+        # High efficacy makes precautions/staying home seem more worthwhile.
+        return p.response_efficacy
+
+    def get_flexibility_score():
+        # p.occupation_flex is 0 to 1.
+        # High flexibility makes staying home easier (less cost).
+        return p.occupation_flex
+
+    def get_current_action_bias():
+        # Habit/Status quo bias.
+        # If currently staying home, slight push to stay.
+        # If currently normal, slight push to continue unless other factors overwhelm.
+        if p.current_action == "stay_home":
+            return {"stay_home": 0.1, "precautions": 0.0, "normal": -0.1}
+        elif p.current_action == "precautions":
+            return {"stay_home": 0.0, "precautions": 0.1, "normal": 0.0}
+        else: # normal
+            return {"stay_home": -0.1, "precautions": 0.0, "normal": 0.1}
+
+    # --- Calculate Component Scores ---
+
+    # 1. Fear/Risk Perception (drives away from Normal)
+    death_intensity = get_deaths_recent_intensity()
+    trend = get_trend_factor()
+    vulnerability = get_vulnerability_score()
+    
+    # Base risk score: combination of how deadly it is for you and how prevalent it is.
+    # Risk = Vulnerability * DeathIntensity * Trend
+    # Also consider cumulative deaths? 
+    cum_rate = p.deaths_cumulative / max(1, p.population)
+    # Cumulative impact adds background fear.
+    background_fear = min(1.0, cum_rate * 100) # e.g. 1% cumulative death rate is scary
+    
+    risk_score = (vulnerability * 0.4 + death_intensity * 0.4 + background_fear * 0.2) * trend
+    risk_score = max(0.0, min(1.0, risk_score))
+
+    # 2. Social Pressure (drives towards Normal)
+    social_pressure = get_social_norm_pressure()
+    # If everyone is out, pressure to go out is high.
+    # This reduces the weight of risk_score for choosing Non-Normal options.
+    
+    # 3. Efficacy and Flexibility (drives towards Stay Home/Precautions)
+    efficacy = get_efficacy_score()
+    flexibility = get_flexibility_score()
+    
+    # Cost of staying home vs precautions.
+    # Staying home is harder if flexibility is low.
+    # Precautions are effective if efficacy is high.
+    
+    # Utility of Option A (Stay Home):
+    # Benefit: Avoids infection completely (assuming perfect isolation).
+    # Cost: Loss of freedom/work. Lowered by flexibility.
+    # Influenced by: High Risk, High Efficacy (belief that isolation works), Low Social Norm.
+    
+    # Utility of Option B (Precautions):
+    # Benefit: Reduces risk significantly.
+    # Cost: Moderate effort.
+    # Influenced by: High Risk, High Efficacy, Medium Social Norm.
+    
+    # Utility of Option C (Normal):
+    # Benefit: Freedom, Social conformity.
+    # Cost: High Risk exposure.
+    # Influenced by: Low Risk, High Social Norm, Low Efficacy (belief precautions don't work).
+
+    # Let's construct scores using a linear model then softmax.
+    
+    # Score_A (Stay Home)
+    # Strongly correlated with Risk and Flexibility.
+    # Negatively correlated with Social Norm (pressure to conform).
+    s_a = (risk_score * 2.0) + (flexibility * 1.5) + (efficacy * 0.5) - (social_pressure * 1.0)
+    
+    # Score_B (Precautions)
+    # Correlated with Risk and Efficacy.
+    # Less dependent on Flexibility than A.
+    # Moderately affected by Social Norm.
+    s_b = (risk_score * 1.8) + (efficacy * 1.5) + (flexibility * 0.5) - (social_pressure * 0.5)
+    
+    # Score_C (Normal)
+    # Correlated with Social Norm.
+    # Negatively correlated with Risk.
+    # Positively correlated with Low Efficacy (if you think precautions don't help, why bother?)
+    s_c = (social_pressure * 2.0) - (risk_score * 2.0) - (efficacy * 1.0) - (flexibility * 0.2)
+    
+    # Add Status Quo Bias
+    bias = get_current_action_bias()
+    s_a += bias["stay_home"]
+    s_b += bias["precautions"]
+    s_c += bias["normal"]
+
+    # Softmax to get probabilities
+    # To avoid overflow/underflow, subtract max
+    max_s = max(s_a, s_b, s_c)
+    exp_a = math.exp(s_a - max_s)
+    exp_b = math.exp(s_b - max_s)
+    exp_c = math.exp(s_c - max_s)
+    
+    total_exp = exp_a + exp_b + exp_c
+    
+    prob_a = exp_a / total_exp
+    prob_b = exp_b / total_exp
+    prob_c = exp_c / total_exp
+    
+    # Ensure they sum to exactly 1 due to float precision issues potentially causing tiny drift
+    # Though usually fine.
+    
+    return {
+        "stay_home": prob_a,
+        "precautions": prob_b,
+        "normal": prob_c
+    }
+```

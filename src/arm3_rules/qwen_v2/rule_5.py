@@ -1,0 +1,237 @@
+import math
+
+def decide(p):
+    """
+    Calculates the probability of choosing each option (Stay home, Precautions, Normal)
+    based on the person's situation and attributes.
+    
+    The model uses a utility-based approach where:
+    - Staying home has high safety but low social/economic utility if occupation_flex is low.
+    - Going out normally has low safety but high social/economic utility.
+    - Taking precautions balances safety and utility.
+    
+    We compute raw scores for each action, convert them to probabilities using softmax-like
+    normalization, and ensure they sum to 1.0 with non-negative values.
+    """
+    
+    # Helper to safely get integer rounded value for display logic consistency
+    def round_int(x):
+        return int(round(x))
+
+    # Extract parameters from p
+    population = p.population
+    day = p.day
+    deaths_7day_mean = p.deaths_7day_mean
+    deaths_7day_mean_7d_ago = p.deaths_7day_mean_7d_ago
+    deaths_cumulative = p.deaths_cumulative
+    social_norm = p.social_norm
+    age_band = p.age_band
+    vulnerability = p.vulnerability
+    occupation_flex = p.occupation_flex
+    response_efficacy = p.response_efficacy
+    current_action = p.current_action
+
+    # Calculate recent death counts as shown in description
+    days_recent = min(7, day)
+    deaths_recent_total = round_int(deaths_7day_mean * days_recent)
+    
+    days_earlier = max(0, min(7, day - 7))
+    deaths_earlier_total = round_int(deaths_7day_mean_7d_ago * days_earlier) if days_earlier > 0 else 0
+    
+    total_deaths_shown = round_int(deaths_cumulative)
+    
+    # Social norm percentage shown
+    social_norm_pct = round_int(social_norm * 100)
+    
+    # Occupation flexibility score (0-10)
+    occ_flex_score = round_int(occupation_flex * 10)
+    
+    # Response efficacy score (0-10)
+    resp_eff_score = round_int(response_efficacy * 10)
+    
+    # Vulnerability representation "k in M"
+    # If vulnerability is very small, k=1, M=large. 
+    # Let's approximate risk perception.
+    # Higher vulnerability -> higher perceived risk.
+    
+    # Base utilities
+    
+    # 1. Risk Factor: How dangerous is it to go out?
+    # Depends on cumulative deaths relative to population, recent trend, age vulnerability.
+    # Normalize population size effect: larger towns might have lower per-capita risk initially.
+    if population > 0:
+        infection_pressure = total_deaths_shown / population
+    else:
+        infection_pressure = 0
+        
+    # Trend factor: Is it getting worse or better?
+    if deaths_7day_mean_7d_ago > 0:
+        trend_ratio = deaths_7day_mean / deaths_7day_mean_7d_ago
+    elif deaths_7day_mean > 0:
+        trend_ratio = 2.0 # Rising from zero
+    else:
+        trend_ratio = 1.0 # Flat/Zero
+        
+    # Clamp trend ratio to avoid extreme outliers
+    trend_factor = min(max(trend_ratio, 0.5), 3.0)
+    
+    # Perceived risk combines pressure, trend, and personal vulnerability
+    # Age band 9 (80+) is most vulnerable, 0 (under 10) least (in this context usually, though depends on disease)
+    # vulnerability parameter handles the specific lethality for that age.
+    
+    # Let's define a "Danger Score" D
+    D = (infection_pressure * 100 + trend_factor * 10 + vulnerability * 50)
+    # Scale down if social norm is high (herd immunity illusion or just "everyone is doing it")
+    # Actually, high social norm might reduce perceived risk due to conformity, 
+    # OR increase it if everyone is going out and dying? 
+    # Standard behavioral models: High social norm of "normalcy" reduces perceived need for caution.
+    D *= (1.0 - 0.5 * social_norm) 
+    
+    # Ensure D is positive
+    D = max(D, 0.01)
+
+    # 2. Cost of Staying Home
+    # Low occupation_flex means high cost.
+    # Cost_home = (1 - occupation_flex) * Weight
+    weight_cost_home = 50.0
+    C_home = (1.0 - occupation_flex) * weight_cost_home
+    
+    # Also, if you are already staying home, switching costs might be low, 
+    # but we are deciding "from today". Current action influences inertia.
+    
+    # 3. Utility/Benefit of Going Out Normally
+    # Benefit_normal = Social Norm satisfaction + Economic freedom (if flex is high?)
+    # Actually, occupation_flex helps stay home. So lack of flex hurts normality too?
+    # No, normality is the baseline. 
+    # Let's say Utility_normal = 10 (baseline) - Penalty_if_high_risk
+    U_normal_base = 10.0
+    
+    # 4. Utility/Benefit of Precautions
+    # Precautions mitigate risk based on response_efficacy.
+    # Effectiveness of precautions = response_efficacy * D
+    # Remaining risk after precautions = D * (1 - response_efficacy)
+    # But there is a social/cost penalty for precautions compared to normal.
+    U_precaution_penalty = 5.0 # Less convenient than normal
+    
+    # Scores for Softmax
+    # Score A (Stay Home): Safety benefit minus economic/social cost
+    # Safety benefit of staying home ~ D (avoids all risk)
+    # Cost ~ C_home
+    S_A = D - C_home
+    
+    # Score B (Precautions): Partial safety minus partial cost
+    # Safety benefit ~ D * response_efficacy
+    # Cost ~ U_precaution_penalty + (1-response_efficacy)*small_inconvenience? 
+    # Let's keep it simple: Benefit = Efficacy * D, Cost = Fixed penalty
+    S_B = (response_efficacy * D) - U_precaution_penalty
+    
+    # Score C (Normal): Full exposure, full convenience
+    # Benefit = 0 safety gain, 0 extra cost (relative to baseline)
+    # But if D is huge, going normal is terrible.
+    S_C = 0.0 - (D * 0.1) # Small penalty for ignoring obvious danger? 
+    # Or rather, Normal is the default "zero" state.
+    # Let's adjust so Normal is competitive when D is low.
+    
+    # Refining Scores:
+    # We want:
+    # If D is low and Flex is low -> Prefer Normal or Precautions?
+    # If D is high and Flex is high -> Prefer Stay Home.
+    # If D is high and Efficacy is high -> Prefer Precautions or Stay Home.
+    
+    # Let's use a more standard logistic form.
+    
+    # Re-evaluating weights based on typical agent behavior models:
+    
+    # Risk Avoidance Motivation (RAM) driven by D and Vulnerability
+    RAM = D * (0.5 + vulnerability) 
+    
+    # Convenience/Social Motivation (CM) driven by Social Norm and Occupation Rigidity
+    # If occupation_flex is low, you can't stay home easily, so CM for staying home is negative.
+    # If social_norm is high, people expect you to go out.
+    
+    # Option A (Stay Home):
+    # Pros: Eliminates risk (RAM).
+    # Cons: Inconvenience (Low flex), Social isolation (Low social norm participation?).
+    # Score_A = RAM - (1 - occupation_flex) * 20 - (1 - social_norm) * 10
+    
+    # Option B (Precautions):
+    # Pros: Reduces risk by Efficacy.
+    # Cons: Moderate inconvenience.
+    # Score_B = RAM * response_efficacy - 10 - (1 - social_norm) * 5
+    
+    # Option C (Normal):
+    # Pros: No inconvenience, fits social norm.
+    # Cons: Full risk.
+    # Score_C = - RAM * 0.1 + social_norm * 10 + occupation_flex * 5 
+    # Wait, occupation_flex doesn't help normality directly, it just allows alternatives.
+    # Actually, if you HAVE to work, you go out. Occupation_flex measures ABILITY to stay home.
+    # So low flex -> forced to go out?
+    # Let's interpret `occupation_flex` as "Ease of staying home".
+    # High flex -> Easy to stay home.
+    # Low flex -> Hard to stay home.
+    
+    # Revised Scores:
+    
+    # Base Risk Impact
+    risk_impact = D
+    
+    # Inertia: People tend to stick with current action slightly
+    inertia_bonus = 2.0
+    
+    # Calculate Scores
+    # A: Stay Home
+    # Gain: Full protection (risk_impact)
+    # Loss: Difficulty (1-flex)*Scale, Social mismatch (1-norm)*Scale
+    scale_difficulty = 30.0
+    scale_social = 15.0
+    
+    score_A = risk_impact - ((1.0 - occupation_flex) * scale_difficulty) - ((1.0 - social_norm) * scale_social)
+    
+    # B: Precautions
+    # Gain: Partial protection (efficacy * risk_impact)
+    # Loss: Moderate difficulty (fixed), Some social friction
+    scale_difficulty_B = 10.0
+    score_B = (response_efficacy * risk_impact) - scale_difficulty_B - ((1.0 - social_norm) * scale_social * 0.5)
+    
+    # C: Normal
+    # Gain: Zero difficulty, High social alignment
+    # Loss: Full risk exposure
+    # Note: If risk_impact is 0, C should win due to ease/social.
+    score_C = -(risk_impact * 0.05) + (social_norm * scale_social) + (occupation_flex * 0) # Flex doesn't help C directly
+    
+    # Add Inertia
+    if current_action == "stay_home":
+        score_A += inertia_bonus
+    elif current_action == "precautions":
+        score_B += inertia_bonus
+    elif current_action == "normal":
+        score_C += inertia_bonus
+        
+    # Softmax to get probabilities
+    # To prevent overflow/underflow, subtract max score
+    max_score = max(score_A, score_B, score_C)
+    
+    exp_A = math.exp(score_A - max_score)
+    exp_B = math.exp(score_B - max_score)
+    exp_C = math.exp(score_C - max_score)
+    
+    sum_exp = exp_A + exp_B + exp_C
+    
+    prob_A = exp_A / sum_exp
+    prob_B = exp_B / sum_exp
+    prob_C = exp_C / sum_exp
+    
+    # Ensure strictly non-negative and sum to 1 (floating point correction)
+    probs = [prob_A, prob_B, prob_C]
+    probs = [max(0.0, x) for x in probs]
+    s = sum(probs)
+    if s > 0:
+        probs = [x/s for x in probs]
+    else:
+        probs = [1/3, 1/3, 1/3]
+        
+    return {
+        "stay_home": probs[0],
+        "precautions": probs[1],
+        "normal": probs[2]
+    }

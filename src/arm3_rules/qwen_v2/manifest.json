@@ -1,0 +1,673 @@
+{
+  "rules": [
+    {
+      "rule": 1,
+      "file": "src/arm3_rules/qwen_v2/rule_1.py",
+      "code_sha256": "8c8771f60c6567351d53abea425c875795b5055c638a129bb1c9905dd3b31fba",
+      "reply_file": "src/arm3_rules/qwen_v2/rule_1_reply.txt",
+      "reply_sha256": "b1e307a088784c828358592702e749c2c00121b4a6b8591e276e2e276a97c66f",
+      "attempts": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-0fd2ea28-6dcc-9e4a-9293-69b14c028268",
+      "usage": {
+        "completion_tokens": 1993,
+        "prompt_tokens": 1017,
+        "total_tokens": 3010,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "rule": 2,
+      "file": "src/arm3_rules/qwen_v2/rule_2.py",
+      "code_sha256": "5a33e85640976993b193e606cecb37ac0e052dfc6c094e4b5978aa1df95fb527",
+      "reply_file": "src/arm3_rules/qwen_v2/rule_2_reply.txt",
+      "reply_sha256": "4561396fc2d2bf987d16672a319742d3939eba2ff8bb4918015fab4d8fd987fe",
+      "attempts": 5,
+      "utc": "2026-11-27T08:12:39+00:00",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-f636abb4-e2a3-9eb9-b5a1-345760892473",
+      "usage": {
+        "completion_tokens": 2276,
+        "prompt_tokens": 1017,
+        "total_tokens": 3293,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "rule": 3,
+      "file": "src/arm3_rules/qwen_v2/rule_3.py",
+      "code_sha256": "ca94983ba20854e2167cb4104c804458ff4c488e8b2800c1002fb1af0f9481fd",
+      "reply_file": "src/arm3_rules/qwen_v2/rule_3_reply.txt",
+      "reply_sha256": "44f19a9a5cd7ebc3e127c2d03480ddf1df0fd5deabe1e0d7796d05b3e480ef40",
+      "attempts": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-34aee402-c688-90e5-9847-3b4bb34b12b7",
+      "usage": {
+        "completion_tokens": 1852,
+        "prompt_tokens": 1017,
+        "total_tokens": 2869,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "rule": 4,
+      "file": "src/arm3_rules/qwen_v2/rule_4.py",
+      "code_sha256": "c91ae77ccc41d48fa4af340dd69d75fe3bdeca1e27ea397316024cf0b68819b6",
+      "reply_file": "src/arm3_rules/qwen_v2/rule_4_reply.txt",
+      "reply_sha256": "78bb0cfcfddbd8eae9843b90d67e5e8993d17d0aa08c2c85f472dc3a46cecc32",
+      "attempts": 4,
+      "utc": "2026-11-27T08:12:04+00:00",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-4e8a22e2-feaa-97d3-a746-5804eedb0f89",
+      "usage": {
+        "completion_tokens": 2969,
+        "prompt_tokens": 1017,
+        "total_tokens": 3986,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "finish_reason": "stop"
+    },
+    {
+      "rule": 5,
+      "file": "src/arm3_rules/qwen_v2/rule_5.py",
+      "code_sha256": "9c6f8a40ac615bdb2ab986146cf87cf6946baae79f6485b151066f4c82e7b2fa",
+      "reply_file": "src/arm3_rules/qwen_v2/rule_5_reply.txt",
+      "reply_sha256": "1fd38b4ec8513c057becdae3023ae830cd00fd84f4f7a1e6f46d0c148967c9bb",
+      "attempts": 4,
+      "utc": "2026-11-27T08:12:04+00:00",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-89bb38b8-825a-99df-a873-680361f774e6",
+      "usage": {
+        "completion_tokens": 2614,
+        "prompt_tokens": 1017,
+        "total_tokens": 3631,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "prompt_file": "prompts/frozen_v2/arm3_instruction_v2.txt",
+  "prompt_sha256": "a4c50433aff063419169c3753e1569cb234dd60bc0690ce286a748f810bb7ed9",
+  "model_requested": "qwen3.8-flash",
+  "settings": {
+    "model": "qwen3.8-flash",
+    "max_tokens": 8192,
+    "temperature": 0.7,
+    "top_p": 0.8,
+    "presence_penalty": 1.5,
+    "extra_body": {
+      "enable_thinking": false,
+      "top_k": 20
+    }
+  },
+  "system_prompt": null,
+  "grid_points": 82208,
+  "generation_log": [
+    {
+      "rule": 1,
+      "attempt": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "i": 1,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-0fd2ea28-6dcc-9e4a-9293-69b14c028268",
+      "usage": {
+        "completion_tokens": 1993,
+        "prompt_tokens": 1017,
+        "total_tokens": 3010,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "8c8771f60c6567351d53abea425c875795b5055c638a129bb1c9905dd3b31fba",
+      "reply_sha256": "b1e307a088784c828358592702e749c2c00121b4a6b8591e276e2e276a97c66f",
+      "fenced": true,
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      }
+    },
+    {
+      "rule": 2,
+      "attempt": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "i": 2,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-22832701-3577-9596-ab6e-0a9bb48f68ab",
+      "usage": {
+        "completion_tokens": 2049,
+        "prompt_tokens": 1017,
+        "total_tokens": 3066,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "f1c5c44fe9fe5f81e914fc4cf17f5c094377a6d576c179f3da2d0a7338d9e734",
+      "reply_sha256": "f8ed5432c3b95006fe84fbd25dfa3c46e30b775ada8ca33c3a050da97ce1a530",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 100.0 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 3,
+      "attempt": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "i": 3,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-34aee402-c688-90e5-9847-3b4bb34b12b7",
+      "usage": {
+        "completion_tokens": 1852,
+        "prompt_tokens": 1017,
+        "total_tokens": 2869,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "ca94983ba20854e2167cb4104c804458ff4c488e8b2800c1002fb1af0f9481fd",
+      "reply_sha256": "44f19a9a5cd7ebc3e127c2d03480ddf1df0fd5deabe1e0d7796d05b3e480ef40",
+      "fenced": false,
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      }
+    },
+    {
+      "rule": 4,
+      "attempt": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "i": 4,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-ff1114cc-77c0-9abc-b6f9-826598c2df1d",
+      "usage": {
+        "completion_tokens": 1927,
+        "prompt_tokens": 1017,
+        "total_tokens": 2944,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "b2141023335b4a9ec154d79cb65e6e88eb8d51aef489babfadb6a53e6672cb92",
+      "reply_sha256": "5625329b1aafcd1bed3d47975e5a68d849658203beed12b2ad406017899cbc5d",
+      "fenced": false,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 100.0 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 5,
+      "attempt": 1,
+      "utc": "2026-11-27T08:10:44+00:00",
+      "i": 5,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-bcd7fa76-6122-974a-b1e7-99de6afa9e3d",
+      "usage": {
+        "completion_tokens": 1870,
+        "prompt_tokens": 1017,
+        "total_tokens": 2887,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "898c7eb999eea05021ab5ba51bb5cfba5528d23081510b771fc2a9db632104b9",
+      "reply_sha256": "977ac8aca43e57043d333cc66c14bb1b2372357c8185d892c01f00a9aa1dcaa5",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 100.0 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 2,
+      "attempt": 2,
+      "utc": "2026-11-27T08:11:12+00:00",
+      "i": 6,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-0d8640bc-18c7-9493-9e9c-baeaaf199b67",
+      "usage": {
+        "completion_tokens": 1537,
+        "prompt_tokens": 1017,
+        "total_tokens": 2554,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "8f28d92e3cc6129a73b0d1d8e36b68b0a2789001847edda1edb070d4da9c0434",
+      "reply_sha256": "fa0a59714a3d51ed45a9bd8f55448991a56bfa1e523ac395aded7c28fb9b6401",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": "OverflowError: math range error at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 929271.1060345127, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.14303579571469738, 'age_band': 3, 'vulnerability': 0.17560409261267373, 'occupation_flex': 0.8766923775542711, 'response_efficacy': 0.8582582723115889, 'population': 1, 'day': 3144}",
+        "probs": null,
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 4,
+      "attempt": 2,
+      "utc": "2026-11-27T08:11:12+00:00",
+      "i": 7,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-5097d492-70d6-993c-9c1a-b3981847dc34",
+      "usage": {
+        "completion_tokens": 2259,
+        "prompt_tokens": 1017,
+        "total_tokens": 3276,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "6dc11ad42c0dd16f18549012faabf560188ca220b16e424a51e8c3b8cd6d8137",
+      "reply_sha256": "a3e781f2b78084eff00934913d2247000667efe51d1e996aec29cb17ad7b4d6c",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 1.0000010000000001 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'precautions', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.8, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 5,
+      "attempt": 2,
+      "utc": "2026-11-27T08:11:12+00:00",
+      "i": 8,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-fbdc3656-5cd9-9893-a208-6a0dd30c2f8b",
+      "usage": {
+        "completion_tokens": 2239,
+        "prompt_tokens": 1017,
+        "total_tokens": 3256,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "aea70a4fd39d5ce53ec37f2cdb8fb83fcf2f375fb0502821884879c5c10bb9e5",
+      "reply_sha256": "2679f7ae44242fa4d5b17e9598458cce9a7182f6d44960b9a8bb1daf70b6ba41",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 100.0 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 2,
+      "attempt": 3,
+      "utc": "2026-11-27T08:11:38+00:00",
+      "i": 9,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-fdafa8e9-b037-9acf-8e6a-8bff52713c32",
+      "usage": {
+        "completion_tokens": 2403,
+        "prompt_tokens": 1017,
+        "total_tokens": 3420,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "817dbe868cabc6ebb957feac24d5e287909482f27fd9e24ca6897e1086de4b3f",
+      "reply_sha256": "f44702e71f5eebde3551c424e584f1395aff5e67d21be65fa9bb7994f786670f",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": "OverflowError: math range error at {'deaths_7day_mean': 100.0, 'deaths_cumulative': 3000.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 7}",
+        "probs": null,
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 4,
+      "attempt": 3,
+      "utc": "2026-11-27T08:11:38+00:00",
+      "i": 10,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-1699d9be-ac85-9b8c-94ba-00a775f03d7a",
+      "usage": {
+        "completion_tokens": 1914,
+        "prompt_tokens": 1017,
+        "total_tokens": 2931,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "f8c5e455f11f5fb377f99906b8c4f8be8ce629165a67446f58b13f4acf064a12",
+      "reply_sha256": "c2396fb7551baf83051082c27bd86d5feb880a1622a7a823680217c145b3a51c",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": "UnboundLocalError: cannot access local variable 'curr_avg' where it is not associated with a value at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "probs": null,
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 5,
+      "attempt": 3,
+      "utc": "2026-11-27T08:11:38+00:00",
+      "i": 11,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-802d876a-e8cd-9daf-a449-dcc35e7db5bd",
+      "usage": {
+        "completion_tokens": 1637,
+        "prompt_tokens": 1017,
+        "total_tokens": 2654,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "b0f1875b23a6c99d6fda59c0ed78e2208136240f244250d952609c802d132ce3",
+      "reply_sha256": "bd9409410b930fc317dd3864dd87a4954c3c5a7530b5c93e61c13277fee340ce",
+      "fenced": true,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 1.0000010000000001 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.8, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 2,
+      "attempt": 4,
+      "utc": "2026-11-27T08:12:04+00:00",
+      "i": 12,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-6f6d45e7-3483-957b-87e6-61d8963dd765",
+      "usage": {
+        "completion_tokens": 2203,
+        "prompt_tokens": 1017,
+        "total_tokens": 3220,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "20ee113760aa4f0ff8c9e1a52e214cb20028ce2172bd1b3d1703c420a71ec754",
+      "reply_sha256": "4cd2d90ee2b1c6e75771433b4513af476c7af8680f01f3d27a4bfc3003c63a0c",
+      "fenced": false,
+      "ok": false,
+      "checks": {
+        "static": "pass",
+        "runs": null,
+        "probs": "sum = 100.0 at {'deaths_7day_mean': 0.0, 'deaths_cumulative': 0.0, 'deaths_7day_mean_7d_ago': 0.0, 'current_action': 'stay_home', 'social_norm': 0.0, 'age_band': 0, 'vulnerability': 1.61e-05, 'occupation_flex': 0.0, 'response_efficacy': 0.0, 'population': 15000, 'day': 0}",
+        "fields": null,
+        "deterministic": null
+      }
+    },
+    {
+      "rule": 4,
+      "attempt": 4,
+      "utc": "2026-11-27T08:12:04+00:00",
+      "i": 13,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-4e8a22e2-feaa-97d3-a746-5804eedb0f89",
+      "usage": {
+        "completion_tokens": 2969,
+        "prompt_tokens": 1017,
+        "total_tokens": 3986,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "c91ae77ccc41d48fa4af340dd69d75fe3bdeca1e27ea397316024cf0b68819b6",
+      "reply_sha256": "78bb0cfcfddbd8eae9843b90d67e5e8993d17d0aa08c2c85f472dc3a46cecc32",
+      "fenced": true,
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      }
+    },
+    {
+      "rule": 5,
+      "attempt": 4,
+      "utc": "2026-11-27T08:12:04+00:00",
+      "i": 14,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-89bb38b8-825a-99df-a873-680361f774e6",
+      "usage": {
+        "completion_tokens": 2614,
+        "prompt_tokens": 1017,
+        "total_tokens": 3631,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "9c6f8a40ac615bdb2ab986146cf87cf6946baae79f6485b151066f4c82e7b2fa",
+      "reply_sha256": "1fd38b4ec8513c057becdae3023ae830cd00fd84f4f7a1e6f46d0c148967c9bb",
+      "fenced": true,
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      }
+    },
+    {
+      "rule": 2,
+      "attempt": 5,
+      "utc": "2026-11-27T08:12:39+00:00",
+      "i": 15,
+      "http_status": 200,
+      "finish_reason": "stop",
+      "model_served": "qwen3.8-flash",
+      "response_id": "chatcmpl-f636abb4-e2a3-9eb9-b5a1-345760892473",
+      "usage": {
+        "completion_tokens": 2276,
+        "prompt_tokens": 1017,
+        "total_tokens": 3293,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": 1017
+        }
+      },
+      "error": null,
+      "code_sha256": "5a33e85640976993b193e606cecb37ac0e052dfc6c094e4b5978aa1df95fb527",
+      "reply_sha256": "4561396fc2d2bf987d16672a319742d3939eba2ff8bb4918015fab4d8fd987fe",
+      "fenced": true,
+      "ok": true,
+      "checks": {
+        "static": "pass",
+        "runs": "pass",
+        "probs": "pass",
+        "fields": "pass",
+        "deterministic": "pass"
+      }
+    }
+  ],
+  "frozen_utc": "2026-11-27T08:13:07+00:00"
+}

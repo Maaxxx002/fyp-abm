@@ -1,0 +1,162 @@
+def decide(p):
+    """
+    Determines the probability distribution over three behavioral options:
+    A) Stay at home (stay_home)
+    B) Go out, but take precautions (precautions)
+    C) Go out and carry on as normal (normal)
+
+    The decision model incorporates:
+    1. Perceived Risk: Based on cumulative deaths relative to population, recent death trends,
+       and individual vulnerability (age).
+    2. Social Norms: The proportion of people acting normally influences the social cost/risk
+       of staying home vs going out.
+    3. Self-Efficacy & Feasibility: Response efficacy (belief in protection) and occupation
+       flexibility (ability to stay home).
+    4. Habit/Current Action: Tendency to stick with current behavior or shift based on risk.
+
+    Parameters:
+    p: An object with attributes described in the prompt.
+
+    Returns:
+    dict: {"stay_home": float, "precautions": float, "normal": float}
+          Values are probabilities summing to 1.0.
+    """
+    import math
+
+    # --- 1. Calculate Perceived Risk Factors ---
+
+    # Base mortality rate proxy: Cumulative deaths / Population
+    # Add a small epsilon to avoid division by zero if population is somehow 0 (though spec says town of N people)
+    pop = max(1, p.population)
+    cum_deaths_rate = p.deaths_cumulative / pop
+    
+    # Recent trend factor: Is the situation getting worse?
+    # Compare recent 7-day mean to the mean from 7 days ago.
+    # If recent > earlier, risk perception increases.
+    recent_avg = p.deaths_7day_mean
+    earlier_avg = p.deaths_7day_mean_7d_ago
+    
+    # Trend multiplier: 1.0 if stable/worse, higher if worsening significantly.
+    # Using a smooth function for trend impact.
+    if earlier_avg == 0:
+        if recent_avg > 0:
+            trend_factor = 1.5 # Worsening from nothing
+        else:
+            trend_factor = 1.0
+    else:
+        ratio = recent_avg / earlier_avg
+        # Cap the influence of extreme ratios
+        trend_factor = min(2.0, max(0.5, ratio))
+        
+    # Vulnerability adjustment: Age matters. 
+    # p.vulnerability is already the fatality chance for this age band.
+    # We use it directly as a weight on how much personal risk drives the decision.
+    
+    # Overall Personal Risk Perception (PRP)
+    # Scales roughly 0 to 1+, combining community spread and personal fragility.
+    prp = cum_deaths_rate * trend_factor * (p.vulnerability + 0.1) 
+    
+    # Normalize PRP to a reasonable range for logistic functions later.
+    # Typical epidemic CFR might be 0.01 - 0.05. Cumulative rates can be higher.
+    # Let's scale PRP so that a value of ~0.05-0.1 represents high perceived danger.
+    scaled_prp = prp * 100.0 
+
+    # --- 2. Calculate Behavioral Constraints & Motivations ---
+
+    # Ability to stay home (0 to 1)
+    ability_stay = p.occupation_flex
+    
+    # Belief in precautions (0 to 1)
+    belief_precautions = p.response_efficacy
+    
+    # Social Norm Pressure
+    # If many people go about lives normally (high social_norm), there is social pressure to conform
+    # OR reduced perceived isolation cost. Conversely, low social_norm implies others are cautious,
+    # making caution more socially acceptable/normative.
+    social_norm_val = p.social_norm # 0 to 1
+    
+    # --- 3. Determine Utility Scores for Each Option ---
+
+    # Option A: Stay Home
+    # High utility if: High Risk (PRP), Low Social Norm (others also staying?), High Ability.
+    # Low utility if: Low Risk, High Ability constraint (can't stay), High Social Norm (FOMO/Pressure).
+    # Note: Staying home eliminates infection risk but incurs social/economic cost.
+    # Economic/Social Cost decreases with ability_stay.
+    cost_A = (1.0 - ability_stay) * 2.0 
+    # Social Cost: If everyone else is out, staying home feels isolating.
+    social_cost_A = social_norm_val * 1.5
+    # Benefit: Safety. Proportional to PRP.
+    benefit_A = scaled_prp * 2.0
+    
+    score_A = benefit_A - cost_A - social_cost_A
+
+    # Option B: Precautions
+    # Middle ground. Requires belief in efficacy.
+    # Cost: Effort/Mental load. Lower if belief_precautions is high? Actually, if you believe it works,
+    # you are more likely to do it despite effort. But usually, "effort" is fixed, "efficacy" reduces risk.
+    # Let's model risk reduction based on efficacy.
+    # Residual Risk with precautions = PRP * (1 - belief_precautions)
+    residual_risk_B = scaled_prp * (1.0 - belief_precautions)
+    
+    # Cost of precautions: Moderate.
+    cost_B = 1.0 
+    # Social cost: Lower than staying home if norms are mixed, but still some friction.
+    social_cost_B = social_norm_val * 0.8
+    
+    # Benefit: Reduced risk compared to Normal, plus maintaining some life.
+    # Score combines negative residual risk and costs.
+    score_B = -(residual_risk_B * 1.5) - cost_B - social_cost_B + (belief_precautions * 1.0)
+
+    # Option C: Normal
+    # Highest utility if: Low Risk, High Social Norm, Low Ability to stay, Low Belief in efficacy.
+    # Cost: Infection Risk.
+    cost_C_risk = scaled_prp * 1.0
+    # Social Benefit: Conformity if social_norm is high.
+    social_benefit_C = social_norm_val * 1.5
+    # Economic Benefit: No restriction.
+    economic_benefit_C = ability_stay * 0.5 # Even if you can stay, going out is "free" economically?
+    # Or rather, penalty for not staying is avoided.
+    
+    score_C = social_benefit_C + economic_benefit_C - cost_C_risk
+
+    # --- 4. Incorporate Current Action (Habit/Persistence) ---
+
+    # People tend to persist with their current action unless risk/utility strongly dictates change.
+    # Add a bonus to the current option.
+    persistence_bonus = 1.5
+    
+    if p.current_action == "stay_home":
+        score_A += persistence_bonus
+    elif p.current_action == "precautions":
+        score_B += persistence_bonus
+    elif p.current_action == "normal":
+        score_C += persistence_bonus
+
+    # --- 5. Convert Scores to Probabilities using Softmax ---
+
+    # To prevent overflow/underflow, subtract max score
+    scores = [score_A, score_B, score_C]
+    max_score = max(scores)
+    
+    exp_scores = [math.exp(s - max_score) for s in scores]
+    sum_exp = sum(exp_scores)
+    
+    if sum_exp == 0:
+        # Fallback for numerical stability issues (unlikely with subtraction trick)
+        return {"stay_home": 0.33, "precautions": 0.33, "normal": 0.34}
+        
+    prob_A = exp_scores[0] / sum_exp
+    prob_B = exp_scores[1] / sum_exp
+    prob_C = exp_scores[2] / sum_exp
+
+    # Ensure they sum exactly to 1 due to floating point errors
+    # Adjust the largest one slightly if needed, or just rely on standard float precision which is usually fine for <1e-10 error.
+    # The problem asks for whole numbers in the description example, but the function returns floats.
+    # "Give the probability... Use whole numbers..." refers to the human reading the description.
+    # The Python function should return floats.
+    
+    return {
+        "stay_home": prob_A,
+        "precautions": prob_B,
+        "normal": prob_C
+    }

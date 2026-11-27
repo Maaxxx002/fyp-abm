@@ -1,0 +1,258 @@
+```python
+import math
+
+def decide(p):
+    """
+    Returns a dictionary with probabilities for 'stay_home', 'precautions', and 'normal'.
+    Probabilities are floats that sum to 1.0.
+    """
+    
+    # Helper to calculate risk perception based on vulnerability and efficacy
+    # Vulnerability: p.vulnerability (0 to 1)
+    # Response Efficacy: p.response_efficacy (0 to 1)
+    # If efficacy is high, the perceived benefit of precautions/staying home is higher relative to risk?
+    # Actually, standard health behavior models suggest:
+    # Perceived Threat = Vulnerability * Severity (here severity is death, so just vulnerability)
+    # But we need to weigh options.
+    
+    # Let's define base weights for each action based on personal attributes.
+    
+    # 1. Stay Home (A)
+    # Driven by: High vulnerability, Low occupation flexibility (easy to stay?), 
+    # Wait, occupation_flex is "How easily you could stay at home". 
+    # High flex -> easier to stay home -> Higher probability of staying home.
+    # Low flex -> harder to stay home -> Lower probability.
+    # Also driven by: Current action inertia (if already staying home).
+    # Also driven by: Social norm? If everyone else is normal, maybe less pressure to stay? 
+    # Or if everyone is staying, more pressure? The prompt says "{social_norm} of people ... are going about their lives normally."
+    # So if social_norm is high (everyone normal), staying home might feel deviant or safe depending on model.
+    # Usually, in these simulations, conformity plays a role. If most are normal, you might follow them unless fear is high.
+    
+    # Let's construct scores for A, B, C.
+    
+    # Base Fear/Risk Factor:
+    # Cumulative deaths per capita gives a sense of scale.
+    pop = max(1, p.population)
+    cum_deaths_rate = p.deaths_cumulative / pop
+    
+    # Recent trend:
+    # deaths_7day_mean vs deaths_7day_mean_7d_ago
+    recent_avg = p.deaths_7day_mean
+    prev_avg = p.deaths_7day_mean_7d_ago
+    
+    # Trend factor: increasing deaths increases fear
+    if prev_avg > 0:
+        trend_ratio = recent_avg / prev_avg
+    else:
+        trend_ratio = 1.0 + recent_avg # If previously 0, any death is a spike
+        
+    # Normalize trend impact slightly
+    trend_impact = min(2.0, max(0.5, trend_ratio)) 
+    
+    # Vulnerability weight
+    vuln = p.vulnerability
+    
+    # Occupation Flexibility (ease of staying home)
+    flex = p.occupation_flex
+    
+    # Response Efficacy (belief that actions work)
+    eff = p.response_efficacy
+    
+    # Social Norm (fraction acting normally)
+    norm = p.social_norm
+    
+    # Inertia from current action
+    curr = p.current_action
+    
+    # Scores
+    score_A = 0.0 # Stay Home
+    score_B = 0.0 # Precautions
+    score_C = 0.0 # Normal
+    
+    # --- Risk Assessment ---
+    # Higher vulnerability and higher death rates/trends increase desire for protection (A or B)
+    risk_pressure = vuln * (0.5 + cum_deaths_rate * 10 + (trend_impact - 1.0) * 0.5)
+    risk_pressure = max(0.0, risk_pressure)
+    
+    # --- Option A: Stay Home ---
+    # Strongly correlated with high risk pressure and high flexibility.
+    # If you can't stay home (low flex), score drops significantly.
+    # If risk is low, score drops.
+    # Inertia: if currently staying home, boost.
+    
+    score_A += risk_pressure * (0.5 + flex) 
+    # Flex ranges 0-1. If flex=1, multiplier 1.5. If flex=0, multiplier 0.5.
+    # Note: Even if flex is 0, you might still want to stay home but can't. 
+    # However, usually "probability of choosing" implies feasibility. 
+    # If flex is very low, score_A should be penalized heavily.
+    
+    # Let's refine:
+    # Feasibility factor for A
+    feas_A = 0.1 + 0.9 * flex
+    
+    # Desire factor for A (Risk)
+    des_A = risk_pressure * (1.0 + eff) # If you believe it works, you want it more
+    
+    score_A = des_A * feas_A
+    
+    # Inertia for A
+    if curr == "stay_home":
+        score_A *= 1.5
+    elif curr == "normal":
+        score_A *= 0.8
+    # Precautions is intermediate
+        
+    # Social Influence on A:
+    # If few people are normal (norm is low), it means many are staying/precautioning.
+    # This might encourage A (conformity) or discourage it (if I'm the only one left?).
+    # Typically, if others are protecting, I feel safer doing so too (or pressured).
+    # Let's assume positive correlation with safety-seeking behavior of others.
+    # Others not normal = (1 - norm).
+    score_A += (1.0 - norm) * 0.2 * risk_pressure
+    
+    # --- Option B: Precautions ---
+    # Intermediate option. Always feasible? Yes, usually.
+    # Desirability depends on Risk and Efficacy.
+    # Less dependent on Flex than A.
+    
+    feas_B = 1.0 # Everyone can take precautions
+    
+    des_B = risk_pressure * (1.0 + eff)
+    # Precautions are often the default "safe" choice if full lockdown isn't possible or desired.
+    # It balances risk reduction with activity.
+    
+    # Penalty if risk is very low? If risk is near 0, why bother?
+    # Score B should drop as risk drops.
+    score_B = des_B * feas_B
+    
+    # Inertia for B
+    if curr == "precautions":
+        score_B *= 1.5
+    elif curr == "stay_home":
+        score_B *= 0.9
+    elif curr == "normal":
+        score_B *= 0.9
+        
+    # Social Influence on B:
+    # If norm is high (people normal), but risk exists, B is a compromise.
+    # If norm is low (people careful), B aligns.
+    score_B += (1.0 - norm) * 0.1 * risk_pressure
+    
+    # --- Option C: Normal ---
+    # Desirability depends on LOW risk, HIGH social norm (conformity), LOW efficacy/flex constraints?
+    # If you have to go out (low flex), you might go out "normal" if you don't believe in precautions (low eff)?
+    # Or if you think you are invincible (low vuln).
+    
+    # Feasibility: Always possible (you can always go out).
+    feas_C = 1.0
+    
+    # Desire: Inverse of risk.
+    # If risk is 0, desire is high.
+    # If social norm is high (everyone doing it), desire is high.
+    
+    des_C = (1.0 - risk_pressure) * 0.5 + norm * 0.5
+    # Clamp to non-negative
+    des_C = max(0.0, des_C)
+    
+    # However, if vulnerability is high, even if risk_pressure calculation was low due to other factors,
+    # we might want to dampen C further.
+    # Let's use a simpler heuristic for C:
+    # C is chosen when: Low Vulnerability, Low Death Rates, High Social Norm, Low Response Efficacy (don't believe precautions help), Low Occupation Flex (can't stay home, so just go out).
+    
+    # Re-evaluating C Score components:
+    c_base = 1.0
+    c_vuln_penalty = vuln * 2.0
+    c_risk_penalty = risk_pressure * 2.0
+    c_norm_bonus = norm * 1.5
+    c_eff_penalty = eff * 1.0 # If you believe precautions work, you are less likely to do nothing
+    c_flex_penalty = flex * 0.5 # If you CAN stay home, you are less likely to go out normally? 
+    
+    score_C = c_base - c_vuln_penalty - c_risk_penalty + c_norm_bonus - c_eff_penalty - c_flex_penalty
+    score_C = max(0.0, score_C)
+    
+    # Inertia for C
+    if curr == "normal":
+        score_C *= 1.5
+    elif curr == "precautions":
+        score_C *= 0.9
+    elif curr == "stay_home":
+        score_C *= 0.7
+        
+    # Ensure scores are positive for softmax
+    # Add small epsilon to avoid log(0) or division issues later, though softmax handles zeros fine.
+    
+    # Combine into final scores
+    # We need to balance the magnitudes. 
+    # score_A and score_B were multiplicative, score_C additive/subtractive.
+    # Let's normalize the inputs to ensure comparable scales.
+    
+    # Recalculating with a unified framework might be safer.
+    
+    # Unified Framework:
+    # Utility(A) = w1*Risk*Flex + w2*Inertia + w3*Social
+    # Utility(B) = w4*Risk*Eff + w5*Inertia + w6*Social
+    # Utility(C) = w7*(1-Risk)*Norm + w8*Inertia - w9*Risk
+    
+    # Let's stick to the previous logic but adjust constants for better distribution.
+    
+    # Adjusting Score A and B to be more directly comparable to C
+    
+    # Risk Pressure normalized roughly 0 to 2?
+    # Vuln 0-1. Deaths/pop can vary. Let's cap risk_pressure influence.
+    
+    rp = min(1.0, risk_pressure) # Cap risk pressure contribution at 1.0 for utility scaling
+    
+    # A: Stay Home
+    u_a = 0.0
+    u_a += rp * (0.2 + 0.8 * flex) # Want to stay if risky AND flexible
+    u_a += rp * 0.3 * eff          # Want to stay if you believe it works
+    u_a += (1.0 - norm) * 0.2      # Conformity to non-normal crowd
+    if curr == "stay_home": u_a += 0.4
+    if curr == "precautions": u_a -= 0.1
+    if curr == "normal": u_a -= 0.2
+    
+    # B: Precautions
+    u_b = 0.0
+    u_b += rp * (0.3 + 0.7 * eff)  # Main driver: Belief it helps against risk
+    u_b += rp * 0.2                # Baseline caution
+    u_b += (1.0 - norm) * 0.1      # Slight conformity
+    if curr == "precautions": u_b += 0.4
+    if curr == "stay_home": u_b -= 0.1
+    if curr == "normal": u_b -= 0.1
+    
+    # C: Normal
+    u_c = 0.0
+    u_c += (1.0 - rp) * 0.5        # Comfort if low risk
+    u_c += norm * 0.3              # Conformity to majority
+    u_c += (1.0 - eff) * 0.2       # Skepticism of measures
+    u_c += (1.0 - flex) * 0.2      # Necessity/Convenience if can't stay home? 
+                                   # Actually, if you can't stay home, you MUST go out. 
+                                   # But will you go out "normally" or "with precautions"?
+                                   # If flex is low, A is impossible. B and C compete.
+                                   # Low flex shouldn't necessarily push to C over B, unless eff is also low.
+                                   # Let's say low flex reduces A, but doesn't inherently boost C over B.
+                                   # However, if you are forced out, and don't believe in masks (eff low), you go normal.
+    if curr == "normal": u_c += 0.4
+    if curr == "precautions": u_c -= 0.1
+    if curr == "stay_home": u_c -= 0.2
+    
+    # Calculate Softmax
+    # Shift scores to prevent overflow/underflow
+    max_u = max(u_a, u_b, u_c)
+    
+    exp_a = math.exp(u_a - max_u)
+    exp_b = math.exp(u_b - max_u)
+    exp_c = math.exp(u_c - max_u)
+    
+    total_exp = exp_a + exp_b + exp_c
+    
+    prob_a = exp_a / total_exp
+    prob_b = exp_b / total_exp
+    prob_c = exp_c / total_exp
+    
+    return {
+        "stay_home": prob_a,
+        "precautions": prob_b,
+        "normal": prob_c
+    }
+```

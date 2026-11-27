@@ -89,6 +89,12 @@ Last updated: after the shape-metric investigation and the N decision.
 | A73 | **No hard API budget cap** (supersedes A67's provisional "about $100"). Arm 2 runs scenario by scenario, with a usage check after each scenario | [Decision, supervisor, Meeting 5, 2 Nov 2026] |
 | A74 | **Prompt v2 = option A.** Template text identical to v1 (A66). Only the two death sentences change, to one-week totals from the world's 7-day window (A71); Perception fields `deaths_7day_mean` and `deaths_7day_mean_7d_ago` replace `deaths_28day_mean` and `deaths_28day_mean_7d_ago`. {deaths_recent}: n = half_up(min(7, day) × deaths_7day_mean); day ≥ 7 "In the past week, {n} people in your town died of it."; day < 7 "Since the outbreak began, {n} people in your town have died of it.". {deaths_earlier}: deaths_7day_mean_7d_ago = 0 before day 7; m = half_up(min(7, day − 7) × deaths_7day_mean_7d_ago); day ≥ 14 "In the week before that, {m} died."; 7 ≤ day < 14 "Between the start of the outbreak and a week ago, {m} died."; day < 7 "A week ago, {m} people had died of it.". Arm-3 instruction v2 = v1 except the two attribute lines (now the 7-day fields, shown as the average × min(7, day) and × min(7, day − 7), rounded). **The reason for re-freezing is the 7-day signal change, not any result.** Held as a DRAFT in `prompts/v2/` until the pilot checks pass; v1 is untouched | [Decision, Max, 26 Nov 2026] Built and checked in C58 |
 | A75 | **Meeting 5 analyses requested:** (1) a repeat pilot, which decides whether identical prompts may be reused (C53's exact-reuse question); (2) sensitivity: one-input-at-a-time situations, and real situations taken from S1/S2/S3; (3) a model comparison; all compared with arms 1 and 3. Designs not decided here | [Decision, supervisor, Meeting 5, 2 Nov 2026] |
+| A76 | **Key owner's permission for a pilot (email, 27 Nov 2026; substance only).** The lab's Token Plan key may be used for a small pilot — as small as possible while still running the simulation end to end. Afterwards report the Credits used and the time taken. The owner's main concern is whether a full scenario can finish in a reasonable time; the owner will top up Credits if needed. **The permission covers the pilot only;** full-scenario runs need the owner's OK after seeing the pilot's numbers | [Email from the key's owner to Max, 27 Nov 2026, as reported by Max] |
+| A77 | **The pilot uses the lab's Token Plan key**, on the owner's green light (A76). On A72's flag (Alibaba's published Token Plan terms forbid automated scripts and batch calls): the key owner told Max on 27 Nov 2026 that he had previously checked this use with Alibaba's team. **Recorded as reported by the owner;** E27 = get that confirmation on file. Does not block the pilot | [Decision, Max, 27 Nov 2026] |
+| A78 | **Reuse rule** (replaces the earlier, unregistered wobble/ICC idea; to be reported to the supervisor). Arm 2 may give every agent with a word-for-word identical prompt the same Qwen answer if the extra day-to-day wobble this adds to the town's daily stay-home share is smaller than the wobble the run already has from agents drawing their own actions (A56). Computed offline. **Per prompt:** μ = mean stay-home probability A (0–1, after A64 rescaling) over its repeat-pilot repeats; σ² = variance over the repeats (ddof 1); b = μ(1 − μ). **k agents sharing one prompt on one day:** with one call each, their stay-home count has variance k·b; with m answers per prompt and each agent given one at random, k·b + (k² − k)·σ²/m; the second term is the extra wobble. **Per phase f:** R_f(m) = mean_σ²_f · (Σk² − Σk) / (m · mean_b_f · Σk), where mean_σ²_f and mean_b_f are means over the phase's 4 repeat-pilot situations and the sums run over every (day, distinct prompt) in phase f of the reference runs. **Reference runs (group sizes only):** C53's stub dry runs, S1, N = 15,000, seeds 0–9, both stubs, grouped per A80. **Phases,** on a run's daily prevalence (maximum P_max on day t_max): early = before prevalence first reaches 10% of P_max; rising = from then to t_max − 4; peak = t_max − 3 to t_max + 3; falling = t_max + 4 to the last day with prevalence ≥ 10% of P_max; late = later days with E + I > 0. **PASS for m:** R_f(m) < 1 in all five phases under both stubs (a phase with mean_σ²_f = 0 passes). Use m = 1 if it passes; else m = 3 if it passes; else A81. **Reported as findings, not pass/fail:** the same R for the cautious share A + B; per-situation SDs (median, max); ICC(1,1) (one-way random effects, single measure; Koo & Li 2016) with 95% CI, for A and for A + B; a bootstrap 95% interval for each R_f. **Before use,** the calculator is tested on synthetic inputs with known answers: σ = 0 gives 0; all k = 1 gives 0; one hand-computed case; m = 3 gives one third of m = 1 | [Decision, Max, 27 Nov 2026] |
+| A79 | **Sampling settings:** every arm-2 and arm-3 request sends temperature 0.7, top_p 0.8, top_k 20 and presence_penalty 1.5 (Alibaba's documented non-thinking defaults, C58 Part B) together with enable_thinking false. top_k is sent as Alibaba's Chat Completions reference says the OpenAI-compatible endpoint accepts it: "This parameter is not an OpenAI standard parameter. When calling through the Python SDK, put it in the extra_body object." … "The configuration method is: extra_body={"top_k":xxx}." (https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions, `top_k` entry, last updated 24 Nov 2026, read 27 Nov 2026). Hence `extra_body={"enable_thinking": False, "top_k": 20}`; temperature, top_p and presence_penalty are top-level SDK arguments. **Amends C58 Part B ("sampling not sent") before any call; C58 Part C's predictions stand** | [Decision, Max, 27 Nov 2026] Noted from the same page, not acted on: the temperature and top_p entries say "We recommend setting only one of them"; the 0.7 temperature line names "Qwen3.8 (non-thinking mode)", not qwen3.8-flash, and the top_k default line is "All other models: 20." |
+| A80 | **Reuse scope:** stored answers are keyed by (scenario, N, seed, SHA-256 of the exact prompt, answer index); runs never share answers. Since the day is in every prompt (C53), reuse happens only among agents asked on the same day of the same run. Call estimates therefore use C53 column (b): S1, N = 15,000, 10 runs = 1,514,381–2,679,531 calls with one answer per prompt (column (c), 1.32M–2.38M, assumed sharing between runs) | [Decision, Max, 27 Nov 2026] Numbers checked against `results/step7/step11_counts.json`: (b) 1,514,381 (10/60/30) and 2,679,531 (40/50/10); (c) 1,321,724 and 2,375,170 |
+| A81 | **If m = 3 fails A78:** use the smallest m that passes, with min(m, k) calls for a prompt shared by k agents (never more calls than agents). Report Σ min(m, k) over C53's runs for m = 1, m = 3 and the chosen m | [Decision, Max, 27 Nov 2026] |
 
 ## B. Sources — extraction status
 
@@ -3378,6 +3384,493 @@ analysis is visible to the owner or an administrator only, not to a member). The
 no credits field in API responses; an exhausted quota returns 429 "insufficient_quota" and is not
 converted to pay-as-you-go.
 
+**C58 Part C results = C59 step 1. [Measured facts only.]** Run 27 Nov 2026 on Max's approval
+(up to 25 requests), `py -3.14 experiments/step13_v2_smoke.py --plan`, `--run`, `--score`; logs
+`results/pilot/step1_run.log`, `step1_score.log`; ledger `results/pilot/step1/requests.jsonl` (20
+lines, 20 distinct keys); per-request records `requests.responses.jsonl`; `smoke_log.json`. Lab
+Token Plan key (A76, A77). Settings on every request (A79): model qwen3.8-flash, max_tokens 1024,
+temperature 0.7, top_p 0.8, presence_penalty 1.5, `extra_body={"enable_thinking": False,
+"top_k": 20}`. 10 v2 prompts × 2 repeats, one at a time.
+- **Requests 20** (cap 25); decisions 20; **valid at the first attempt 20/20**; retries 0;
+  fallbacks 0. HTTP status 200 on all 20; no error codes; finish_reason "stop" on all; model
+  returned "qwen3.8-flash" on all.
+- Tokens per request: **prompt 313–323**, **completion 12–14**. `completion_tokens_details` was
+  null on all 20 (**no reasoning-token count returned**); reasoning text 0 characters on all 20;
+  `prompt_tokens_details.cached_tokens` 0.
+- **Seconds per request: min 0.71, median 0.94, max 1.25; wall time 19 s** for 20 sequential
+  requests.
+- Response header names: content-encoding, content-type, date, req-arrive-time, req-cost-time,
+  resp-start-time, server, transfer-encoding, vary, x-dashscope-finished, x-dashscope-timeout,
+  x-envoy-upstream-service-time, x-request-id. No header reports credits, quota or rate limits.
+
+| id | current action | rep 0 | rep 1 | same | caution 0 / 1 |
+|---|---|---|---|---|---|
+| d3_b2 | normal | A=5, B=20, C=75 | A=5, B=25, C=70 | no | 0.25 / 0.30 |
+| d3_b8 | normal | A=0, B=10, C=90 | A=0, B=10, C=90 | yes | 0.10 / 0.10 |
+| d10_b2 | normal | A=5, B=15, C=80 | A=10, B=45, C=45 | no | 0.20 / 0.55 |
+| d10_b8 | normal | A=0, B=5, C=95 | A=0, B=10, C=90 | no | 0.05 / 0.10 |
+| d30_b2 | normal | A=5, B=40, C=55 | A=5, B=35, C=60 | no | 0.45 / 0.40 |
+| d30_b8 | normal | A=10, B=25, C=65 | A=1, B=19, C=80 | no | 0.35 / 0.20 |
+| d45_b2 | precautions | A=30, B=60, C=10 | A=15, B=70, C=15 | no | 0.90 / 0.85 |
+| d45_b8 | precautions | A=60, B=35, C=5 | A=70, B=25, C=5 | no | 0.95 / 0.95 |
+| d90_b2 | precautions | A=10, B=60, C=30 | A=15, B=60, C=25 | no | 0.70 / 0.75 |
+| d90_b8 | precautions | A=10, B=85, C=5 | A=5, B=80, C=15 | no | 0.95 / 0.85 |
+
+- Band-8 caution ≥ band-2 (mean over repeats) on **2/5 days** (d45, d90; not d3, d10, d30). The
+  two agents differ in more than age: band-2 agent 3337 (3338 on day 90) has occupation_flex
+  0.41 and response_efficacy 0.45 (0.21 and 0.03 on day 90); band-8 agent 13264 has 1.0 and 0.11.
+- **The two repeats differ on 9 of 10 prompts** (identical only for d3_b8).
+- *Predictions vs outcome:* ≥ 19/20 valid at the first attempt — as predicted (20/20); reasoning
+  tokens 0 or absent — as predicted (absent); prompt tokens 295–315 — **wrong** (313–323);
+  completion tokens 14–16 — **wrong** (12–14); 0.4–3 s per call — as predicted (0.71–1.25); no
+  429 — as predicted; band 8 ≥ band 2 on at least 4 of 5 days — **wrong** (2/5); repeats differ
+  on at least 3 of 10 — as predicted (9/10).
+- *C59 go-on rule for step 2* (≥ 19/20 valid at the first attempt, no unrecovered transport
+  error, reasoning tokens 0 or absent on every reply): **met** (20/20; no transport error;
+  reasoning-token field absent and no reasoning text on every reply).
+- Console Credits: **before step 1 — not taken**; after step 1 (= before step 2) — **not
+  taken** (Max chose on 27 Nov 2026 to run step 2 without it).
+
+**C59 — Pilot pre-registration, steps 1–4. Written 27 Nov 2026, before any call.** [Design:
+planning chat (Max), 27 Nov 2026; settings A76–A81.] Each live step runs only after Max's
+explicit go-ahead in chat and within its hard cap. Caps count HTTP requests, retries included, in
+a ledger on disk that survives restarts. Before and after each live step, the console Credits
+figure Max gives is recorded. Stop and report after every step.
+
+*Step 1 — smoke test* exactly as C58 Part C (20 requests, cap 25), now with A79's settings. Go on
+only if ≥ 19/20 replies are valid at the first attempt, there is no unrecovered transport error,
+and reasoning tokens are 0 or absent on every reply.
+
+*Step 2 — speed test:* 15 requests at each concurrency level 1, 2, 4, 8, in that order, cycling
+the 10 smoke prompts; no retries in this step (every non-200 reply logged with its headers); if a
+level has any error, finish that level and run no higher level; cap 60. Report per level: median
+and 95th-percentile seconds per request, wall time, requests per second, errors. Operating
+concurrency for steps 3 and 4 = the highest level with 0 errors.
+
+*Step 3a — A62 checks on v2:* the 14 situations below × 3 repeats = 42 (cap 50). Scored as C37
+(caution c = 1 − P(normal), mean over valid replies, strict comparison of means, ties pass "at
+least"): (i) c(D125) > c(D0) for both agents; (ii) c(band 8) ≥ c(band 2) in all 7 histories;
+(iii) c(Trise) ≥ c(Tfall) for both agents; (iv) every decision valid within A61's attempts
+(first-attempt validity also reported). Freeze v2 (`prompts/frozen_v2/`, hashes recorded, as A66)
+only if (i)–(iv) all pass. If any fails: report and STOP; no rewording (A66); Max decides.
+
+*Step 3b — the 5 arm-3 rules regenerated with Qwen* from the frozen v2 instruction: A79's
+settings, max_tokens 8192 (as `experiments/step5_arm3_generate.py`); finish_reason "length" counts
+as a failed generation; A53 checks; regenerate only on a failed check (A51), each logged; cap 15;
+freeze per A54 in a new folder (the Haiku rules stay untouched).
+
+*Step 3c — repeat pilot:* the 20 situations below × 20 repeats = 400 (cap 420), sent in a
+shuffled order (fixed, recorded seed) at the operating concurrency. Scored per A78 and A81.
+
+*Step 4 — one end-to-end arm-2 run:* S1, N = 1,000 (its own frozen quota population), seed 0, 10
+initial infected (1% of N, so a short growth phase, D8; this run tests the pipeline, not the
+epidemic), p = 0.3, A55 stop, 600-day cap, frozen v2, m from A78/A81, answers stored per A80,
+operating concurrency. Hard cap 50,000 requests; reaching it pauses the run (resumable), it does
+not fail it. A transport error that survives the client's retries also pauses the run; it is not
+turned into an A61 fallback (A61 covers invalid model replies only). Resume design: every reply is
+appended to the store and flushed as it arrives; a restart replays the run from day 0 using stored
+replies and sends only prompts not yet stored; replies are applied in a fixed agent order, so
+arrival order under concurrency cannot change results. Offline test before any live run (fake
+client): an uninterrupted run and a run interrupted partway then restarted give identical
+outputs, and the fake client receives each key exactly once. Live check: stop the real run partway
+with Ctrl+C and restart it; the ledger must show no repeated key. Report: requests, input/output
+tokens, wall time, sustained requests per second, errors, last day, final S, Credits.
+
+*Full-scenario estimate for the owner (after step 4):* C53 column (b) calls for S1 at 15,000 ×
+(Σ min(m, k) ÷ Σ min(1, k) if m > 1) ÷ step 4's sustained requests per second, with the caveat
+that calls can be about 3× higher if arm 2 keeps the epidemic going to day 600 (C52). Every input
+labelled measured or assumed.
+
+*Predictions (planning chat) [Speculation]:* step 2 level-1 median 0.4–3 s (medium), level-8
+median within 1.5× level 1 (low-medium), 0 errors at every level (low-medium); step 3a (iv) pass
+(high), (ii) pass (medium), (i) pass (medium), (iii) pass (low, about 50%); step 3c m = 1 passes
+(low, close to even); step 4 17,000–48,000 requests (low), epidemic over before day 600
+(medium-low).
+*Predictions (Claude Code) [Speculation]:* step 1 20/20 valid at the first attempt (high) and
+completion tokens 14–16 (medium); step 2 level-1 median 0.5–1.5 s (medium); step 3a (ii) fails
+on at least one D history if it fails at all, not on T (low). No step-4 number is given: none has been
+calculated.
+
+*Situations (fixed before any call).*
+**A62 set, 14** = 7 death histories × an agent in band 2 and one in band 8; day 60; population
+15,000; social norm 0.85; current action normal; occupation_flex 0.4101759 (renders 4);
+response_efficacy 0.7954036 (renders 8), as C37 (the full-precision C34 values are used).
+Reported deaths fall only on days 25–59 and are constant within each 7-day week W1 (days 25–31)
+to W5 (days 53–59); "past week" = W5, "week before" = W4.
+- D-series: C37's flat histories at the same deaths per person (× 5 for 15,000): weekly totals
+  0, 3.75, 15, 62.5, 125 (render 0, 4, 15, 63, 125); cumulative = 5 × weekly. Named D0, D4, D15,
+  D63, D125.
+- T-series, rebuilt: converting C37's Trise/Tfall directly gives past-week totals of 45 and 10,
+  which breaks check (iii)'s "same death level". Instead both have W5 = 15 (= D15); Trise has
+  W1–W4 = 5 each (cumulative 35) and Tfall W1–W4 = 31 each (cumulative 139). The week-before /
+  past-week ratios 5/15 and 31/15 match C37's 4/12 and 25/12 (31/15 = 2.067 vs 25/12 = 2.083:
+  close, not equal).
+**Repeat-pilot set, 20**, drawn by code (seed 20261127) from C55's arm-1 S1 run at N = 15,000,
+seed 0 (a read-only re-run as in step13 --examples, with outputs asserted equal to the step-12
+cache). Phases as in A78, on this run's prevalence. Per phase, 4 draws made uniformly over all
+(day, never-ill agent) pairs in that phase. Current action = the agent's start-of-day action,
+except one randomly chosen draw per phase, which is set to stay_home (arm 1 never stays home;
+arm-2 agents will). *Implementation choices (Claude Code, reported):* prevalence = the run's
+end-of-day I count (`prevalence[t]`); t_max = the first day of the maximum; a "late" day t is one
+after the falling phase whose start-of-day E + I > 0 (the A55 condition for being asked); draws
+within a phase are without replacement; the generator is used in a fixed order (per phase, in
+the order early, rising, peak, falling, late: the 4 draws, then the stay_home pick).
+
+*Locked inputs, built 27 Nov 2026 (no API call). [Measured facts only.]* `py -3.14
+experiments/step14_pilot_inputs.py` (log `results/pilot/inputs.log`); rendered with the v2 DRAFT
+renderer; each situation stores its PerceptionV2 fields, prompt and prompt SHA-256.
+- `results/pilot/situations_a62.json` (14 situations), SHA-256
+  `5ba91ee7bf9e31121f7398a9f4696928030b3f842730f5e62d88a693b8a50f70`. Rendered past week / week
+  before / cumulative, asserted in code: D0 0/0/0, D4 4/4/19, D15 15/15/75, D63 63/63/313, D125
+  125/125/625, Trise 15/5/35, Tfall 15/31/139. Band 2 "about 3 in 10,000", band 8 "about 4 in 100".
+- `results/pilot/situations_repeat.json` (20 situations), SHA-256
+  `8ce24dc03aee1340e407485c3c223e81f041c61c82b47a74ea637601d7f327c0`. The re-run equals the
+  step-12 cache (incidence, prevalence, S, awareness signal, deaths). Prevalence maximum 1,626 on
+  day 39; first ≥ 10% of it on day 15, last on day 85; the run ends on day 141. Phases (days,
+  count): early 0–14 (15), rising 15–35 (21), peak 36–42 (7), falling 43–85 (43), late 86–141 (56).
+  Drawn days: early 11, 4, 5, 2; rising 30, 18, 34, 34; peak 36, 39, 41, 38; falling 80, 46, 47,
+  81; late 135, 109, 126, 94. Set to stay_home: early1, rising3, peak1, falling0, late2.
+
+*Clarifications (Max, 27 Nov 2026), answering Claude Code's step-14-prep questions:*
+1. **Transport errors:** `src/qwen_client.py` stays unchanged (`ask()` still returns
+   `fallback=True` with `transport_error` set when the retries are exhausted). The step-4 runner
+   checks `transport_error` on every `ask()` result and pauses the run (resumable) instead of
+   applying the A61 fallback.
+2. **Check (iv):** "every decision valid within A61's attempts" is the freeze gate; first-attempt
+   validity is reported alongside. This operationalises A62's "valid output every time". Note the
+   difference: A62's wording could be read as every first attempt; C37 reported (iv) without
+   using it as a gate.
+3. **Step 4 at N = 1,000** is a deliberate pipeline-test exception to A71; its call counts are not
+   used for the full-scenario estimate.
+4. **"1 people":** the template is left unchanged (A74: the v2 template = v1 apart from the death
+   sentences); recorded as a known limitation (section F).
+5. **Phase implementation choices** (end-of-day prevalence, first day of the maximum, late = start-
+   of-day E + I > 0, draws without replacement, generator order) are **approved**.
+
+**C60 — Pilot step 2: speed test (C59 Step 2). [Measured facts only.]** Run 27 Nov 2026 on Max's
+approval (up to 60 requests), `py -3.14 experiments/step15_speed_test.py --offline`, `--plan`,
+`--run`, `--score`; logs `results/pilot/step2_run.log`, `step2_score.log`; ledger
+`results/pilot/step2/requests.jsonl` (60 lines, 60 distinct keys); `speed_log.json`,
+`speed_scores.json`. Lab Token Plan key; A79 settings; the 10 smoke prompts cycled; one HTTP
+request per call, no retries (neither transport nor A61). Offline check first (fake client, fake
+delay): 8 requests in flight at level 8, level wall time measured from request start/end times,
+stop after an injected error (level finished, no higher level, no retry), cap 60 held with 50
+earlier ledger lines. Console Credits before step 2: not taken (Max's choice, see C58 Part C).
+- 60 requests, all HTTP 200, finish_reason "stop", 60/60 replies valid under A64; prompt tokens
+  313–323, completion 12–14; `completion_tokens_details` null and reasoning text 0 characters on
+  all 60. All four levels ran (no error at any level).
+
+| concurrency | n | errors | median s | 95th pct s | min–max s | wall s | requests/s | server req-cost-time median s | x-envoy-upstream median s | client − envoy median s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 15 | 0 | 0.895 | 1.171 | 0.70–1.24 | 14.09 | 1.06 | 0.849 | 0.841 | 0.035 |
+| 2 | 15 | 0 | 0.872 | 1.019 | 0.68–1.06 | 6.79 | 2.21 | 0.824 | 0.824 | 0.044 |
+| 4 | 15 | 0 | 0.857 | 1.296 | 0.74–1.43 | 3.86 | 3.88 | 0.818 | 0.818 | 0.042 |
+| 8 | 15 | 0 | 0.947 | 1.091 | 0.74–1.22 | 2.02 | 7.44 | 0.891 | 0.891 | 0.040 |
+
+- Total wall time 26.8 s. Server-side time (both headers) is 0.82–0.89 s median at every level;
+  the client-measured total exceeds the envoy upstream time by a median of 0.035–0.044 s.
+- **Operating concurrency for steps 3 and 4 (C59: highest level with 0 errors): 8.** Levels above 8
+  were not tested.
+- *Predictions vs outcome:* level-1 median 0.4–3 s (planning chat) — as predicted (0.895 s);
+  level-8 median within 1.5× level 1 — as predicted (0.947 / 0.895 = 1.06×); 0 errors at every
+  level — as predicted; level-1 median 0.5–1.5 s (Claude Code) — as predicted.
+- Console Credits after step 2: **not available; requested from the key owner** (Max has no
+  console access yet, 27 Nov 2026). The ledgers' timestamps allow usage to be matched later if
+  the owner can see usage by hour or day.
+
+**C61 — A78 group sizes from C53's stub dry runs, v2 prompts; A78 calculator built. [Measured
+facts only.]** Run 27 Nov 2026, offline, no API: `py -3.14 experiments/step16_reuse_groups.py
+--verify`, `--sim`, `--score` (logs `results/pilot/reuse_groups_verify.log`, `reuse_groups_score.log`;
+group sizes `results/pilot/reuse_groups.npz`); calculator `src/reuse_rule.py`, tests
+`tests/test_reuse_rule.py`. No predictions were recorded before this part.
+- Runs: C53's stub dry runs re-run (S1, N = 15,000, seeds 0–9, stubs 10/60/30 and 40/50/10; p = 0.3,
+  A55 stop, 7-day window). Decisions per run equal C53's for all 20 runs. Prompts identified by
+  the v2 renderer's fields; full v2 rendering of every decision on seed 0 is one-to-one with the
+  grouping key (10/60/30: 479,883 decisions, 146,380 distinct; 40/50/10: 1,253,695 and 301,916).
+  A group = one (day, distinct prompt) of one run (A80); sums are over the 10 runs of a stub.
+  Phases per A78 / C59 on each run's own prevalence (late = start-of-day E + I > 0); every
+  decision day falls in a phase.
+
+| stub | phase | groups | Σk | Σk² | K = Σk²/Σk | largest k |
+|---|---|---|---|---|---|---|
+| 10/60/30 | early | 309,531 | 1,356,469 | 19,490,329 | 14.368 | 95 |
+| 10/60/30 | rising | 394,813 | 1,541,387 | 18,922,179 | 12.276 | 64 |
+| 10/60/30 | peak | 59,880 | 186,741 | 1,625,993 | 8.707 | 43 |
+| 10/60/30 | falling | 315,251 | 780,920 | 4,699,964 | 6.018 | 38 |
+| 10/60/30 | late | 434,906 | 949,460 | 4,456,142 | 4.693 | 27 |
+| 10/60/30 | all | 1,514,381 | 4,814,977 | 49,194,607 | 10.217 | 95 |
+| 40/50/10 | early | 42,591 | 183,818 | 2,542,468 | 13.831 | 95 |
+| 40/50/10 | rising | 919,852 | 3,824,253 | 48,082,053 | 12.573 | 95 |
+| 40/50/10 | peak | 71,622 | 294,798 | 3,673,248 | 12.460 | 91 |
+| 40/50/10 | falling | 1,355,942 | 5,419,136 | 64,360,520 | 11.877 | 59 |
+| 40/50/10 | late | 289,524 | 1,087,356 | 11,797,898 | 10.850 | 54 |
+| 40/50/10 | all | 2,679,531 | 10,809,361 | 130,456,187 | 12.069 | 95 |
+
+*Σ min(m, k) over the 10 runs (A81), beside C53 column (b) (= Σ min(1, k), checked equal):*
+
+| stub | m = 1 (column (b)) | m = 3 | m = 5 | m = 10 | m = 20 |
+|---|---|---|---|---|---|
+| 10/60/30 | 1,514,381 | 2,845,510 (×1.879) | 3,444,667 (×2.275) | 4,091,673 (×2.702) | 4,540,544 (×2.998) |
+| 40/50/10 | 2,679,531 | 5,605,371 (×2.092) | 7,069,898 (×2.638) | 8,625,634 (×3.219) | 9,994,428 (×3.730) |
+
+*Information only, not a rule change:* the boundary SD of A, √(m · mean b / (K − 1)), i.e. the root
+of the phase's mean per-prompt variance at which R_f(m) = 1, in percentage points (a phase
+passes below it). m = 1 at b = 0.15 equals m = 3 at b = 0.05 by construction (same m · b).
+
+| stub | phase | m=1, b 0.05 | m=1, b 0.10 | m=1, b 0.15 | m=3, b 0.05 | m=3, b 0.10 | m=3, b 0.15 |
+|---|---|---|---|---|---|---|---|
+| 10/60/30 | early | 6.12 | 8.65 | 10.59 | 10.59 | 14.98 | 18.35 |
+| 10/60/30 | rising | 6.66 | 9.42 | 11.53 | 11.53 | 16.31 | 19.98 |
+| 10/60/30 | peak | 8.05 | 11.39 | 13.95 | 13.95 | 19.73 | 24.16 |
+| 10/60/30 | falling | 9.98 | 14.12 | 17.29 | 17.29 | 24.45 | 29.94 |
+| 10/60/30 | late | 11.64 | 16.45 | 20.15 | 20.15 | 28.50 | 34.91 |
+| 40/50/10 | early | 6.24 | 8.83 | 10.81 | 10.81 | 15.29 | 18.73 |
+| 40/50/10 | rising | 6.57 | 9.30 | 11.38 | 11.38 | 16.10 | 19.72 |
+| 40/50/10 | peak | 6.61 | 9.34 | 11.44 | 11.44 | 16.18 | 19.82 |
+| 40/50/10 | falling | 6.78 | 9.59 | 11.74 | 11.74 | 16.61 | 20.34 |
+| 40/50/10 | late | 7.12 | 10.08 | 12.34 | 12.34 | 17.45 | 21.37 |
+
+*Calculator (`src/reuse_rule.py`):* R_f(m) as A78; PASS = R_f(m) < 1 in every phase under every
+stub (σ² = 0 passes); choice m = 1, else 3, else the smallest m > 3 that passes (searched upward,
+A81); Σ min(m, k); ICC(1,1) with the Shrout & Fleiss F-based 95% CI; bootstrap interval for R_f.
+A78's synthetic tests pass (σ = 0 → 0, all k = 1 → 0, a hand-computed case 0.08/0.96, m = 3 = one
+third of m = 1), plus the choice of m, Σ min(m, k), the boundary SD and a hand-computed ICC: 9
+passed. Implementation choices (Claude Code, for Max to confirm): identical repeats give σ² = 0
+exactly (floating-point variance is not used for them); **the bootstrap resamples each
+situation's repeats with replacement, situations and group sizes fixed** — A78 does not name the
+resampling unit.
+*Max's answers (27 Nov 2026):* (1) bootstrap — report both: repeats only (situations and group
+sizes fixed), and two-level (resample the phase's 4 situations, then the repeats within each);
+information only. (2) exact 0 for identical repeats — approved. (3) no predictions for this part —
+fine: it is deterministic counting, and C59 already holds the reuse prediction.
+
+**C62 — Pilot step 3 (C59 Steps 3a–3c). Implementation fixed before any step-3 request (27 Nov
+2026).** Script `experiments/step17_pilot3.py`; Max approved up to 50 + 15 + 420 = 485 requests;
+concurrency 8; A79 settings; one ledger per step (`results/pilot/step3a|step3b|step3c/requests.jsonl`).
+Console Credits: **not available; requested from the key owner** (Max has no console access).
+Situation files are checked against C59's SHA-256 and every prompt is re-rendered with the v2
+renderer and compared before sending. 3a: 3 repeats × 14 situations, sent repeat by repeat. 3b:
+`experiments/step5_arm3_generate.py`'s extraction and A53 checks reused unchanged except that
+the attribute list is PerceptionV2's and the check grid uses the v2 field names with population
+15,000 (grid A) and 15,000 in grid B's population choices (v1: 3,000); rules 1–5 are generated
+in parallel, then every failed rule again, round by round, until all pass or the cap; rules are
+staged and copied to `src/arm3_rules/qwen_v2/` (with a manifest per A54) only if all 5 pass. 3c:
+400 decisions sent in the order of `numpy.random.default_rng(20261128).permutation(400)` over
+(situation, repeat) pairs listed situation by situation. Offline check passed first (fake client):
+3a scoring, 3b regeneration after a failed A53 check and after a "length" finish, the 3b cap stop
+with nothing frozen, 3c shuffled order and full scoring.
+
+**C62 results, step 3a. [Measured facts only.]** Run 27 Nov 2026, `py -3.14
+experiments/step17_pilot3.py --plan3a`, `--run3a`, `--score3a`; logs `results/pilot/step3a_run.log`,
+`step3a_score.log`; `results/pilot/step3a/run.json`, `scores.json`; ledger
+`results/pilot/step3a/requests.jsonl` (42 lines). Planned 42 decisions, cap 50, ≈ $0.0022 at
+pay-as-you-go prices. **Requests 42**; HTTP 200 on all; 0 errors; finish_reason "stop" on all;
+**tokens in 13,371 (313–324 per request), out 575 (13–14)**; `completion_tokens_details` null and
+reasoning text 0 characters on all; **wall time 5.8 s** at concurrency 8 (median 0.94 s per
+request). Console Credits: not available; requested from the key owner.
+
+| situation | replies (A/B/C) | caution c (SD) | P(stay home) | valid / first attempt |
+|---|---|---|---|---|
+| D0 band 2 | 5/60/35 5/30/65 10/45/45 | 0.517 (0.153) | 0.067 | 3/3 / 3/3 |
+| D0 band 8 | 10/55/35 5/45/50 5/60/35 | 0.600 (0.087) | 0.067 | 3/3 / 3/3 |
+| D4 band 2 | 10/65/25 10/60/30 5/40/55 | 0.633 (0.161) | 0.083 | 3/3 / 3/3 |
+| D4 band 8 | 15/70/15 ×3 | 0.850 (0.000) | 0.150 | 3/3 / 3/3 |
+| D15 band 2 | 10/70/20 20/70/10 15/70/15 | 0.850 (0.050) | 0.150 | 3/3 / 3/3 |
+| D15 band 8 | 5/80/15 10/75/15 30/65/5 | 0.883 (0.058) | 0.150 | 3/3 / 3/3 |
+| D63 band 2 | 10/75/15 20/60/20 15/60/25 | 0.800 (0.050) | 0.150 | 3/3 / 3/3 |
+| D63 band 8 | 5/70/25 10/75/15 45/35/20 | 0.800 (0.050) | 0.200 | 3/3 / 3/3 |
+| D125 band 2 | 25/60/15 10/75/15 15/70/15 | 0.850 (0.000) | 0.167 | 3/3 / 3/3 |
+| D125 band 8 | 5/40/55 15/60/25 15/60/25 | 0.650 (0.173) | 0.117 | 3/3 / 3/3 |
+| Trise band 2 | 10/60/30 5/70/25 10/60/30 | 0.717 (0.029) | 0.083 | 3/3 / 3/3 |
+| Trise band 8 | 25/60/15 25/60/15 30/50/20 | 0.833 (0.029) | 0.267 | 3/3 / 3/3 |
+| Tfall band 2 | 5/60/35 15/60/25 15/60/25 | 0.717 (0.058) | 0.117 | 3/3 / 3/3 |
+| Tfall band 8 | 30/50/20 5/60/35 35/60/5 | 0.800 (0.150) | 0.233 | 3/3 / 3/3 |
+
+*Checks (C59, scored as C37):*
+- (i) c(D125) > c(D0) for both agents — **PASS** (band 2 0.850 vs 0.517; band 8 0.650 vs 0.600).
+- (ii) c(band 8) ≥ c(band 2) in all 7 histories — **FAIL: 6/7; fails at D125** (0.650 vs 0.850);
+  holds at D0, D4, D15, D63 (0.800 = 0.800, tie passes), Trise, Tfall.
+- (iii) c(Trise) ≥ c(Tfall) for both agents — **PASS** (band 2 0.717 = 0.717, tie passes; band 8
+  0.833 vs 0.800).
+- (iv) every decision valid within A61's attempts — **PASS** (42/42; first attempt 42/42; 0
+  retries, 0 fallbacks).
+- **Not all of (i)–(iv) pass, so v2 is NOT frozen (`prompts/frozen_v2/` not created), and per C59
+  and Max's instruction steps 3b and 3c were NOT run (0 requests). Reported to Max for decision;
+  no rewording (A66).**
+- *Predictions vs outcome:* (iv) pass (planning chat, high) — as predicted; (ii) pass (medium) —
+  **wrong**; (i) pass (medium) — as predicted; (iii) pass (about 50%) — as predicted (passes, on a
+  tie for band 2); (ii) fails on a D history if it fails at all, not on T (Claude Code, low) — as
+  predicted (D125). Step 3c's prediction (m = 1 passes) is not scored: 3c not run.
+
+
+**C63 — Step 3a re-score. PRE-REGISTRATION, written 27 Nov 2026 before any re-score request.**
+[Decision, Max, 27 Nov 2026.] **Why:** 3 repeats are too few for Qwen's repeat noise (band 8 at
+D125: SD 0.173 against a 0.20 gap, C62). **Decided after seeing the 3a result, and recorded as
+such.**
+- *Design:* the same 14 situations (`results/pilot/situations_a62.json`, SHA-256 checked against
+  C59; every prompt re-rendered and compared), **20 fresh repeats each = 280 decisions, cap 300**,
+  concurrency 8, A79 settings, ledger `results/pilot/step3a_rescore/requests.jsonl`.
+- *Verdict:* checks (i)–(iv) scored exactly as C59 on the **20 fresh repeats only. This is the
+  final 3a verdict; no further reruns.** Also reported, information only: the pooled 23 repeats
+  (C62's 3 + these 20), and for every comparison the difference in mean caution with its standard
+  error (√(s₁²/n₁ + s₂²/n₂), repeat SDs with ddof 1).
+- *If all four pass:* freeze v2 per C59, then run 3b and 3c exactly as C59/C62 (caps 15 and 420).
+- *If any fails:* freeze v2 anyway; record the failed check(s) as a finding about Qwen, and record
+  in section D that the A62 checks become a reported diagnostic for v2 rather than a freeze gate
+  (A66 closed rewording, so there is no alternative wording to select). Then run 3b and 3c as above.
+- *Predictions (Claude Code) [Speculation]:* (iv) pass (high); (i) pass (medium-high); (ii) pass
+  (low-medium, about 45%; all 7 comparisons must hold); (iii) pass (about 50%).
+
+**C63 results — step 3a re-score, the final 3a verdict. [Measured facts only.]** Run 27 Nov 2026,
+`py -3.14 experiments/step17_pilot3.py --plan3a-rescore`, `--run3a-rescore`, `--score3a-rescore`;
+logs `results/pilot/step3a_rescore_run.log`, `step3a_rescore_score.log`; `step3a_rescore/run.json`,
+`scores.json`, `scores_pooled23.json`; ledger `step3a_rescore/requests.jsonl` (280 lines). Planned
+280 decisions, cap 300, ≈ $0.0149 at pay-as-you-go prices. **Requests 280**; HTTP 200 on all; 0
+errors; finish "stop" on all; **tokens in 89,140 (313–324 per request), out 3,831 (12–14)**; no
+reasoning-token count, 0 reasoning characters; **wall 29.9 s** (median 0.83 s per request).
+Credits: not available; requested from the key owner.
+
+| situation | c, 20 fresh (SD) | P(stay), 20 fresh | c, pooled 23 |
+|---|---|---|---|
+| D0 band 2 / band 8 | 0.635 (0.165) / 0.693 (0.160) | 0.071 / 0.095 | 0.620 / 0.680 |
+| D4 band 2 / band 8 | 0.730 (0.119) / 0.792 (0.065) | 0.085 / 0.125 | 0.717 / 0.800 |
+| D15 band 2 / band 8 | 0.767 (0.108) / 0.850 (0.079) | 0.120 / 0.130 | 0.778 / 0.854 |
+| D63 band 2 / band 8 | 0.797 (0.062) / 0.855 (0.071) | 0.135 / 0.168 | 0.798 / 0.848 |
+| D125 band 2 / band 8 | 0.722 (0.140) / 0.820 (0.113) | 0.103 / 0.140 | 0.739 / 0.798 |
+| Trise band 2 / band 8 | 0.738 (0.160) / 0.842 (0.067) | 0.113 / 0.197 | 0.735 / 0.841 |
+| Tfall band 2 / band 8 | 0.755 (0.089) / 0.845 (0.074) | 0.115 / 0.158 | 0.750 / 0.839 |
+
+*Verdict on the 20 fresh repeats (C59 scoring):* **(i) PASS** (band 2 0.722 > 0.635; band 8 0.820 >
+0.693); **(ii) PASS, 7/7**; **(iii) FAIL** (band 2 0.738 < 0.755; band 8 0.842 < 0.845); **(iv)
+PASS** (280/280 valid; first attempt 280/280; 0 retries, 0 fallbacks). **Not all pass.** Pooled 23
+(information only): (i) pass, (ii) 7/7, (iii) fails for band 2 (0.735 < 0.750) and passes for band
+8 (0.841 ≥ 0.839), (iv) 322/322.
+
+*Differences in mean caution, SE = √(s₁²/n₁ + s₂²/n₂) (information only):*
+
+| comparison | 20 fresh: diff (SE) | pooled 23: diff (SE) |
+|---|---|---|
+| (i) D125 − D0, band 2 | +0.087 (0.048) | +0.120 (0.045) |
+| (i) D125 − D0, band 8 | +0.127 (0.044) | +0.117 (0.042) |
+| (ii) band 8 − band 2, D0 | +0.057 (0.051) | +0.061 (0.047) |
+| (ii) D4 | +0.062 (0.030) | +0.083 (0.029) |
+| (ii) D15 | +0.082 (0.030) | +0.076 (0.027) |
+| (ii) D63 | +0.058 (0.021) | +0.050 (0.019) |
+| (ii) D125 | +0.098 (0.040) | +0.059 (0.040) |
+| (ii) Trise | +0.105 (0.039) | +0.107 (0.034) |
+| (ii) Tfall | +0.090 (0.026) | +0.089 (0.025) |
+| (iii) Trise − Tfall, band 2 | −0.017 (0.041) | −0.015 (0.036) |
+| (iii) Trise − Tfall, band 8 | −0.003 (0.022) | +0.002 (0.022) |
+
+**Finding about Qwen (C63):** on v2, qwen3.8-flash's caution does not differ between rising and
+falling deaths at the same past-week total (check (iii) fails on the fresh repeats; the differences
+are −0.017 and −0.003, each within one SE of 0). Per C63, **v2 is frozen anyway** (below), and the
+A62 checks are a reported diagnostic for v2 (D18). *Predictions vs outcome (C63, Claude Code):*
+(iv) pass — as predicted; (i) pass — as predicted; (ii) pass (about 45%) — as predicted; (iii) pass
+(about 50%) — **wrong**.
+
+*v2 frozen (C63), 27 Nov 2026* (`--freeze-v2-c63`, byte copies of the C58 drafts; `.gitattributes`
+marks `prompts/frozen_v2/**` `-text`): **`prompts/frozen_v2/arm2_template_v2.txt`, 997 characters,
+SHA-256 `fc75ff228eec760454b2a63f98a09a7be756791a50d6b54395f5029152533259`;
+`prompts/frozen_v2/arm3_instruction_v2.txt`, 3,280 characters, SHA-256
+`a4c50433aff063419169c3753e1569cb234dd60bc0690ce286a748f810bb7ed9`.**
+
+**C62 results, step 3b — arm-3 rules regenerated with Qwen. [Measured facts only.]** `--plan3b`
+(5 generations, cap 15, ≈ $0.003 at assumed sizes), `--run3b`; log `results/pilot/step3b_run.log`;
+`step3b/run.json`; ledger `step3b/requests.jsonl` (15 lines); rejected replies in
+`results/pilot/step3b/staged/`. Instruction `prompts/frozen_v2/arm3_instruction_v2.txt` (hash
+checked); A79 settings, max_tokens 8192; A53 grid 82,208 points (62,208 structured + 20,000 random).
+**Requests 15 = the cap**; HTTP 200 on all; 0 transport errors; finish "stop" on all 15 (no
+"length"); **tokens in 15,255 (1,017 per request), out 31,742 (1,537–2,969)**; no reasoning-token
+count, 0 reasoning characters; **wall 138.1 s**.
+
+| rule | attempt | A53 result | output tokens |
+|---|---|---|---|
+| 1 | 1 | PASS | 1,993 |
+| 2 | 1 | FAIL (2) probabilities: sum = 100.0 | 2,049 |
+| 2 | 2 | FAIL (1) runs: OverflowError (math range error) | 1,537 |
+| 2 | 3 | FAIL (1) runs: OverflowError (math range error) | 2,403 |
+| 2 | 4 | FAIL (2) probabilities: sum = 100.0 | 2,203 |
+| 2 | 5 | PASS | 2,276 |
+| 3 | 1 | PASS | 1,852 |
+| 4 | 1 | FAIL (2) probabilities: sum = 100.0 | 1,927 |
+| 4 | 2 | FAIL (2) probabilities: sum = 1.000001 | 2,259 |
+| 4 | 3 | FAIL (1) runs: UnboundLocalError | 1,914 |
+| 4 | 4 | PASS | 2,969 |
+| 5 | 1 | FAIL (2) probabilities: sum = 100.0 | 1,870 |
+| 5 | 2 | FAIL (2) probabilities: sum = 100.0 | 2,239 |
+| 5 | 3 | FAIL (2) probabilities: sum = 1.000001 | 1,637 |
+| 5 | 4 | PASS | 2,614 |
+
+- 10 of 15 generations failed an A53 check (5 × sums of 100 instead of 1, 2 × sums of 1.000001,
+  2 × OverflowError, 1 × UnboundLocalError); every failure was regenerated (A51) and logged. **All
+  5 rules passed within the cap (the 15th request produced the last one).**
+- **Frozen per A54 in `src/arm3_rules/qwen_v2/`** (rule_k.py, rule_k_reply.txt, manifest.json with
+  code and reply SHA-256, prompt file and hash, settings, model served "qwen3.8-flash" — the API
+  returns no snapshot or version identifier — and the generation log; frozen 2026-11-27T08:13:07Z).
+  Code SHA-256 (first 16 hex digits): rule 1 `8c8771f60c656735`, rule 2 `5a33e85640976993`, rule 3
+  `ca94983ba20854e2`, rule 4 `c91ae77ccc41d48f`, rule 5 `9c6f8a40ac615bdb` (full values in the
+  manifest). The Haiku rules (`src/arm3_rules/v1/`) are untouched. No C59 prediction for 3b.
+
+**C62 results, step 3c — repeat pilot. [Measured facts only.]** `--plan3c` (400 decisions, cap 420,
+≈ $0.0212), `--run3c`, `--score3c`; logs `results/pilot/step3c_run.log`, `step3c_score.log`;
+`step3c/run.json` (incl. the sent order), `scores.json`; ledger `step3c/requests.jsonl` (400 lines,
+400 distinct keys). Order = `default_rng(20261128).permutation(400)`. **Requests 400**; HTTP 200 on
+all; 0 errors; finish "stop"; **tokens in 126,020 (310–319), out 5,357 (12–14)**; no
+reasoning-token count, 0 reasoning characters; **wall 68.5 s** (median 0.84 s per request).
+**Invalid replies 0 (400/400 valid at the first attempt); fallbacks 0.**
+
+| situation | phase | day | band | action | mean A | SD A (pp) | mean A+B | SD A+B (pp) |
+|---|---|---|---|---|---|---|---|---|
+| early0 | early | 11 | 7 | normal | 0.049 | 4.02 | 0.198 | 13.90 |
+| early1 | early | 4 | 7 | stay_home | 0.315 | 24.50 | 0.930 | 4.10 |
+| early2 | early | 5 | 4 | normal | 0.034 | 2.83 | 0.170 | 8.49 |
+| early3 | early | 2 | 4 | normal | 0.070 | 2.51 | 0.417 | 11.62 |
+| rising0 | rising | 30 | 1 | precautions | 0.155 | 7.59 | 0.825 | 6.39 |
+| rising1 | rising | 18 | 8 | precautions | 0.170 | 9.23 | 0.900 | 6.07 |
+| rising2 | rising | 34 | 4 | precautions | 0.170 | 7.15 | 0.880 | 5.71 |
+| rising3 | rising | 34 | 7 | stay_home | 0.762 | 8.09 | 0.956 | 1.47 |
+| peak0 | peak | 36 | 6 | normal | 0.125 | 5.50 | 0.627 | 15.17 |
+| peak1 | peak | 39 | 5 | stay_home | 0.545 | 6.86 | 0.942 | 1.83 |
+| peak2 | peak | 41 | 4 | precautions | 0.125 | 5.26 | 0.942 | 2.45 |
+| peak3 | peak | 38 | 6 | precautions | 0.120 | 4.97 | 0.907 | 5.91 |
+| falling0 | falling | 80 | 3 | stay_home | 0.318 | 12.17 | 0.885 | 6.09 |
+| falling1 | falling | 46 | 6 | precautions | 0.198 | 8.81 | 0.910 | 5.28 |
+| falling2 | falling | 47 | 0 | precautions | 0.155 | 8.09 | 0.892 | 5.91 |
+| falling3 | falling | 81 | 1 | precautions | 0.095 | 3.20 | 0.895 | 4.84 |
+| late0 | late | 135 | 4 | precautions | 0.080 | 2.51 | 0.775 | 10.58 |
+| late1 | late | 109 | 3 | precautions | 0.158 | 4.67 | 0.853 | 5.73 |
+| late2 | late | 126 | 8 | stay_home | 0.562 | 26.50 | 0.938 | 2.75 |
+| late3 | late | 94 | 3 | precautions | 0.143 | 5.45 | 0.868 | 5.20 |
+
+Per-situation SD of A: **median 6.18 pp, max 26.50 pp** (20 situations × 20 repeats).
+
+*A78 on A (the rule):*
+
+| stub | phase | mean σ² | mean b | R(1) | R(3) | R(1) 95%, repeats only | R(1) 95%, two-level |
+|---|---|---|---|---|---|---|---|
+| 10/60/30 | early | 0.01577 | 0.0899 | **2.346** | 0.782 | [1.638, 2.843] | [0.162, 3.500] |
+| 10/60/30 | rising | 0.00649 | 0.1486 | 0.492 | 0.164 | [0.342, 0.595] | [0.312, 0.636] |
+| 10/60/30 | peak | 0.00324 | 0.1431 | 0.175 | 0.058 | [0.124, 0.211] | [0.119, 0.224] |
+| 10/60/30 | falling | 0.00754 | 0.1480 | 0.255 | 0.085 | [0.174, 0.312] | [0.119, 0.343] |
+| 10/60/30 | late | 0.01900 | 0.1436 | 0.489 | 0.163 | [0.236, 0.681] | [0.043, 0.939] |
+| 40/50/10 | early | 0.01577 | 0.0899 | **2.252** | 0.751 | [1.572, 2.729] | [0.156, 3.359] |
+| 40/50/10 | rising | 0.00649 | 0.1486 | 0.505 | 0.168 | [0.351, 0.611] | [0.321, 0.653] |
+| 40/50/10 | peak | 0.00324 | 0.1431 | 0.260 | 0.087 | [0.185, 0.313] | [0.178, 0.333] |
+| 40/50/10 | falling | 0.00754 | 0.1480 | 0.554 | 0.185 | [0.378, 0.675] | [0.258, 0.743] |
+| 40/50/10 | late | 0.01900 | 0.1436 | **1.303** | 0.434 | [0.629, 1.816] | [0.113, 2.505] |
+
+**A78/A81 decision: m = 1 FAILS** (R(1) ≥ 1 in early under both stubs and in late under 40/50/10);
+**m = 3 PASSES** (largest R(3) 0.782) → **m = 3.** Σ min(3, k) over C61's runs: **2,845,510
+(10/60/30) and 5,605,371 (40/50/10)**, ×1.879 and ×2.092 of C53 column (b) (C61).
+*Same R for A + B (finding only):* every R(1) < 1 (largest 0.917, 10/60/30 early), so m = 1 would
+pass for A + B. *ICC(1,1) (20 situations × 20 repeats):* **A 0.780 [95% CI 0.665, 0.885]; A + B
+0.913 [0.855, 0.958].** The two largest SDs of A belong to the early and late draws set to
+stay_home (early1 24.50 pp, late2 26.50 pp).
+*Predictions vs outcome:* step 3c m = 1 passes (planning chat, low, close to even) — **wrong**
+(m = 3). Console Credits for step 3: not available; requested from the key owner.
+
+
 ## D. Reversals and corrections
 
 **D1 — Discretisation bug.** Setting the daily transition probability to `1 − exp(−rate)` at a
@@ -3561,6 +4054,14 @@ reaffirmed A24). After: N = 15,000 and the 7-day rolling mean (A71; Max, 26 Nov 
 C51, C52, C54). C7's objection to the 7-day window was measured at N ≤ 3,000. Every result
 recorded under the earlier settings stands as measured; it is not re-labelled.
 
+**D18 — The A62 checks become a reported diagnostic for v2, not a freeze gate (C63; Max, 27 Nov
+2026).** Before: C59 froze v2 only if A62's checks (i)–(iv) all passed. After: on the final 3a
+verdict (C63's 20 fresh repeats) check (iii) failed — qwen3.8-flash shows no rising-vs-falling
+difference at the same past-week total — and v2 was frozen anyway. A66 closed rewording, so there
+is no alternative wording to select; the checks are reported for v2, not used to gate it. The C62
+3-repeat verdict ((ii) failed at D125) was superseded by C63's re-score, which was decided after
+seeing that result.
+
 ## E. Open items
 
 | # | Item | Blocks |
@@ -3590,6 +4091,7 @@ recorded under the earlier settings stands as measured; it is not re-labelled.
 | E24 | **PROPOSED, report-only measure, for supervisor approval: "death responsiveness".** (a) Per run: the correlation over time between the population's mean caution among deciding agents and `deaths_28day_mean`, over the days while E + I > 0. (b) For any rule (arm 1, each arm-3 rule, arm 2 via its pilot answers): its caution curve across 4-week deaths 0 / 3 / 12 / 50 / 100 for the young (band 2) and old (band 8) pilot agents, on C37's situations. Caution = 1 − P(normal). **Open points filled (Max, 10 Oct 2026, before any arm-3 run):** Spearman rank correlation; caution = the REALISED share of deciding agents (never-ill and alive: S or E) whose action is stay_home or precautions; lag 0; days while E + I > 0; for arm 1, the share in S^B among the same agents (S^B / (S + E); CBF has no cautious E state, so arm 1's E agents never count as cautious, whereas arm 3's E agents count by their realised action — recorded asymmetry). *Implementation (C39):* per run, day t pairs `deaths_28day_mean` at the start of day t (the world's awareness signal) with the caution share at the end of day t, over the days t whose end-of-day E + I > 0; undefined if either series is constant on those days (count reported). Not a pass mark; not used to select or discard anything | [Proposal, planning chat (Max), 10 Oct 2026] Motivation: C35–C37 |
 | E25 | **RESOLVED → A71 (N = 15,000 with a 7-day signal, not 30,000; Max, 26 Nov 2026).** Original text: **Open, for the supervisor meeting (NOT decided): candidate switch of the main town size from N = 3,000 to N = 30,000.** Reason: a Weitz-style plateau is reachable in the shared world at N = 30,000 (C43: Step B stretch ×19.5, 9/10 runs active at day 600, about 2.7 people in H in the main phase) but not at N = 3,000 (C42: ×1.83, 0/30 active; about one hospitalised person switches q between ≈ 0 and ≈ 0.96). **If adopted:** rerun Steps 1–3 and arm 3 at N = 30,000; re-measure the run-to-run spread under arm 1 to set the seed count; consider re-testing the 7-day window (A47, `deaths_28day_mean_7d_ago`). N = 3,000 is currently settled by C5/C7 (measured floor) and D13. *Cost (C44):* arm 2 at N = 30,000 is $718–$1,371 for 10 runs × 3 scenarios (about $4,500 if arm 2 plateaus), against a budget of about $100 (A67). Cheaper routes to a plateau: C45 | N (C5/C7, D13); seed count; arm-2 call budget (C32, C44); every result C26–C41 |
 | E26 | **PROPOSED (for supervisor point 6; NOT adopted): the "real plateau" check.** A flattened result counts as behaviour-driven only if ALL hold: **(i)** death responsiveness (E24, exactly as implemented in C39) ≥ 0.3; **(ii)** the cautious share among deciding agents varies over time: SD (ddof = 1) of the daily caution share (E24's realised share; arm 1: S^B / (S + E)) over the days with end-of-day E + I > 0 ≥ 0.05; **(iii)** the disease really spread: attack size = 1 − S at day 600 (includes the 10 initial cases) ≥ 0.10. **All three thresholds are UNSOURCED** (planning chat's proposal, 16 Oct 2026). *Operationalisation (Claude Code, fixed before computing):* criteria are applied per run; an undefined death responsiveness (either series constant on the active days, E24) fails (i) for that run, and an undefined SD (< 2 active days) fails (ii). **Config verdict: PASS if more than half of its runs meet all three**; config means (DR over defined runs, n reported) are shown alongside. *Validation on known cases:* should PASS — Weitz's rule at N = 30,000 (C43 step B, 10 runs; rerun with the caution series logged, incidence checked bit-identical to the stored runs); should FAIL — everyone careful from day 0 (C31 ceiling: (a) S1 and (c) S2 all precautions, 30 runs each; rerun, final S checked against C31) and arm-3 rule 2 (C39; S1, S2, S3). Information only: arm 1 (C30, via C39's shared-world rerun) and rules 1, 3, 4, 5 (C39), in S1–S3; and every C45 case. **If a known case lands on the wrong side it is reported and the thresholds are NOT adjusted.** *Predictions (Claude Code), [Speculation]:* ceiling FAILs (ii) with SD exactly 0 and DR undefined on every run (high); rule 2 FAILs (iii) in all three scenarios (high; C39 attack ≈ 0.01–0.02); C43 N = 30,000 meets (ii) and (iii) (high) but (i) is uncertain (~50%) — its rule follows H (zero lag), while E24 correlates against the 28-day mean of reported deaths, which lags H by weeks, and on a plateau both move slowly; arm 1 PASSes in S1–S3 (medium); rules 1 and 3 PASS (medium-high); rules 4 and 5 FAIL in S1 and S3 on (i) (medium; C39 DR 0.26 / 0.17 and −0.01 / −0.05). **Validation result (C46): the should-PASS case (C43, N = 30,000) FAILs on (i) (DR +0.187); all should-FAIL cases FAIL. Thresholds not adjusted; open for the planning chat.** **Criterion (i) REVISED after that failure (C50, planning chat, 16 Oct 2026; still PROPOSED): maximum Spearman correlation over lags −42…+42 days, best lag reported; (ii), (iii) and thresholds unchanged. Under it every known case is on its expected side (C50).** **Planning chat (Max), 16 Oct 2026: criteria (i)–(iii) are kept as revised in C50. E26 is a NECESSARY check only: it rejects constant caution (ii) and plain suppression (iii), but it cannot show that a flattened curve is CAUSED by reacting (C50: step-C cases that do not flatten pass it; rules 4 and 5 meet the revised (i)). Still PROPOSED, for supervisor approval** | supervisor point 6; the claim "behaviour produced the plateau" |
+| E27 | **Open: get on file the Alibaba confirmation the key owner reports** (A77) — that using the lab's Token Plan key for automated pilot scripts was checked with Alibaba's team, given the published Token Plan terms quoted in A72's flag. No written confirmation is held in the repo yet | record-keeping for A72/A77; not a blocker for the pilot (A77) |
 | E18 | **CLOSED — see C20.** The ~4-6% gap between the real CBF mechanism and its mean-field DDE reference is accepted as a documented, N-independent limitation of the ABM-vs-mean-field comparison, not chased further with more seeds, more N, or mechanism audits. (Whether it is mechanistically the same phenomenon as E16's separate Weitz-mechanism residual remains an open curiosity, not pursued — E16 itself stays open, it concerns Test 2/Weitz's own rule, not arm 1's CBF) | closed |
 
 ## F. Known limitations of everything measured above
@@ -3606,6 +4108,7 @@ recorded under the earlier settings stands as measured; it is not re-labelled.
   behaviour can flatten an epidemic. The two source models omit it too: Gozzi's CBF acts on
   healthy (susceptible) agents only, and Weitz's model is population-level with no individuals.
   E21 measures the size of the omission for arm 3.
+- **The arm-2 template says "1 people"** whenever a rendered death count is 1 (in "{n} people in your town died of it" and the cumulative sentence). Present since v1 and kept in v2 (A74; Max, 27 Nov 2026: no rewording). It occurs in the pilot prompts (e.g. C59 repeat-pilot early0, rising1).
 
 ---
 
